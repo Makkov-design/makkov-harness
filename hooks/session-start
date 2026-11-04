@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SessionStart hook: injects ROUTING.md so the agent knows which skill fits which situation,
+# even when skill descriptions are trimmed from a long skill list. Reads one local file, prints JSON, nothing else.
+set -u
+root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+routing="$(cat "$root/ROUTING.md" 2>/dev/null || printf 'makkov-harness: ROUTING.md not found.')"
+esc() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"; s="${s//$'\r'/}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$(esc "$routing")"
+exit 0

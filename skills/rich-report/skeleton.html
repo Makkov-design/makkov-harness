@@ -1,0 +1,366 @@
+<title>Starter Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  STARTER for rich-report pages. House style: Linear-inspired, neutral surfaces plus Linear's lavender-blue accent, minimal, fintech/IT.
+  Content-only (no doctype/html/head/body: the publisher wraps it).
+  Working components: sticky contents rail with scroll-spy, takeaway cards, changes log, sortable table
+  with search, bars, tabs, accordion, timeline, status pills, callout, icon sprite, two themes, phone layout.
+  Keep the tokens, fonts, radii and spacing as they are: the style is the same for every report.
+  Replace the sample content, delete components the content does not need.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: left sticky contents rail + one reading column. Depth comes from a surface ladder and hairlines, never shadows or gradients. */
+:root {
+  --bg: #fbfbfc;      /* canvas */
+  --s1: #ffffff;      /* cards, tables, panels */
+  --s2: #f3f4f6;      /* chips, hover, selected */
+  --s3: #eceef1;      /* menus, deepest lift */
+  --line: #e4e6ea;
+  --line-strong: #d2d5db;
+  --ink: #0a0b0d;
+  --ink-2: #3b3f46;   /* secondary text */
+  --ink-3: #6a6f79;   /* tertiary text, labels */
+  --ink-4: #9a9fa8;   /* decorative marks only, not for reading text */
+  --on-ink: #ffffff;
+  --accent: #5e6ad2;        /* Linear lavender-blue: marks and fills (key bar, key row, dots) */
+  --accent-text: #4f5bc4;   /* accent as text, links, icons: readable on this theme */
+  --accent-soft: rgba(94, 106, 210, .1);
+  --edge: rgba(255, 255, 255, 0);
+  --focus: rgba(94, 106, 210, .6);
+  --good: #1a8a3a;    /* status colors: only inside pills and severity marks */
+  --warn: #a86a00;
+  --bad: #c93535;
+  --font-display: "Onest", -apple-system, "SF Pro Display", system-ui, "Segoe UI", sans-serif;
+  --font-body: "Onest", -apple-system, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #010102; --s1: #0f1011; --s2: #141516; --s3: #18191a;
+    --line: #23252a; --line-strong: #34343a;
+    --ink: #f7f8f8; --ink-2: #d0d6e0; --ink-3: #8a8f98; --ink-4: #62666d; --on-ink: #010102;
+    --accent: #5e6ad2; --accent-text: #828fff; --accent-soft: rgba(94, 106, 210, .16);
+    --edge: rgba(255, 255, 255, .05); --focus: rgba(94, 106, 210, .6);
+    --good: #27a644; --warn: #e0a63a; --bad: #f2555a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #010102; --s1: #0f1011; --s2: #141516; --s3: #18191a;
+  --line: #23252a; --line-strong: #34343a;
+  --ink: #f7f8f8; --ink-2: #d0d6e0; --ink-3: #8a8f98; --ink-4: #62666d; --on-ink: #010102;
+  --accent: #5e6ad2; --accent-text: #828fff; --accent-soft: rgba(94, 106, 210, .16);
+  --edge: rgba(255, 255, 255, .05); --focus: rgba(94, 106, 210, .6);
+  --good: #27a644; --warn: #e0a63a; --bad: #f2555a;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 .9375rem/1.55 var(--font-body); letter-spacing: -.005em;
+  -webkit-font-smoothing: antialiased;
+  padding-block: 0 5rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 10; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+p { margin: 0; max-width: 68ch; }
+.icon { width: 1.125rem; height: 1.125rem; flex: none; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-size: .8125rem; }
+.eyebrow { font: 500 .8125rem/1.3 var(--font-body); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.wrap { max-width: 1120px; margin-inline: auto; }
+.hero { padding-block: 3.5rem 2.5rem; display: grid; gap: 1.1rem; border-bottom: 1px solid var(--line); margin-bottom: 2.5rem; }
+.hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.5rem); font-weight: 600; line-height: 1.08; letter-spacing: -.035em; max-width: 20ch; }
+.hero .lead { font-size: 1.125rem; line-height: 1.5; color: var(--ink-3); letter-spacing: -.01em; }
+.chips { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .65rem; border-radius: 999px; background: var(--s2); border: 1px solid var(--line); font-size: .75rem; color: var(--ink-2); }
+.chip .icon { width: .9rem; height: .9rem; }
+.chip.brand { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+main a, footer a { color: var(--accent-text); text-underline-offset: 3px; }
+
+.shell { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 3rem; align-items: start; }
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.25rem); display: grid; gap: .1rem; }
+.toc a { display: flex; align-items: center; gap: .6rem; padding: .4rem .6rem; border-radius: 8px; color: var(--ink-3); text-decoration: none; font-size: .875rem; font-weight: 500; }
+.toc a:hover { background: var(--s2); color: var(--ink); }
+.toc a[aria-current="true"] { background: var(--s2); color: var(--ink); }
+.toc a[aria-current="true"] .icon { color: var(--accent-text); }
+main { display: grid; gap: 5rem; min-width: 0; }
+section { display: grid; gap: 1.25rem; min-width: 0; }
+section > h2 { font-size: clamp(1.4rem, 2.6vw, 1.75rem); font-weight: 600; line-height: 1.2; letter-spacing: -.025em; }
+.summary { color: var(--ink-3); font-size: 1rem; }
+
+.card { background: var(--s1); border: 1px solid var(--line); border-radius: 12px; box-shadow: inset 0 1px 0 var(--edge); }
+.takeaways { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
+.take { padding: 1.25rem; display: grid; gap: .6rem; align-content: start; }
+.take .mark { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); }
+.take strong { font-size: 1rem; font-weight: 500; letter-spacing: -.015em; line-height: 1.3; }
+.take span { color: var(--ink-3); font-size: .875rem; }
+
+.changes { padding: 0 1.25rem; }
+.changes h3 { padding-block: 1rem .5rem; }
+.changes ul { list-style: none; margin: 0; padding: 0; }
+.changes li { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; padding-block: .7rem; border-top: 1px solid var(--line); }
+.changes time { color: var(--ink-3); }
+
+.callout { display: flex; gap: .8rem; padding: 1rem 1.25rem; background: var(--s2); border: 1px solid var(--line); border-radius: 12px; }
+.callout .icon { color: var(--accent-text); margin-top: .15rem; }
+
+.tools { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.tools input { font: inherit; padding: .45rem .75rem; border: 1px solid var(--line); border-radius: 8px; background: var(--s1); color: var(--ink); min-width: 0; flex: 1 1 14rem; max-width: 22rem; }
+.tools input::placeholder { color: var(--ink-3); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .875rem; }
+th, td { padding: .7rem 1rem; text-align: left; border-bottom: 1px solid var(--line); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--s2); }
+thead th { position: sticky; top: 0; background: var(--s1); font-weight: 500; font-size: .75rem; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+th button { all: unset; cursor: pointer; display: inline-flex; gap: .35rem; align-items: center; }
+th button:hover { color: var(--ink); }
+th button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+td.r, th.r { text-align: right; }
+tr.pick td { background: var(--s2); font-weight: 500; }
+tr.pick td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+
+.pill { display: inline-flex; align-items: center; gap: .4rem; padding: .1rem .55rem; border-radius: 999px; background: var(--s2); border: 1px solid var(--line); font-size: .75rem; color: var(--ink-2); white-space: nowrap; }
+.pill::before { content: ""; width: .4rem; height: .4rem; border-radius: 50%; background: var(--ink-4); }
+.pill.good::before { background: var(--good); }
+.pill.warn::before { background: var(--warn); }
+.pill.bad::before { background: var(--bad); }
+.pill.rec { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+.pill.rec::before { background: var(--accent); }
+
+.tabs [role="tablist"] { display: inline-flex; gap: .2rem; padding: .2rem; background: var(--s1); border: 1px solid var(--line); border-radius: 999px; max-width: 100%; overflow-x: auto; }
+.tabs [role="tab"] { all: unset; cursor: pointer; padding: .3rem .9rem; border-radius: 999px; color: var(--ink-3); font-size: .875rem; font-weight: 500; white-space: nowrap; }
+.tabs [role="tab"]:hover { color: var(--ink); }
+.tabs [role="tab"][aria-selected="true"] { background: var(--s3); color: var(--ink); }
+.tabs [role="tab"]:focus-visible { outline: 2px solid var(--focus); }
+.tabs [role="tabpanel"] { padding-top: 1rem; display: grid; gap: .6rem; }
+
+details { background: var(--s1); border: 1px solid var(--line); border-radius: 12px; padding: .1rem 1.25rem; }
+details + details { margin-top: .5rem; }
+summary { cursor: pointer; padding: .85rem 0; font-weight: 500; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--accent-text); font-size: 1.2rem; line-height: 1; }
+details[open] summary::after { content: "\2212"; }
+details > div { padding-bottom: 1rem; color: var(--ink-2); }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; }
+.timeline li { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 1.5rem; padding-bottom: 1.5rem; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: 7rem; top: .6rem; bottom: -.4rem; width: 1px; background: var(--line-strong); transform: translateX(.7rem); }
+.timeline li::after { content: ""; position: absolute; left: 7rem; top: .4rem; width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--bg); transform: translateX(.45rem); }
+.timeline li:last-child::before { display: none; }
+.timeline .when { color: var(--ink-3); padding-top: .1rem; }
+.timeline .what { padding-left: 1.5rem; display: grid; gap: .2rem; }
+.timeline .what strong { font-weight: 500; letter-spacing: -.01em; }
+.timeline .what span { color: var(--ink-3); }
+
+.bars { display: grid; gap: .6rem; padding: 1.25rem; }
+.bar { display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr 3.5rem; gap: .8rem; align-items: center; font-size: .875rem; }
+.bar span { color: var(--ink-2); }
+.bar i { display: block; height: .5rem; border-radius: 3px; background: var(--ink-4); }
+.bar.top i { background: var(--accent); }
+.bar.top span, .bar.top b { color: var(--ink); }
+.bar b { text-align: right; font-weight: 500; color: var(--ink-2); }
+
+footer { color: var(--ink-3); font-size: .8125rem; padding-block: 2rem 0; border-top: 1px solid var(--line); margin-top: 4rem; }
+
+@media (max-width: 880px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  main { gap: 3.5rem; }
+  .hero { padding-block: 2rem 1.75rem; }
+  .toc { position: sticky; top: env(safe-area-inset-top, 0px); display: flex; overflow-x: auto; gap: .3rem; padding-block: .55rem; background: var(--bg); z-index: 5; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .toc a { white-space: nowrap; }
+  .changes li { grid-template-columns: 1fr; gap: .1rem; }
+  .timeline li { grid-template-columns: 1fr; gap: .15rem; padding-left: 1.5rem; }
+  .timeline li::before, .timeline li::after { left: 0; }
+  .timeline .what { padding-left: 0; }
+  .bar { grid-template-columns: 1fr 3rem; }
+  .bar i { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+</style>
+
+<!-- Icon sprite: add only the symbols you use. 1.5px stroke, currentColor. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".6"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="chips"><span class="chip brand mono">RPT-001</span><span class="chip"><svg class="icon"><use href="#i-target"/></svg>Область: шаблон</span><span class="chip mono">Обновлено: дата</span></div>
+    <h1>Заголовок отчёта, который формулирует вопрос</h1>
+    <p class="lead">Одно предложение: на какой вопрос отвечает страница и для кого она.</p>
+  </header>
+
+  <div class="shell">
+    <nav class="toc" id="toc" aria-label="Содержание"></nav>
+
+    <main>
+      <section id="summary" data-nav="Главное" data-icon="i-target">
+        <h2>Что важно знать</h2>
+        <div class="takeaways">
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-bulb"/></svg></span><strong>Вывод первым</strong><span>Каждая карточка отвечает на вопрос, а не описывает тему.</span></div>
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-chart"/></svg></span><strong>Цифра, которая решает</strong><span>Ключевое число и откуда оно взято.</span></div>
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-shield"/></svg></span><strong>Главный риск</strong><span>Что может сломать вывод и как это проверить.</span></div>
+        </div>
+        <div class="callout"><svg class="icon"><use href="#i-bulb"/></svg><p><strong>В двух словах.</strong> Блок для самого сложного места: объяснение простыми словами.</p></div>
+        <!-- Show this block only on revisions. Keep the latest 3-4 entries. -->
+        <div class="card changes">
+          <h3 class="eyebrow">Что изменилось</h3>
+          <ul>
+            <li><time class="mono">2026-01-01</time><span>Что именно обновлено и какие разделы это затронуло.</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="compare" data-nav="Сравнение" data-icon="i-table">
+        <h2>Вариант B выигрывает по цене за результат</h2>
+        <p class="summary">Одно предложение с выводом, затем доказательство.</p>
+        <div class="tools"><input id="q" type="search" placeholder="Фильтр по названию" aria-label="Фильтр по названию"></div>
+        <div class="card scroll"><table id="tbl">
+          <thead><tr>
+            <th><button type="button" data-k="0">Вариант</button></th>
+            <th class="r"><button type="button" data-k="1" data-num="1">Стоимость, $</button></th>
+            <th class="r"><button type="button" data-k="2" data-num="1">Результат</button></th>
+            <th><button type="button" data-k="3">Оценка</button></th>
+          </tr></thead>
+          <tbody>
+            <tr><td>Вариант A</td><td class="r num">1200</td><td class="r num">34</td><td><span class="pill warn">оценка</span></td></tr>
+            <tr class="pick"><td>Вариант B <span class="pill rec">рекомендуем</span></td><td class="r num">900</td><td class="r num">41</td><td><span class="pill good">данные</span></td></tr>
+            <tr><td>Вариант C</td><td class="r num">1500</td><td class="r num">29</td><td><span class="pill bad">слабая база</span></td></tr>
+          </tbody>
+        </table></div>
+        <div class="card bars" role="img" aria-label="Результат по вариантам">
+          <div class="bar"><span>Вариант A</span><i style="width:83%"></i><b class="num">34</b></div>
+          <div class="bar top"><span>Вариант B</span><i style="width:100%"></i><b class="num">41</b></div>
+          <div class="bar"><span>Вариант C</span><i style="width:71%"></i><b class="num">29</b></div>
+        </div>
+      </section>
+
+      <section id="options" data-nav="Детали" data-icon="i-route">
+        <h2>Детали по вариантам</h2>
+        <div class="tabs" id="tabs">
+          <div role="tablist" aria-label="Варианты">
+            <button role="tab" id="t1" aria-controls="p1" aria-selected="true">Вариант A</button>
+            <button role="tab" id="t2" aria-controls="p2" aria-selected="false" tabindex="-1">Вариант B</button>
+          </div>
+          <div role="tabpanel" id="p1" aria-labelledby="t1"><p>Описание варианта A.</p></div>
+          <div role="tabpanel" id="p2" aria-labelledby="t2" hidden><p>Описание варианта B.</p></div>
+        </div>
+        <div>
+          <details><summary>Как это посчитано</summary><div>Допущения и формулы, свёрнутые по умолчанию.</div></details>
+          <details><summary>Что осталось неизвестным</summary><div>Открытые вопросы и как их закрыть.</div></details>
+        </div>
+      </section>
+
+      <section id="plan" data-nav="План" data-icon="i-route">
+        <h2>План по этапам</h2>
+        <ol class="timeline">
+          <li><div class="when mono">Неделя 1–2</div><div class="what"><strong>Этап</strong><span>Что делаем и что получаем на выходе.</span></div></li>
+          <li><div class="when mono">Неделя 3–6</div><div class="what"><strong>Этап</strong><span>Что делаем и что получаем на выходе.</span></div></li>
+        </ol>
+      </section>
+
+      <section id="risks" data-nav="Риски" data-icon="i-shield">
+        <h2>Риски</h2>
+        <div class="card scroll"><table>
+          <thead><tr><th>Риск</th><th>Вероятность</th><th>Что делать</th></tr></thead>
+          <tbody>
+            <tr><td>Описание риска</td><td><span class="pill bad">высокая</span></td><td>Действие</td></tr>
+            <tr><td>Описание риска</td><td><span class="pill warn">средняя</span></td><td>Действие</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+    </main>
+  </div>
+
+  <footer>Источники и допущения: список со ссылками. Оценки помечены как оценки.</footer>
+</div>
+
+<script>
+(function () {
+  // Build contents rail from sections.
+  var toc = document.getElementById("toc");
+  var secs = Array.prototype.slice.call(document.querySelectorAll("main > section[id]"));
+  secs.forEach(function (s) {
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.innerHTML = '<svg class="icon"><use href="#' + (s.dataset.icon || "i-target") + '"/></svg><span></span>';
+    a.lastChild.textContent = s.dataset.nav || s.id;
+    toc.appendChild(a);
+  });
+  var links = toc.querySelectorAll("a");
+  function mark(id) { links.forEach(function (a) { a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + id)); }); }
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) mark(e.target.id); });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    secs.forEach(function (s) { io.observe(s); });
+  }
+  if (secs[0]) mark(secs[0].id);
+
+  // Sortable + filterable table.
+  var tbl = document.getElementById("tbl");
+  if (tbl) {
+    var body = tbl.tBodies[0], dir = {};
+    tbl.querySelectorAll("th button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = +b.dataset.k, num = !!b.dataset.num;
+        dir[k] = dir[k] === 1 ? -1 : 1;
+        var rows = Array.prototype.slice.call(body.rows);
+        rows.sort(function (x, y) {
+          var a = x.cells[k].textContent.trim(), c = y.cells[k].textContent.trim();
+          return (num ? parseFloat(a) - parseFloat(c) : a.localeCompare(c)) * dir[k];
+        });
+        rows.forEach(function (r) { body.appendChild(r); });
+        tbl.querySelectorAll("th").forEach(function (th) { th.removeAttribute("aria-sort"); });
+        b.parentNode.setAttribute("aria-sort", dir[k] === 1 ? "ascending" : "descending");
+      });
+    });
+    var q = document.getElementById("q");
+    if (q) q.addEventListener("input", function () {
+      var v = q.value.toLowerCase();
+      Array.prototype.forEach.call(body.rows, function (r) { r.hidden = r.cells[0].textContent.toLowerCase().indexOf(v) < 0; });
+    });
+  }
+
+  // Tabs.
+  var tabs = document.getElementById("tabs");
+  if (tabs) {
+    var tabEls = tabs.querySelectorAll('[role="tab"]');
+    function pick(t) {
+      tabEls.forEach(function (x) {
+        var on = x === t;
+        x.setAttribute("aria-selected", String(on));
+        x.tabIndex = on ? 0 : -1;
+        document.getElementById(x.getAttribute("aria-controls")).hidden = !on;
+      });
+    }
+    tabEls.forEach(function (t, i) {
+      t.addEventListener("click", function () { pick(t); });
+      t.addEventListener("keydown", function (e) {
+        var n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null;
+        if (n === null) return;
+        var nt = tabEls[(n + tabEls.length) % tabEls.length];
+        pick(nt); nt.focus();
+      });
+    });
+  }
+})();
+</script>
