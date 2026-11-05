@@ -39,10 +39,10 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 
 ```mermaid
 flowchart LR
-    A["You describe the task<br/>'make a release video'"] --> B["Routing map<br/>ROUTING.md, loaded<br/>every session"]
-    B --> C["The right skill<br/>hyperframes"]
-    B -.-> D["Or a companion plugin<br/>Hallmark, interfaces, ..."]
-    C --> E["A finished result<br/>an MP4, a report page,<br/>a reviewed install"]
+    A["You: make a release video"] --> B["Routing map"]
+    B --> C["Skill: hyperframes"]
+    B -.-> D["Or a companion plugin"]
+    C --> E["Result: an MP4"]
     D --> E
 ```
 
