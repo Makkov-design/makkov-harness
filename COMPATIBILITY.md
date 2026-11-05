@@ -18,6 +18,6 @@ Folders and files were checked against each tool's documentation on 2026-11-04. 
 
 Notes:
 - Gemini CLI: Google moved unpaid and Google One users to Antigravity CLI on 2026-06-18. Its skills folder is documented as `.agents/skills`; how it reads instructions files is not yet confirmed.
-- Claude cloud sessions: Hyperframes rendering and Hallmark's browser checks need `cloud/setup-design-tools.sh` in the environment's Setup script. Tested in WSL Ubuntu 24.04 (npm install, `hyperframes --version`, Hallmark render check); a real cloud run and an actual video render are not tested yet.
+- Claude cloud sessions: Hyperframes rendering and Hallmark's browser checks need the tools from `cloud/setup-design-tools.sh`. The agent offers to run it on demand (after the user agrees). Pasting it into the environment's Setup script makes the tools ready in every session. Tested in WSL Ubuntu 24.04 (npm install, `hyperframes --version`, Hallmark render check); a real cloud run and an actual video render are not tested yet.
 - Smaller local models follow long skills less reliably than frontier models. Expect weaker results with the same files.
 - The row "Status" moves to ✅ once someone runs the install end to end in that tool. Reports welcome.

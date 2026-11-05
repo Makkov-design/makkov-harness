@@ -22,9 +22,9 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 
 ## What the harness itself runs
 
-- `hooks/session-start` (Claude Code only): reads `ROUTING.md` from this repository and prints it. No network, no writes.
+- `hooks/session-start` (Claude Code only): reads `ROUTING.md` from this repository and prints it with the plugin's folder path. No network, no writes.
 - `install/` scripts: copy files from this repository into the agent's folders. No downloads.
-- `cloud/setup-design-tools.sh` (optional, Claude cloud environments only): installs ffmpeg from Ubuntu and two pinned npm packages with `--ignore-scripts`. Runs only if you paste it into your environment's Setup script.
+- `cloud/setup-design-tools.sh` (optional, Claude cloud environments only): installs ffmpeg from Ubuntu and two pinned npm packages with `--ignore-scripts`. Runs only if you paste it into your environment's Setup script, or when you say yes to the agent's offer in a cloud session.
 - No skill here sends data anywhere unless the user asks for a task that needs it.
 
 ## Reporting a problem
