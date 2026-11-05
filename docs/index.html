@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>makkov-harness: pick the skill by the situation</title>
+<meta name="description" content="A designer's harness for AI agents: curated skills, a routing map that picks the right one, and companion plugins pinned to reviewed commits.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;500;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="container">
+    <a class="wordmark" href="#main" aria-label="makkov-harness, back to top">makkov-harness</a>
+    <ul>
+      <li class="hide-s"><a href="#board">Routing</a></li>
+      <li class="hide-s"><a href="#plugins">Plugins</a></li>
+      <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
+      <li><a class="btn btn--sm" href="#install">Install</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container">
+      <div>
+        <h1 id="hero-title">Pick the skill by the situation.</h1>
+        <p class="lead">Skills, a routing map and reviewed plugins for designers’ AI agents.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="#install">Add to Claude</a>
+        <a class="btn" href="https://github.com/Makkov-design/makkov-harness">Read the code</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band--ink on-ink" id="board" aria-labelledby="board-title">
+    <div class="container">
+      <div class="board-head">
+        <div>
+          <h2 id="board-title">Situation in, skill out.</h2>
+          <p class="lead">The map loads with every session, so the agent reaches for the right tool.</p>
+        </div>
+        <div class="seg" role="tablist" aria-label="Routing board">
+          <button type="button" role="tab" id="tab-skills" aria-controls="panel-skills" aria-selected="true">Skills</button>
+          <button type="button" role="tab" id="tab-companions" aria-controls="panel-companions" aria-selected="false" tabindex="-1">Companions</button>
+        </div>
+      </div>
+
+      <div class="board" role="tabpanel" id="panel-skills" aria-labelledby="tab-skills">
+        <table>
+          <caption>Skills in the harness</caption>
+          <thead><tr><th scope="col">Situation</th><th scope="col">Skill</th><th scope="col">What you get</th></tr></thead>
+          <tbody>
+            <tr><td>A plan, an audit or a comparison</td><td class="skill">rich-report</td><td>A designed page, one per topic</td></tr>
+            <tr><td>Installing anything third-party</td><td class="skill">third-party-install-guard</td><td>A green, yellow or red verdict first</td></tr>
+            <tr><td>“Make it like Linear”</td><td class="skill">design-md-library</td><td>That product’s design system as a reference</td></tr>
+            <tr><td>A transition or a motion pass</td><td class="skill">animate</td><td>Emil Kowalski’s rules for motion</td></tr>
+            <tr><td>A promo clip from HTML</td><td class="skill">hyperframes</td><td>An MP4, rendered by HeyGen’s tool</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="board" role="tabpanel" id="panel-companions" aria-labelledby="tab-companions">
+        <table>
+          <caption>Companion plugins, enabled from the same marketplace</caption>
+          <thead><tr><th scope="col">Situation</th><th scope="col">Plugin</th><th scope="col">What you get</th></tr></thead>
+          <tbody>
+            <tr><td>Before building anything</td><td class="skill">Superpowers</td><td>Brainstorming, plans, debugging</td></tr>
+            <tr><td>Reviewing a screen</td><td class="skill">interfaces</td><td>Accessibility, type, colour, layout</td></tr>
+            <tr><td>Shaping a feature</td><td class="skill">Impeccable</td><td>Bolder, quieter, onboarding, DESIGN.md</td></tr>
+            <tr><td>A new landing page</td><td class="skill">Hallmark</td><td>Pages like this one</td></tr>
+            <tr><td>A launch coming up</td><td class="skill">security-audit</td><td>Cloudflare’s whole-project review</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="board-foot">The full map, with motion and video helpers: <a href="https://github.com/Makkov-design/makkov-harness/blob/main/ROUTING.md">ROUTING.md</a></p>
+    </div>
+  </section>
+
+  <section class="route" id="install" aria-labelledby="install-title">
+    <div class="container">
+      <h2 id="install-title">Four stops to install.</h2>
+      <p class="lead">Once, in the browser. Then it works on every computer and in cloud sessions.</p>
+      <ol class="stops">
+        <li><h3>Open claude.ai</h3><p>Customize, then Plugins, then Add marketplace.</p></li>
+        <li><h3>Paste the address</h3><div class="plate"><code id="addr">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr">Copy</button></div></li>
+        <li><h3>Enable makkov-harness</h3><p>Companions are in the same list.</p></li>
+        <li><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
+      </ol>
+      <p class="route-foot">Other agents: <code>install/install.sh &lt;agent&gt;</code></p>
+    </div>
+  </section>
+
+  <section class="status" id="plugins" aria-labelledby="plugins-title">
+    <div class="container">
+      <div>
+        <h2 id="plugins-title">Checked before recommended.</h2>
+        <p class="lead">Each companion is pinned to the commit reviewed on 3 or 4 November 2026.</p>
+        <p class="status-note">A weekly check flags upstream changes in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>.</p>
+      </div>
+      <ul class="rows">
+        <li><span><b>Superpowers</b><small>Jesse Vincent</small></span><span class="pin">7.0.1 at 2ce8aa1</span><span class="verdict">Green</span></li>
+        <li><span><b>interfaces</b><small>Jakub Krehel</small></span><span class="pin">1.17.0 at 60bf140</span><span class="verdict">Green</span></li>
+        <li><span><b>Impeccable</b><small>Paul Bakaus</small></span><span class="pin">4.8.0 at 9fadc41</span><span class="verdict verdict--warn">Yellow: telemetry on by default</span></li>
+        <li><span><b>Hallmark</b><small>Nutlope</small></span><span class="pin">2.0.0 at 52328cb</span><span class="verdict">Green</span></li>
+        <li><span><b>security-audit</b><small>Cloudflare</small></span><span class="pin">c1c8a8c</span><span class="verdict">Green</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="where" aria-labelledby="where-title">
+    <div class="container">
+      <h2 id="where-title">Runs where you already work.</h2>
+      <div class="where-grid">
+        <div><h3>Claude</h3><p>Desktop app, Claude Code and cloud sessions, from one marketplace.</p><a href="https://github.com/Makkov-design/makkov-harness#install">Install for Claude</a></div>
+        <div><h3>Eight agents</h3><p>Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode and Aider, with one script.</p><a href="https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md">Install guide</a></div>
+        <div><h3>Chat apps</h3><p>ChatGPT, Grok, DeepSeek and Gemini, as a lighter pack.</p><a href="https://github.com/Makkov-design/makkov-harness/tree/main/adapters/chat-pack">Chat pack</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="close" aria-labelledby="close-title">
+    <div class="container">
+      <div>
+        <h2 id="close-title">Add it once.</h2>
+        <p class="lead">In the browser, and every session after that knows the map.</p>
+      </div>
+      <div class="close-act">
+        <div class="plate"><code id="addr2">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr2">Copy</button></div>
+        <a class="btn btn--primary" href="https://claude.ai">Open claude.ai</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="mast">
+  <div class="container">
+    <span class="big">makkov-harness</span>
+    <ul>
+      <li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
+      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li>
+      <li><a href="https://github.com/Makkov-design/makkov-harness#русский">По-русски</a></li>
+      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li>
+    </ul>
+    <p>Third-party skills keep their own licenses. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const show = (t) => {
+    tabs.forEach((x) => { const on = x === t; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute('aria-controls')).hidden = !on; });
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t));
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; show(n); n.focus();
+    });
+  });
+  show(tabs[0]);
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
+    const el = document.getElementById(b.dataset.copy), text = el.textContent.trim();
+    const done = () => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => { getSelection().selectAllChildren(el); });
+    else getSelection().selectAllChildren(el);
+  }));
+})();
+</script>
+</body>
+</html>

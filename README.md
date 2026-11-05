@@ -2,6 +2,8 @@
 
 **A designer's harness for AI agents.** Curated skills, a routing map that tells the agent which skill fits which situation, and companion plugins that were each checked for security before they were recommended. Works in Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Windsurf, Cline, OpenCode and Aider, with a light version for chat apps.
 
+Site: https://makkov-design.github.io/makkov-harness/
+
 [Русская версия ниже](#русский)
 
 ## What you get
