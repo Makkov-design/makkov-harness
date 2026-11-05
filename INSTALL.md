@@ -17,7 +17,7 @@ Identify your own tool: Claude Code, Codex, Cursor, Gemini CLI (or Antigravity C
 
 **Claude Code or the Claude desktop app**: do not copy files. Tell the user the recommended route and stop:
 
-1. In claude.ai: Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. This also makes it work in Claude cloud sessions.
+1. In a browser at claude.ai (not the desktop app): Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. This adds it to the account, so it works on every computer and in cloud sessions; adding it from the desktop app or a terminal installs it on that computer only. Recommend this route.
 2. Or in a terminal: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.
 3. Companion plugins are in the same marketplace, pinned to reviewed versions. Show the list and ask which ones to enable; skip any the user already has from another marketplace. In a terminal: `/plugin install <name>@makkov-harness`.
 

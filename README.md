@@ -21,7 +21,7 @@
 
 **Easiest: give this repository to your agent.** Paste the link and say "install this". The agent reads [`INSTALL.md`](INSTALL.md) and sets everything up for its own environment.
 
-**Claude (desktop app, Claude Code, cloud sessions):** claude.ai → Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. In a terminal: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.
+**Claude (desktop app, Claude Code, cloud sessions):** in a **browser**, open claude.ai → Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. Once is enough: this adds it to your account, so it works on every computer you sign in on and in cloud sessions. Adding it from the desktop app installs it on that one computer only. In a terminal (also this computer only): `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.
 
 **Other agents:** clone the repository and run `install/install.ps1 -Agent <agent>` (Windows) or `install/install.sh <agent>` (macOS, Linux). Details per tool in [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
@@ -63,7 +63,7 @@ MIT licensed. Third-party skills keep their own licenses. Not affiliated with An
 
 **Проще всего:** дайте ссылку на этот репозиторий своему агенту и напишите «установи». Он прочитает [`INSTALL.md`](INSTALL.md) и всё настроит под себя.
 
-**Claude** (приложение, Claude Code, облачные сессии): claude.ai → Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → включить **makkov-harness**.
+**Claude** (приложение, Claude Code, облачные сессии): **в браузере** откройте claude.ai → Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → включите **makkov-harness**. Достаточно одного раза: плагин добавится в аккаунт и будет работать на всех ваших компьютерах и в облачных сессиях. Если добавить его из десктопного приложения, он встанет только на этот компьютер.
 
 **Другие агенты:** скрипт из папки `install/`, подробности в [`INSTALL.md`](INSTALL.md).
 
