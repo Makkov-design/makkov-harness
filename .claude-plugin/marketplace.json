@@ -9,6 +9,50 @@
       "description": "Report pages, install guard, design references, motion, HTML-to-video and a routing map that tells the agent which skill fits which situation.",
       "version": "0.1.0",
       "license": "MIT"
+    },
+    {
+      "name": "superpowers",
+      "source": { "source": "github", "repo": "obra/superpowers", "ref": "v7.0.1", "sha": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b" },
+      "description": "By Jesse Vincent. Brainstorming before building, systematic debugging, plans, verification. Pinned to the reviewed version.",
+      "homepage": "https://github.com/obra/superpowers",
+      "license": "MIT"
+    },
+    {
+      "name": "interfaces",
+      "source": { "source": "github", "repo": "jakubkrehel/skills", "sha": "60bf140e43c98b248e6594487384ec967e89d98a" },
+      "description": "By Jakub Krehel. UI review: accessibility, typography, color, layout, UI copy. Pinned to the reviewed version (1.17.0).",
+      "homepage": "https://interfaces.dev/",
+      "license": "MIT"
+    },
+    {
+      "name": "impeccable",
+      "source": { "source": "git-subdir", "url": "https://github.com/pbakaus/impeccable.git", "path": "plugin", "sha": "9fadc41729c38fd47d7ae622b501558653f9d2e9" },
+      "description": "By Paul Bakaus. Creative direction: shape, bolder, quieter, delight, onboarding, DESIGN.md. Pinned to the reviewed version (4.8.0). Turn telemetry off with `impeccable telemetry off`.",
+      "homepage": "https://impeccable.style"
+    },
+    {
+      "name": "hallmark",
+      "source": { "source": "git-subdir", "url": "https://github.com/Nutlope/hallmark.git", "path": "skills", "sha": "52328cb3129135499e4e178d4864ee90029dea2b" },
+      "strict": false,
+      "skills": ["./hallmark"],
+      "description": "By Nutlope. New landing pages and sites that look designed, not generated. Pinned to the reviewed version (2.0.0).",
+      "homepage": "https://www.usehallmark.com",
+      "license": "MIT"
+    },
+    {
+      "name": "security-audit",
+      "source": { "source": "github", "repo": "cloudflare/security-audit-skill", "sha": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8" },
+      "strict": false,
+      "skills": ["./skills/security-audit"],
+      "description": "By Cloudflare. Whole-project security review before a launch. Pinned to the reviewed version.",
+      "homepage": "https://github.com/cloudflare/security-audit-skill"
+    },
+    {
+      "name": "ytlens",
+      "source": { "source": "github", "repo": "Makkov-design/ytlens" },
+      "description": "Watch and analyze YouTube videos (frames and audio) through Google Gemini. Needs your own Gemini API key.",
+      "homepage": "https://github.com/Makkov-design/ytlens",
+      "license": "MIT"
     }
   ]
 }

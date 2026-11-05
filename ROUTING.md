@@ -16,7 +16,7 @@ Pick the skill by the situation. A skill named here can be invoked by name even 
 | Promo video, release clip, animated slides from HTML | `hyperframes` first, then `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `style-sampling` as it directs | Rendering is heavy: one render at a time |
 | First run of this harness for a new person, or "set this up for me" | `harness-onboarding` | Builds the person's own private layer |
 
-## Companion plugins (installed separately, from their authors)
+## Companion plugins (enabled separately; Claude users find them in the makkov-harness marketplace)
 
 | Situation | Plugin | Where from |
 |---|---|---|

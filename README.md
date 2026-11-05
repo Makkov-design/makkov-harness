@@ -33,7 +33,7 @@ Then run `harness-onboarding` once.
 
 ## Companion plugins
 
-Not copied here: install them from their authors so you get their updates. All were reviewed; verdicts in [`SECURITY.md`](SECURITY.md).
+Not copied here: the code stays in their authors' repositories. The makkov-harness marketplace lists them, so after adding it you can enable each one from the same list. Each entry is pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md)). Newer versions show up here only after they are reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills will load twice. Figma's plugin is in Anthropic's official marketplace.
 
 | Plugin | For | Repository |
 |---|---|---|
@@ -80,6 +80,6 @@ MIT licensed. Third-party skills keep their own licenses. Not affiliated with An
 - **Стиль:** `design-md-library`, «сделай в стиле Linear».
 - **Анимации:** навыки Эмиля Ковальски.
 - **Видео из HTML:** Hyperframes от HeyGen.
-- **Плагины-компаньоны** из таблицы выше ставятся от их авторов; вердикты проверки в [`SECURITY.md`](SECURITY.md).
+- **Плагины-компаньоны** из таблицы выше есть в том же маркетплейсе: после его подключения каждый включается одной кнопкой. Код берётся из репозитория автора, ровно той версии, которая прошла проверку (вердикты в [`SECURITY.md`](SECURITY.md)). Если какой-то из них у вас уже стоит из маркетплейса автора, второй раз его не включайте.
 
 Чужие работы указаны в [`CREDITS.md`](CREDITS.md), каждая со своей лицензией.
