@@ -27,6 +27,8 @@
 
 **Chat apps** (ChatGPT, Grok, DeepSeek, Gemini in a browser): see [`adapters/chat-pack`](adapters/chat-pack/README.md).
 
+**Claude cloud sessions (claude.ai/code):** to render Hyperframes videos and let Hallmark check pages in a browser, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs pinned, reviewed versions of ffmpeg, puppeteer-core and the Hyperframes CLI.
+
 Then run `harness-onboarding` once.
 
 ## Companion plugins
@@ -66,6 +68,8 @@ MIT licensed. Third-party skills keep their own licenses. Not affiliated with An
 **Другие агенты:** скрипт из папки `install/`, подробности в [`INSTALL.md`](INSTALL.md).
 
 **Чаты** (ChatGPT, Grok, DeepSeek, Gemini в браузере): инструкция в [`adapters/chat-pack`](adapters/chat-pack/README.md).
+
+**Облачные сессии Claude:** чтобы в облаке работали рендер видео Hyperframes и проверка страниц Hallmark в браузере, вставьте [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) в Setup script вашего облачного окружения и добавьте в его переменные `HYPERFRAMES_NO_TELEMETRY=1`.
 
 После установки один раз запустите навык `harness-onboarding`: он задаст несколько вопросов и подстроит всё под вас.
 

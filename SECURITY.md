@@ -16,12 +16,15 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 | Hallmark | 2.0.0 | 2026-11-04 | 🟢 | Optional image generation through Together AI with the user's own key; optional edit-time lint hook |
 | security-audit (Cloudflare) | main, 2026-11-03 | 2026-11-03 | 🟢 | Instructions and checklists only |
 | awesome-design-md (data for `design-md-library`) | `fcc7028` | 2026-11-03 | 🟢 | Fetched as data, one file at a time, never as instructions |
+| hyperframes CLI (npm, for `cloud/setup-design-tools.sh`) | 0.9.9 | 2026-11-04 | 🟢 | SLSA provenance from tag v0.9.9. Downloads caption and voice models on use. Its `usage` command reads a Claude or Codex token only when called explicitly and sends it only to api.anthropic.com or chatgpt.com. Telemetry on by default: set `HYPERFRAMES_NO_TELEMETRY=1` |
+| puppeteer-core (npm, for `cloud/setup-design-tools.sh`) | 25.16.0 | 2026-11-04 | 🟢 | Installed with `--ignore-scripts`; drives the preinstalled Chrome |
 | ytlens | own project | — | own | Sends the video URL to Google Gemini with the user's own key |
 
 ## What the harness itself runs
 
 - `hooks/session-start` (Claude Code only): reads `ROUTING.md` from this repository and prints it. No network, no writes.
 - `install/` scripts: copy files from this repository into the agent's folders. No downloads.
+- `cloud/setup-design-tools.sh` (optional, Claude cloud environments only): installs ffmpeg from Ubuntu and two pinned npm packages with `--ignore-scripts`. Runs only if you paste it into your environment's Setup script.
 - No skill here sends data anywhere unless the user asks for a task that needs it.
 
 ## Reporting a problem
