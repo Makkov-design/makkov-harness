@@ -29,6 +29,8 @@
 
 **Claude cloud sessions (claude.ai/code):** nothing extra is required. When a cloud session needs to render a Hyperframes video or run a Hallmark browser check and the tools are missing, the agent offers to install them (1–2 minutes, after you say yes). If you render often, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script so the tools are ready in every session, and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs pinned, reviewed versions of ffmpeg, puppeteer-core and the Hyperframes CLI.
 
+**Updates:** your account keeps the copy it took when you added the plugin. To get a newer version, open claude.ai → Customize → Plugins → Manage marketplaces → `makkov-harness` → ⋯ → Sync, then fully quit and reopen the desktop app.
+
 Then run `harness-onboarding` once.
 
 ## Companion plugins
@@ -70,6 +72,8 @@ MIT licensed. Third-party skills keep their own licenses. Not affiliated with An
 **Чаты** (ChatGPT, Grok, DeepSeek, Gemini в браузере): инструкция в [`adapters/chat-pack`](adapters/chat-pack/README.md).
 
 **Облачные сессии Claude:** дополнительно ничего делать не нужно. Если в облаке понадобится рендер видео Hyperframes или проверка страниц Hallmark в браузере, а инструментов нет, агент сам предложит их поставить. Это займёт 1–2 минуты и начнётся только после вашего «да». Если делаете видео часто, вставьте [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) в Setup script облачного окружения, чтобы инструменты были готовы в каждой сессии, и добавьте в его переменные `HYPERFRAMES_NO_TELEMETRY=1`.
+
+**Обновления:** аккаунт хранит ту копию, которую взял при подключении. Чтобы получить новую версию, откройте claude.ai → Customize → Plugins → Manage marketplaces → `makkov-harness` → ⋯ → Sync, затем полностью закройте и снова откройте десктопное приложение.
 
 После установки один раз запустите навык `harness-onboarding`: он задаст несколько вопросов и подстроит всё под вас.
 
