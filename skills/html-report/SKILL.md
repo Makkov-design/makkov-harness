@@ -21,7 +21,7 @@ If the agent cannot write files (a chat app), give the same structure as clean M
 
 ## Build
 
-1. Start from `skeleton.html` in this folder. Keep its tokens, fonts, radii, spacing and component CSS; replace the sample content; delete components the content does not need.
+1. Start from `skeleton.html` in this folder. Keep its tokens, fonts, radii, spacing and component CSS; replace the sample content; delete components the content does not need. Keep the two `impeccable-disable` comments at the top of `<style>` (they silence false contrast and padding findings from the Impeccable hook), and give any new bordered component at least 12px of padding.
 2. Unlike an Artifact, the file is a whole document: wrap the skeleton in `<!doctype html><html lang="…"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">…</head><body>…</body></html>`, with `<title>` and `<style>` in the head.
 3. Everything inline: CSS, JS, SVG icons, data. Google Fonts is the only external request; the font stacks fall back to system fonts offline. If a chart library is truly needed, load one pinned version from a CDN and say the chart needs internet.
 4. Both themes through `prefers-color-scheme`; works at 400px wide with no horizontal page scroll; tables scroll inside their own container.
