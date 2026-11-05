@@ -29,7 +29,7 @@ Revisions must edit the existing artifact, not create a new one.
 1. Load `artifact-design` (page contract). Load `dataviz` when there are charts. Load `artifact-capabilities` only if the page must store input or live data (rare for reports).
 2. Pick the structure before styling (see Anatomy).
 3. Map each piece of content to the right component (see table). Prefer showing over describing.
-4. Use the house style below. Start from `skeleton.html` in this skill folder: copy its tokens, fonts and component CSS as they are, replace the sample content, delete components the content does not need. Do not invent a new palette or font pair per topic. Keep the `impeccable-disable low-contrast` comment at the top of `<style>`: the Impeccable design hook otherwise mixes the light and dark tokens and reports false contrast failures on every page.
+4. Use the house style below. Start from `skeleton.html` in this skill folder: copy its tokens, fonts and component CSS as they are, replace the sample content, delete components the content does not need. Do not invent a new palette or font pair per topic. Keep the two `impeccable-disable` comments at the top of `<style>`: without them the Impeccable design hook reports false contrast failures (it mixes the light and dark tokens) and false cramped padding (it ignores the padding on table cells) on every page. Because the padding check is off, give any new bordered or filled component you add at least 12px of padding yourself.
 5. Write the file, take one preview look if the session offers one, fix what it shows, publish.
 6. Reply in chat with the link and 2-3 lines: the main conclusion and what to look at first. Do not paste the report into chat.
 
