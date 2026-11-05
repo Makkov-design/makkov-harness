@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>makkov-harness README art</title>
+<!-- Source for the README images. Rendered to PNG by render.mjs; edit here, then re-render. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;500;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../docs/tokens.css">
+<style>
+  body { margin: 0; background: var(--color-paper-2); font-family: var(--font-body); color: var(--color-ink); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  .art { box-sizing: border-box; width: 1280px; overflow: hidden; margin-bottom: var(--space-xl); position: relative; }
+  h1, h2, h3, p { margin: 0; }
+  .paper { background: var(--color-paper); }
+  .ink { background: var(--color-ink); color: var(--color-paper); }
+  .rule { border-top: var(--rule-bar) solid currentColor; }
+  .sq { display: inline-block; width: 14px; height: 14px; flex: none; }
+  .sq--skill { background: var(--color-accent); }
+  .sq--plugin { background: var(--color-accent-2); }
+  .amber { color: var(--color-accent-2); }
+  .muted-ink { color: var(--color-rule); }
+
+  /* 1. banner */
+  #banner { height: 640px; padding: 56px 64px; display: grid; grid-template-columns: 1fr 440px; gap: 48px; border: 6px solid var(--color-ink); }
+  #banner .left { display: flex; flex-direction: column; }
+  #banner .word { font-weight: 800; font-size: 26px; letter-spacing: -0.03em; display: flex; align-items: center; gap: 12px; }
+  #banner .word i { width: 18px; height: 18px; background: var(--color-accent); display: inline-block; }
+  #banner h1 { margin-top: auto; font-weight: 800; font-size: 60px; line-height: 0.98; letter-spacing: -0.035em; }
+  #banner .sub { margin-top: 24px; font-size: 22px; line-height: 1.4; color: var(--color-ink-2); max-width: 30ch; }
+  #banner .facts { margin-top: 36px; display: flex; border: var(--rule-bar) solid var(--color-ink); width: max-content; }
+  #banner .facts div { padding: 12px 18px; border-left: var(--rule-bar) solid var(--color-ink); font-size: 15px; font-weight: 500; }
+  #banner .facts div:first-child { border-left: 0; }
+  #banner .facts b { font-weight: 800; font-size: 22px; margin-right: 6px; }
+  .board-mini { align-self: center; border: var(--rule-bar) solid var(--color-ink); box-shadow: var(--shadow-card); }
+  .board-mini .head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-weight: 800; font-size: 17px; }
+  .board-mini .live { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; color: var(--color-rule); }
+  .board-mini .live i { width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; display: inline-block; }
+  .board-mini .row { padding: 14px 20px; border-top: var(--rule-hair) solid var(--color-ink-rule); }
+  .board-mini .row small { display: block; font-size: 13px; color: var(--color-rule); font-weight: 500; }
+  .board-mini .row b { display: block; margin-top: 4px; font-size: 23px; font-weight: 800; color: var(--color-accent-2); }
+  .board-mini .foot { background: var(--color-accent-2); color: var(--color-ink); padding: 12px 20px; font-weight: 800; font-size: 15px; }
+
+  /* 2. full board */
+  #board { padding: 48px 56px 40px; }
+  #board .top { display: flex; justify-content: space-between; align-items: end; padding-bottom: 24px; }
+  #board h2 { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  #board .legend { display: flex; gap: 24px; font-size: 15px; font-weight: 500; color: var(--color-rule); }
+  #board .legend span { display: flex; align-items: center; gap: 8px; }
+  #board table { width: 100%; border-collapse: collapse; }
+  #board th { text-align: left; font-size: 14px; font-weight: 500; color: var(--color-rule); padding: 10px 0; border-bottom: var(--rule-bar) solid var(--color-paper); border-top: var(--rule-bar) solid var(--color-paper); }
+  #board td { padding: 15px 16px 15px 0; border-bottom: var(--rule-hair) solid var(--color-ink-rule); font-size: 17px; font-weight: 500; vertical-align: middle; }
+  #board td.k { width: 30px; }
+  #board td.skill { font-weight: 800; font-size: 23px; color: var(--color-accent-2); white-space: nowrap; }
+  #board td.get { color: var(--color-rule); font-weight: 400; font-size: 16px; }
+  #board .late { background: var(--color-accent-2); color: var(--color-ink); padding: 4px 10px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+  #board .note { margin-top: 20px; font-size: 15px; color: var(--color-rule); }
+
+  /* 3. before / after */
+  #compare { display: grid; grid-template-columns: 1fr 1fr; border: 6px solid var(--color-ink); }
+  #compare .col { padding: 44px 48px; }
+  #compare .col + .col { border-left: 6px solid var(--color-ink); }
+  #compare h3 { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; display: flex; align-items: center; gap: 14px; }
+  #compare ul { list-style: none; margin: 32px 0 0; padding: 0; }
+  #compare li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 16px 0; border-top: var(--rule-hair) solid var(--color-rule); font-size: 18px; line-height: 1.4; }
+  #compare .ink li { border-top-color: var(--color-ink-rule); }
+  #compare li b { font-weight: 800; display: block; margin-bottom: 2px; }
+  #compare .x { font-weight: 800; color: var(--color-muted); font-size: 22px; line-height: 1.1; }
+  #compare .ok { font-weight: 800; color: var(--color-accent-2); font-size: 22px; line-height: 1.1; }
+  #compare .before { background: var(--color-paper-2); color: var(--color-ink-2); }
+  #compare .ink li span { color: var(--color-rule); }
+
+  /* 4. four stops */
+  #stops { padding: 40px 48px; border: 6px solid var(--color-ink); }
+  #stops h2 { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; }
+  #stops ol { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); border: var(--rule-bar) solid var(--color-ink); }
+  #stops li { padding: 24px; min-height: 210px; display: flex; flex-direction: column; gap: 10px; border-left: var(--rule-bar) solid var(--color-ink); background: var(--color-paper-3); }
+  #stops li:first-child { border-left: 0; }
+  #stops .n { font-weight: 800; font-size: 54px; line-height: 1; }
+  #stops li b { font-weight: 800; font-size: 21px; }
+  #stops li span { font-size: 15px; color: var(--color-ink-2); line-height: 1.45; }
+  #stops .plate { margin-top: auto; background: var(--color-ink); color: var(--color-accent-2); font-weight: 800; font-size: 15px; padding: 10px 12px; }
+  #stops .tail { margin-top: 18px; font-size: 16px; color: var(--color-ink-2); }
+
+  /* 5. review rows */
+  #review { padding: 44px 56px; }
+  #review .top { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: end; padding-bottom: 26px; }
+  #review h2 { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  #review .top p { font-size: 17px; color: var(--color-rule); line-height: 1.45; }
+  #review .row { display: grid; grid-template-columns: 1.3fr 1fr 1.1fr 1fr; align-items: center; gap: 16px; padding: 16px 0; border-top: var(--rule-hair) solid var(--color-ink-rule); }
+  #review .row:first-of-type { border-top: var(--rule-bar) solid var(--color-paper); }
+  #review .row b { font-size: 23px; font-weight: 800; }
+  #review .row small { display: block; font-size: 13px; color: var(--color-rule); font-weight: 500; }
+  #review .sha { font-weight: 500; font-size: 16px; }
+  #review .steps { font-size: 14px; color: var(--color-rule); }
+  #review .v { justify-self: end; font-weight: 800; font-size: 15px; padding: 6px 12px; border: var(--rule-bar) solid var(--color-paper); }
+  #review .v--y { background: var(--color-accent-2); color: var(--color-ink); border-color: var(--color-accent-2); }
+</style>
+</head>
+<body>
+
+<section class="art paper" id="banner">
+  <div class="left">
+    <div class="word"><i></i>makkov-harness</div>
+    <h1>Pick the skill<br>by the situation.</h1>
+    <p class="sub">A designer's harness for AI agents. Your agent knows which tool to reach for.</p>
+    <div class="facts"><div><b>16</b>skills</div><div><b>6</b>reviewed plugins</div><div><b>9</b>agents</div></div>
+  </div>
+  <div class="board-mini ink">
+    <div class="head"><span>Routing</span><span class="live"><i></i>loads every session</span></div>
+    <div class="row"><small>A plan, an audit, a comparison</small><b>rich-report</b></div>
+    <div class="row"><small>Installing anything third-party</small><b>install-guard</b></div>
+    <div class="row"><small>A new landing page</small><b>Hallmark</b></div>
+    <div class="row"><small>A promo clip from HTML</small><b>hyperframes</b></div>
+    <div class="foot">You describe it. The map picks.</div>
+  </div>
+</section>
+
+<section class="art ink" id="board">
+  <div class="top">
+    <h2>Situation in, skill out.</h2>
+    <div class="legend"><span><i class="sq sq--skill"></i>skill in the harness</span><span><i class="sq sq--plugin"></i>companion plugin</span></div>
+  </div>
+  <table>
+    <thead><tr><th></th><th>When you say</th><th>The agent takes</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td class="k"><i class="sq sq--skill"></i></td><td>“Compare these three tools”</td><td class="skill">rich-report</td><td class="get">A designed report page, not a wall of chat</td></tr>
+      <tr><td class="k"><i class="sq sq--skill"></i></td><td>“Install this package”</td><td class="skill">install-guard</td><td class="get">A green, yellow or red verdict before anything runs</td></tr>
+      <tr><td class="k"><i class="sq sq--skill"></i></td><td>“Make it feel like Linear”</td><td class="skill">design-md-library</td><td class="get">That product's design system as a reference</td></tr>
+      <tr><td class="k"><i class="sq sq--skill"></i></td><td>“Animate this card”</td><td class="skill">animate</td><td class="get">Motion by Emil Kowalski's rules</td></tr>
+      <tr><td class="k"><i class="sq sq--skill"></i></td><td>“Make a release video”</td><td class="skill">hyperframes</td><td class="get">An MP4 rendered from HTML</td></tr>
+      <tr><td class="k"><i class="sq sq--plugin"></i></td><td>“Review this screen”</td><td class="skill">interfaces</td><td class="get">Accessibility, type, colour and layout fixes</td></tr>
+      <tr><td class="k"><i class="sq sq--plugin"></i></td><td>“Build a landing page”</td><td class="skill">Hallmark</td><td class="get">A page that looks designed, not generated</td></tr>
+      <tr><td class="k"><i class="sq sq--plugin"></i></td><td>“We launch next week”</td><td class="skill">security-audit</td><td class="get">Cloudflare's whole-project review</td></tr>
+    </tbody>
+  </table>
+  <p class="note">The full map lives in ROUTING.md and loads automatically at the start of every Claude session.</p>
+</section>
+
+<section class="art" id="compare">
+  <div class="col before">
+    <h3>Without it</h3>
+    <ul>
+      <li><span class="x">×</span><span><b>You name the tool every time</b>The agent rarely picks the right skill by itself.</span></li>
+      <li><span class="x">×</span><span><b>Plugins installed blind</b>Nobody read the hooks that now run on your machine.</span></li>
+      <li><span class="x">×</span><span><b>Answers as chat walls</b>Research ends up as long text nobody shares.</span></li>
+      <li><span class="x">×</span><span><b>Setup per computer</b>Every new machine starts from zero.</span></li>
+    </ul>
+  </div>
+  <div class="col ink">
+    <h3>With makkov-harness</h3>
+    <ul>
+      <li><span class="ok">→</span><span><b>The map picks the skill</b><span>Say what you need; routing does the rest.</span></span></li>
+      <li><span class="ok">→</span><span><b>Every plugin reviewed and pinned</b><span>Exact commits, verdicts in SECURITY.md.</span></span></li>
+      <li><span class="ok">→</span><span><b>Results as designed pages</b><span>Reports you can send to a founder as is.</span></span></li>
+      <li><span class="ok">→</span><span><b>Install once, works everywhere</b><span>Desktop, terminal and cloud sessions.</span></span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="art paper" id="stops">
+  <h2>Four stops to install.</h2>
+  <ol>
+    <li><span class="n">1</span><b>Open claude.ai</b><span>Customize, Plugins, Add marketplace.</span></li>
+    <li><span class="n">2</span><b>Paste the address</b><span>One marketplace for everything.</span><span class="plate">Makkov-design/makkov-harness</span></li>
+    <li><span class="n">3</span><b>Enable makkov-harness</b><span>Companions are in the same list, one switch each.</span></li>
+    <li><span class="n">4</span><b>Run onboarding</b><span>A few questions: language, role, tools.</span></li>
+  </ol>
+  <p class="tail">Codex, Cursor, Gemini CLI and other agents: one install script.</p>
+</section>
+
+<section class="art ink" id="review">
+  <div class="top">
+    <h2>Checked before<br>recommended.</h2>
+    <p>Every third-party piece was fetched without running, scanned, and read by hand. Each one is pinned to the exact commit that passed.</p>
+  </div>
+  <div class="row"><span><b>Superpowers</b><small>Jesse Vincent</small></span><span class="sha">7.0.1 at 2ce8aa1</span><span class="steps">hooks read by hand</span><span class="v">Green</span></div>
+  <div class="row"><span><b>interfaces</b><small>Jakub Krehel</small></span><span class="sha">1.17.0 at 60bf140</span><span class="steps">text-only skills</span><span class="v">Green</span></div>
+  <div class="row"><span><b>Impeccable</b><small>Paul Bakaus</small></span><span class="sha">4.8.0 at 9fadc41</span><span class="steps">signed engine, checksum ok</span><span class="v v--y">Yellow: telemetry on</span></div>
+  <div class="row"><span><b>Hallmark</b><small>Nutlope</small></span><span class="sha">2.0.0 at 52328cb</span><span class="steps">optional keys only</span><span class="v">Green</span></div>
+  <div class="row"><span><b>security-audit</b><small>Cloudflare</small></span><span class="sha">c1c8a8c</span><span class="steps">instructions only</span><span class="v">Green</span></div>
+</section>
+
+</body>
+</html>

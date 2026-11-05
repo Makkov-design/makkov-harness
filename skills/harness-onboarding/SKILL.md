@@ -1,6 +1,6 @@
 ---
 name: harness-onboarding
-description: First-run setup for makkov-harness. Use when a person has just installed this harness, says "set this up for me", "onboard me", "настрой под меня", or asks how to personalize it. Interviews them in a few short questions and writes their own private layer of instructions (language, role, tools, preferences) into the right place for their agent, without touching anything else.
+description: First-run setup for makkov-harness. Use when a person has just installed this harness, says "set this up for me", "onboard me", or asks how to personalize it. Interviews them in a few short questions and writes their own private layer of instructions (language, role, tools, preferences) into the right place for their agent, without touching anything else.
 ---
 
 # Harness onboarding
@@ -26,7 +26,7 @@ Write 10-25 lines of plain instructions, for example:
 
 ```markdown
 # Personal layer (makkov-harness)
-- Answer in Russian; texts for my team in Ukrainian.
+- Answer in English; drafts for my team in German.
 - I am a designer, not a programmer: give step-by-step instructions, one command per block.
 - Deliver research and plans with rich-report (Claude) or html-report (other agents).
 - Daily tools: Figma, Notion, Linear.

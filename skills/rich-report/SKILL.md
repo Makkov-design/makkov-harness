@@ -1,6 +1,6 @@
 ---
 name: rich-report
-description: Use whenever the result of a task is a research, analysis, comparison, plan, roadmap, audit, strategy, recommendation or any multi-section deliverable meant to be read, even if the user did not ask for an artifact. Turns it into a polished, interactive, landing-page-grade Artifact page (real tables, charts, timelines, navigation, icons, simplified explanations) and, on revisions of the same topic, edits the existing artifact in place instead of creating a new one. Triggers on research results, "исследование", "разбор", "сравни", "составь план", "roadmap", "аудит", "стратегия", report, brief, analysis, comparison, plan.
+description: Use whenever the result of a task is a research, analysis, comparison, plan, roadmap, audit, strategy, recommendation or any multi-section deliverable meant to be read, even if the user did not ask for an artifact. Turns it into a polished, interactive, landing-page-grade Artifact page (real tables, charts, timelines, navigation, icons, simplified explanations) and, on revisions of the same topic, edits the existing artifact in place instead of creating a new one. Triggers on research results, research, breakdown, compare, make a plan, roadmap, audit, strategy, report, brief, analysis, comparison, plan.
 ---
 
 # Rich report: deliverables as presentable Artifact pages
@@ -17,9 +17,9 @@ Do not apply to: short answers, quick explanations, code changes, command output
 
 Revisions must edit the existing artifact, not create a new one.
 
-1. Check whether this session already published an artifact on this topic. If yes, this request is a revision, whatever the wording ("поменялись вводные", "добавь", "пересчитай", "учти ещё", "сделай короче").
+1. Check whether this session already published an artifact on this topic. If yes, this request is a revision, whatever the wording ("the inputs changed", "add", "recalculate", "also consider", "make it shorter").
 2. Revise with `Edit` on the same local file, then call `Artifact` with the same `file_path` (and the `url` if known). Never write a second file for the same topic. Keep the `<title>` unchanged.
-3. Update content everywhere the changed input flows (numbers, charts, TL;DR, recommendations), not only the paragraph the user mentioned. Add or refresh a small "Что изменилось" block near the top (date plus 2-4 bullets). Keep only the latest few entries.
+3. Update content everywhere the changed input flows (numbers, charts, TL;DR, recommendations), not only the paragraph the user mentioned. Add or refresh a small "What changed" block near the top (date plus 2-4 bullets). Keep only the latest few entries.
 4. Create a new artifact only when the topic is genuinely different, or the user asks for a separate version.
 5. If the session was resumed and the file is gone, find the artifact with `Artifact` action `list`, read it, and update it by `url`. If you cannot tell whether a topic matches, ask in one short line.
 6. Name the local file after the topic (for example `traffic-channels.html`) and keep that name for the whole session.
@@ -41,7 +41,7 @@ Linear-inspired: neutral black-and-white surfaces with Linear's lavender-blue ac
 - **Accent**: Linear lavender-blue `#5e6ad2` (as text, links and icons on dark use `#828fff`, in the starter as `--accent-text`). It is the only chromatic color, and it is used sparingly but visibly, only for marks: the recommended or key row marker, the key bar in a chart, the active item and icon in the contents rail, takeaway icons, timeline dots, links, the "recommended" pill, the report ID chip, focus rings. Never as a page, section or card background, never as a large fill, never a second accent hue.
 - **Status color** (green, amber, red) appears only as a small dot inside a pill or as a severity mark, never as a fill, background or heading color.
 - **Depth**: hairline 1px borders and the surface ladder. No drop shadows, no gradients, no glow, no decorative blobs. In dark mode a 1px top edge highlight (`--edge`) on cards.
-- **Type**: Onest (free Google Fonts grotesk with full Cyrillic, close to Linear's own face; Inter is avoided because the Impeccable design hook flags it as overused) at 400, 500, 600 only, never 700+. Display headings 600 with strong negative tracking (about -0.035em at hero size, -0.025em for section headings), body 15px, captions 12-13px. JetBrains Mono only for IDs, dates and code tokens. Numbers use tabular figures.
+- **Type**: Onest (free Google Fonts grotesk with wide script coverage, close to Linear's own face; Inter is avoided because the Impeccable design hook flags it as overused) at 400, 500, 600 only, never 700+. Display headings 600 with strong negative tracking (about -0.035em at hero size, -0.025em for section headings), body 15px, captions 12-13px. JetBrains Mono only for IDs, dates and code tokens. Numbers use tabular figures.
 - **Shape**: radius 8px for controls, 12px for cards and tables, pill only for chips, tabs and status pills. Spacing on a 4px grid, about 80px between sections.
 - **Voice of the page**: dense, calm, left-aligned, no centered hero, no marketing flourish. The content (tables, charts, timelines) is the protagonist.
 - **Charts**: grayscale ramp with the key value in the accent. Add status colors only when the color itself carries meaning.
@@ -76,7 +76,7 @@ Linear-inspired: neutral black-and-white surfaces with Linear's lavender-blue ac
 
 - Lead with the conclusion, then the reason. One idea per block, at most ~4 lines per paragraph.
 - Replace explanations of structure with a picture: diagram, comparison table, annotated example.
-- Use "в двух словах" callouts for the hard parts. Write for a smart reader outside the field.
+- Use "in short" callouts for the hard parts. Write for a smart reader outside the field.
 - Use concrete numbers and examples instead of adjectives.
 
 ## Interactivity: purposeful only

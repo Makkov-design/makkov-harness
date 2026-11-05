@@ -205,94 +205,94 @@ footer { color: var(--ink-3); font-size: .8125rem; padding-block: 2rem 0; border
 
 <div class="wrap">
   <header class="hero">
-    <div class="chips"><span class="chip brand mono">RPT-001</span><span class="chip"><svg class="icon"><use href="#i-target"/></svg>Область: шаблон</span><span class="chip mono">Обновлено: дата</span></div>
-    <h1>Заголовок отчёта, который формулирует вопрос</h1>
-    <p class="lead">Одно предложение: на какой вопрос отвечает страница и для кого она.</p>
+    <div class="chips"><span class="chip brand mono">RPT-001</span><span class="chip"><svg class="icon"><use href="#i-target"/></svg>Scope: template</span><span class="chip mono">Updated: date</span></div>
+    <h1>A report title that states the question</h1>
+    <p class="lead">One sentence: which question this page answers, and for whom.</p>
   </header>
 
   <div class="shell">
-    <nav class="toc" id="toc" aria-label="Содержание"></nav>
+    <nav class="toc" id="toc" aria-label="Contents"></nav>
 
     <main>
-      <section id="summary" data-nav="Главное" data-icon="i-target">
-        <h2>Что важно знать</h2>
+      <section id="summary" data-nav="Summary" data-icon="i-target">
+        <h2>What matters</h2>
         <div class="takeaways">
-          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-bulb"/></svg></span><strong>Вывод первым</strong><span>Каждая карточка отвечает на вопрос, а не описывает тему.</span></div>
-          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-chart"/></svg></span><strong>Цифра, которая решает</strong><span>Ключевое число и откуда оно взято.</span></div>
-          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-shield"/></svg></span><strong>Главный риск</strong><span>Что может сломать вывод и как это проверить.</span></div>
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-bulb"/></svg></span><strong>Conclusion first</strong><span>Each card answers the question instead of describing the topic.</span></div>
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-chart"/></svg></span><strong>The number that decides</strong><span>The key figure and where it comes from.</span></div>
+          <div class="card take"><span class="mark"><svg class="icon"><use href="#i-shield"/></svg></span><strong>The main risk</strong><span>What could break the conclusion and how to check it.</span></div>
         </div>
-        <div class="callout"><svg class="icon"><use href="#i-bulb"/></svg><p><strong>В двух словах.</strong> Блок для самого сложного места: объяснение простыми словами.</p></div>
+        <div class="callout"><svg class="icon"><use href="#i-bulb"/></svg><p><strong>In short.</strong> A block for the hardest part: the plain-words explanation.</p></div>
         <!-- Show this block only on revisions. Keep the latest 3-4 entries. -->
         <div class="card changes">
-          <h3 class="eyebrow">Что изменилось</h3>
+          <h3 class="eyebrow">What changed</h3>
           <ul>
-            <li><time class="mono">2026-01-01</time><span>Что именно обновлено и какие разделы это затронуло.</span></li>
+            <li><time class="mono">2026-01-01</time><span>What was updated and which sections it touched.</span></li>
           </ul>
         </div>
       </section>
 
-      <section id="compare" data-nav="Сравнение" data-icon="i-table">
-        <h2>Вариант B выигрывает по цене за результат</h2>
-        <p class="summary">Одно предложение с выводом, затем доказательство.</p>
-        <div class="tools"><input id="q" type="search" placeholder="Фильтр по названию" aria-label="Фильтр по названию"></div>
+      <section id="compare" data-nav="Comparison" data-icon="i-table">
+        <h2>Option B wins on cost per result</h2>
+        <p class="summary">One sentence with the conclusion, then the evidence.</p>
+        <div class="tools"><input id="q" type="search" placeholder="Filter by name" aria-label="Filter by name"></div>
         <div class="card scroll"><table id="tbl">
           <thead><tr>
-            <th><button type="button" data-k="0">Вариант</button></th>
-            <th class="r"><button type="button" data-k="1" data-num="1">Стоимость, $</button></th>
-            <th class="r"><button type="button" data-k="2" data-num="1">Результат</button></th>
-            <th><button type="button" data-k="3">Оценка</button></th>
+            <th><button type="button" data-k="0">Option</button></th>
+            <th class="r"><button type="button" data-k="1" data-num="1">Cost, $</button></th>
+            <th class="r"><button type="button" data-k="2" data-num="1">Result</button></th>
+            <th><button type="button" data-k="3">Rating</button></th>
           </tr></thead>
           <tbody>
-            <tr><td>Вариант A</td><td class="r num">1200</td><td class="r num">34</td><td><span class="pill warn">оценка</span></td></tr>
-            <tr class="pick"><td>Вариант B <span class="pill rec">рекомендуем</span></td><td class="r num">900</td><td class="r num">41</td><td><span class="pill good">данные</span></td></tr>
-            <tr><td>Вариант C</td><td class="r num">1500</td><td class="r num">29</td><td><span class="pill bad">слабая база</span></td></tr>
+            <tr><td>Option A</td><td class="r num">1200</td><td class="r num">34</td><td><span class="pill warn">estimate</span></td></tr>
+            <tr class="pick"><td>Option B <span class="pill rec">recommended</span></td><td class="r num">900</td><td class="r num">41</td><td><span class="pill good">data</span></td></tr>
+            <tr><td>Option C</td><td class="r num">1500</td><td class="r num">29</td><td><span class="pill bad">thin evidence</span></td></tr>
           </tbody>
         </table></div>
-        <div class="card bars" role="img" aria-label="Результат по вариантам">
-          <div class="bar"><span>Вариант A</span><i style="width:83%"></i><b class="num">34</b></div>
-          <div class="bar top"><span>Вариант B</span><i style="width:100%"></i><b class="num">41</b></div>
-          <div class="bar"><span>Вариант C</span><i style="width:71%"></i><b class="num">29</b></div>
+        <div class="card bars" role="img" aria-label="Result by option">
+          <div class="bar"><span>Option A</span><i style="width:83%"></i><b class="num">34</b></div>
+          <div class="bar top"><span>Option B</span><i style="width:100%"></i><b class="num">41</b></div>
+          <div class="bar"><span>Option C</span><i style="width:71%"></i><b class="num">29</b></div>
         </div>
       </section>
 
-      <section id="options" data-nav="Детали" data-icon="i-route">
-        <h2>Детали по вариантам</h2>
+      <section id="options" data-nav="Details" data-icon="i-route">
+        <h2>Details by option</h2>
         <div class="tabs" id="tabs">
-          <div role="tablist" aria-label="Варианты">
-            <button role="tab" id="t1" aria-controls="p1" aria-selected="true">Вариант A</button>
-            <button role="tab" id="t2" aria-controls="p2" aria-selected="false" tabindex="-1">Вариант B</button>
+          <div role="tablist" aria-label="Options">
+            <button role="tab" id="t1" aria-controls="p1" aria-selected="true">Option A</button>
+            <button role="tab" id="t2" aria-controls="p2" aria-selected="false" tabindex="-1">Option B</button>
           </div>
-          <div role="tabpanel" id="p1" aria-labelledby="t1"><p>Описание варианта A.</p></div>
-          <div role="tabpanel" id="p2" aria-labelledby="t2" hidden><p>Описание варианта B.</p></div>
+          <div role="tabpanel" id="p1" aria-labelledby="t1"><p>Description of option A.</p></div>
+          <div role="tabpanel" id="p2" aria-labelledby="t2" hidden><p>Description of option B.</p></div>
         </div>
         <div>
-          <details><summary>Как это посчитано</summary><div>Допущения и формулы, свёрнутые по умолчанию.</div></details>
-          <details><summary>Что осталось неизвестным</summary><div>Открытые вопросы и как их закрыть.</div></details>
+          <details><summary>How this was calculated</summary><div>Assumptions and formulas, collapsed by default.</div></details>
+          <details><summary>What is still unknown</summary><div>Open questions and how to close them.</div></details>
         </div>
       </section>
 
-      <section id="plan" data-nav="План" data-icon="i-route">
-        <h2>План по этапам</h2>
+      <section id="plan" data-nav="Plan" data-icon="i-route">
+        <h2>Plan by stage</h2>
         <ol class="timeline">
-          <li><div class="when mono">Неделя 1–2</div><div class="what"><strong>Этап</strong><span>Что делаем и что получаем на выходе.</span></div></li>
-          <li><div class="when mono">Неделя 3–6</div><div class="what"><strong>Этап</strong><span>Что делаем и что получаем на выходе.</span></div></li>
+          <li><div class="when mono">Weeks 1–2</div><div class="what"><strong>Stage</strong><span>What we do and what comes out of it.</span></div></li>
+          <li><div class="when mono">Weeks 3–6</div><div class="what"><strong>Stage</strong><span>What we do and what comes out of it.</span></div></li>
         </ol>
       </section>
 
-      <section id="risks" data-nav="Риски" data-icon="i-shield">
-        <h2>Риски</h2>
+      <section id="risks" data-nav="Risks" data-icon="i-shield">
+        <h2>Risks</h2>
         <div class="card scroll"><table>
-          <thead><tr><th>Риск</th><th>Вероятность</th><th>Что делать</th></tr></thead>
+          <thead><tr><th>Risk</th><th>Likelihood</th><th>What to do</th></tr></thead>
           <tbody>
-            <tr><td>Описание риска</td><td><span class="pill bad">высокая</span></td><td>Действие</td></tr>
-            <tr><td>Описание риска</td><td><span class="pill warn">средняя</span></td><td>Действие</td></tr>
+            <tr><td>Risk description</td><td><span class="pill bad">high</span></td><td>Action</td></tr>
+            <tr><td>Risk description</td><td><span class="pill warn">medium</span></td><td>Action</td></tr>
           </tbody>
         </table></div>
       </section>
     </main>
   </div>
 
-  <footer>Источники и допущения: список со ссылками. Оценки помечены как оценки.</footer>
+  <footer>Sources and assumptions: a list with links. Estimates are marked as estimates.</footer>
 </div>
 
 <script>
