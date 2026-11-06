@@ -130,6 +130,27 @@
   .foot-mark { aspect-ratio: 1630 / 430; width: calc(100% - 2 * var(--gutter)); margin-block: var(--space-xl) var(--space-lg); -webkit-mask-image: url("img/brand/wordmark-2l.svg"); mask-image: url("img/brand/wordmark-2l.svg"); }
 }
 @media (min-width: 60.01rem) { .find-end, .find-pick { display: none; } }
+/* ===== Catalog page on phones and tablets: an edge index in the right gutter =====
+   One short tick per group, pinned to the edge inside the 16px gutter so it never covers a card.
+   The current group's tick is longer and brighter; a label names a group only while you touch or enter it. */
+@media (max-width: 75rem) {
+  .sit-rail { display: grid; left: auto; right: 0; top: 50%; translate: 0 -50%; gap: 0; width: 26px; padding: var(--space-xs) max(0px, env(safe-area-inset-right, 0px)) var(--space-xs) 0; border-radius: 0; background: none; box-shadow: none; touch-action: none; opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease-out); }
+  .sit-rail.is-on { opacity: 1; pointer-events: auto; }
+  .sit-rail:hover, .sit-rail:focus-within { background: none; box-shadow: none; }
+  .sit-rail a { justify-content: flex-end; min-height: 22px; padding: 0 5px 0 0; gap: 0; -webkit-tap-highlight-color: transparent; }
+  .sit-rail span { display: none; }
+  .sit-rail i { width: 10px; height: 2px; transform-origin: 100% 50%; scale: 0.6 1; background: var(--ink-low); opacity: 0.75; }
+  .sit-rail a[aria-current] i, .sit-rail.is-scrub i { opacity: 1; }
+  .sit-rail a[aria-current] i { scale: 1.3 1; background: var(--color-ink); }
+  .sit-rail.is-scrub i { background: var(--ink-dim); scale: 0.9 1; }
+  .sit-rail.is-scrub a[aria-current] i { background: var(--color-ink); scale: 1.3 1; }
+  .sit-tip { position: fixed; z-index: calc(var(--z-sticky) + 1); right: 30px; top: 50%; translate: 0 -50%; display: flex; align-items: center; gap: var(--space-xs); max-width: calc(100vw - 60px); padding: 7px 12px; border: 1px solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-3); box-shadow: 0 12px 32px oklch(0% 0 0 / 0.5); color: var(--color-ink); font: 500 13px/1.2 var(--font-body); white-space: nowrap; pointer-events: none; opacity: 0; scale: 0.94; transform-origin: 100% 50%; transition: opacity 180ms var(--ease-out), scale 180ms var(--ease-out), top 120ms var(--ease-out); }
+  .sit-tip b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+  .sit-tip em { font: 400 11px/1 var(--font-code); font-style: normal; color: var(--ink-dim); }
+  .sit-tip.is-on { opacity: 1; scale: 1; }
+}
+@media (min-width: 75.01rem) { .sit-tip { display: none; } }
+
 @keyframes pick-in { from { opacity: 0; scale: 0.97; translate: 0 -6px; } to { opacity: 1; scale: 1; translate: 0 0; } }
 @media (max-width: 40rem) {
   /* on short phones the routing lead gives way so the card still fits */

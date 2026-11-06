@@ -86,9 +86,43 @@
     if (!rail) return;
     rail.innerHTML = D.groups.map((g) => `<a href="#${g.id}" data-g="${g.id}"><i></i><span>${esc(g.title)}</span></a>`).join('');
     const links = [...rail.children];
+
+    // phones and tablets: the rail is an edge index in the right gutter. Tap a tick to jump,
+    // drag along the ticks to scrub through the groups; a small label names the group under the finger.
+    const edge = matchMedia('(max-width: 75rem)'), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tip = document.createElement('div'); tip.className = 'sit-tip'; tip.setAttribute('aria-hidden', 'true'); document.body.append(tip);
+    let tipT = 0, scrub = -1, moved = false, cur = -1;
+    const yOf = (i) => { const r = links[i].getBoundingClientRect(); return r.top + r.height / 2; };
+    const at = (y) => { let best = 0, d = Infinity; links.forEach((l, k) => { const dd = Math.abs(yOf(k) - y); if (dd < d) { d = dd; best = k; } }); return best; };
+    const showTip = (i, hold) => {
+      const g = D.groups[i]; tip.innerHTML = `<b>${esc(g.title)}</b><em>${g.rows.length}</em>`; tip.style.top = `${yOf(i)}px`; tip.classList.add('is-on');
+      clearTimeout(tipT); if (!hold) tipT = setTimeout(() => tip.classList.remove('is-on'), 1100);
+    };
+    let quietUntil = 0; // a jump passes other groups on its way; they should not flash their names
+    const go = (i, smooth) => { quietUntil = performance.now() + 1000; document.getElementById(D.groups[i].id).scrollIntoView({ behavior: smooth && !reduce ? 'smooth' : 'auto', block: 'start' }); };
+    rail.addEventListener('pointerdown', (e) => {
+      if (!edge.matches) return;
+      e.preventDefault(); try { rail.setPointerCapture(e.pointerId); } catch {} rail.classList.add('is-scrub');
+      scrub = at(e.clientY); moved = false; showTip(scrub, true);
+    });
+    rail.addEventListener('pointermove', (e) => {
+      if (scrub < 0) return;
+      const i = at(e.clientY); if (i === scrub) return;
+      scrub = i; moved = true; showTip(i, true); go(i, false);
+    });
+    const end = () => { if (scrub < 0) return; const i = scrub; scrub = -1; rail.classList.remove('is-scrub'); go(i, !moved); showTip(i, false); };
+    rail.addEventListener('pointerup', end); rail.addEventListener('pointercancel', end);
+    rail.addEventListener('click', (e) => { if (edge.matches) e.preventDefault(); });
+    // the index shows only while the list is on screen
+    new IntersectionObserver(([e]) => rail.classList.toggle('is-on', e.isIntersecting)).observe(list);
+
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) return;
-      links.forEach((l) => l.toggleAttribute('aria-current', l.dataset.g === e.target.id));
+      const k = links.findIndex((l) => l.dataset.g === e.target.id);
+      links.forEach((l, j) => l.toggleAttribute('aria-current', j === k));
+      // entering a new group while reading: name it for a moment next to its tick
+      if (edge.matches && scrub < 0 && cur >= 0 && k !== cur && performance.now() > quietUntil) showTip(k, false);
+      cur = k;
     }), { rootMargin: '-35% 0px -55% 0px' });
     list.querySelectorAll('.sit-block').forEach((s) => io.observe(s));
     window.fxRefresh?.(list);
