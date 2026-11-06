@@ -152,3 +152,8 @@
   .board-head .lead, .board-foot { display: none; }
   .fix-note { display: none; }
 }
+
+/* ===== copy buttons: no outline on hover, the fill and text brighten instead ===== */
+.copy, .copy:hover { border-color: transparent; }
+.copy:hover { background: var(--color-ink); color: var(--color-paper); }
+.copy.is-done:hover { background: var(--tint-2); color: var(--color-ink); }

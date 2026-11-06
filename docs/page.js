@@ -56,17 +56,6 @@
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => getSelection().selectAllChildren(el)); else getSelection().selectAllChildren(el);
   }));
 
-  /* ---------- install stops: each step lights as you reach it (in a row: one after another) ---------- */
-  const lists = [...document.querySelectorAll('[data-stops]')];
-  const lightStops = () => lists.forEach((stops) => {
-    if (!stops.offsetParent) return; // a hidden path
-    const items = [...stops.children], stacked = items.length > 1 && items[1].offsetTop > items[0].offsetTop + 10;
-    if (stacked) { items.forEach((li) => li.classList.toggle('is-lit', li.getBoundingClientRect().top < innerHeight * 0.7)); return; }
-    const r = stops.getBoundingClientRect(), p = clamp((innerHeight * 0.8 - r.top) / (innerHeight * 0.55));
-    items.forEach((li, i) => li.classList.toggle('is-lit', p >= i / (items.length - 1) - 0.02));
-  });
-  if (lists.length) onFrame(lightStops);
-
   /* ---------- the cursor in each step's small screen lands on the thing to press, at any width ---------- */
   const aim = () => document.querySelectorAll('.sv-cur').forEach((c) => {
     const sv = c.parentElement, hits = sv.querySelectorAll('.sv-hit'), t = hits[hits.length - 1];
@@ -87,12 +76,21 @@
 
   /* ---------- where you work: three install paths ---------- */
   const ways = [...document.querySelectorAll('.ways [role="tab"]')];
+  // the old path dissolves first, then the new one comes into focus card by card
+  let swapT = 0;
   const pickWay = (i, focus) => {
-    ways.forEach((w, k) => { const on = k === i; w.setAttribute('aria-selected', String(on)); w.tabIndex = on ? 0 : -1; document.getElementById(w.getAttribute('aria-controls')).hidden = !on; });
+    const next = document.getElementById(ways[i].getAttribute('aria-controls'));
+    const prev = [...document.querySelectorAll('.path')].find((p) => !p.hidden && p !== next);
+    ways.forEach((w, k) => { const on = k === i; w.setAttribute('aria-selected', String(on)); w.tabIndex = on ? 0 : -1; });
     if (focus) ways[i].focus();
-    // the new path's steps light at once if the list is already on screen, and replay their cursor
-    document.querySelectorAll('.path .step').forEach((li) => li.classList.remove('is-lit'));
-    requestAnimationFrame(() => { aim(); lightStops(); });
+    if (!prev) return;
+    const show = () => {
+      document.querySelectorAll('.path').forEach((p) => { p.hidden = p !== next; p.classList.remove('is-out', 'is-in'); });
+      void next.offsetWidth; next.classList.add('is-in'); aim();
+    };
+    clearTimeout(swapT);
+    if (reduce) { show(); return; }
+    prev.classList.add('is-out'); swapT = setTimeout(show, 200);
   };
   ways.forEach((w, i) => {
     w.addEventListener('click', () => pickWay(i));
