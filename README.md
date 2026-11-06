@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://makkov-design.github.io/makkov-harness/"><img src=".github/assets/banner.png" alt="makkov-harness: pick the skill by the situation. 16 skills, 6 reviewed plugins, 9 agents." width="100%"></a>
+  <a href="https://makkov-design.github.io/makkov-harness/"><img src=".github/assets/banner.png" alt="MAKKOV HARNESS: the brand mark between the two words, with routing lines converging from both sides." width="100%"></a>
 </p>
 
 <p align="center">

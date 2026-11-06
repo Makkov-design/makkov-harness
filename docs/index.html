@@ -3,11 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>makkov-harness: pick the skill by the situation</title>
-<meta name="description" content="A designer's harness for AI agents: curated skills, a routing map that picks the right one, and companion plugins pinned to reviewed commits.">
+<title>makkov-harness: the right skill for every request</title>
+<meta name="description" content="A designer's harness for AI agents: a routing map that picks the right skill, results as designed pages, and companion plugins reviewed before you install them.">
+<meta property="og:title" content="makkov-harness">
+<meta property="og:description" content="Your agent, switched to the right skill. A designer's harness for AI agents.">
+<meta property="og:image" content="https://makkov-design.github.io/makkov-harness/img/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/mark-64.png">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;500;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -15,112 +22,126 @@
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="nav">
-  <div class="container">
-    <a class="wordmark" href="#main" aria-label="makkov-harness, back to top">makkov-harness</a>
+  <div class="nav-pill">
+    <a class="wordmark" href="#main" aria-label="makkov-harness, back to top"><img class="wm-mark" src="img/brand/symbol.svg" width="28" height="28" alt=""><img class="wm-text" src="img/brand/wordmark.svg" width="230" height="17" alt="makkov harness"></a>
     <ul>
-      <li class="hide-s"><a href="#board">Routing</a></li>
-      <li class="hide-s"><a href="#plugins">Plugins</a></li>
+      <li class="hide-s"><a href="#switch">Routing</a></li>
+      <li class="hide-s"><a href="#gate">Security</a></li>
       <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
-      <li><a class="btn btn--sm" href="#install">Install</a></li>
+      <li><a class="btn btn--primary btn--sm" href="#install">Install</a></li>
     </ul>
   </div>
 </header>
 
 <main id="main">
-  <section class="hero" aria-labelledby="hero-title">
+  <section class="hero" aria-labelledby="hero-title" data-loop>
+    <button class="loop-toggle" type="button" data-loop-toggle>Pause motion</button>
     <div class="container">
       <div>
-        <h1 id="hero-title">Pick the skill by the situation.</h1>
-        <p class="lead">Skills, a routing map and reviewed plugins for designers’ AI agents.</p>
+        <h1 id="hero-title">Your agent, switched to the right skill.</h1>
+        <p class="lead">A designer’s harness: routing, reviewed plugins and reports that ship.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="#install">Install in two minutes</a>
+          <a class="btn" href="https://github.com/Makkov-design/makkov-harness"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.3 6.6 19.4l1.3-6L3.4 9.3l6-.7Z"/></svg>Star on GitHub</a>
+        </div>
       </div>
-      <div class="actions">
-        <a class="btn btn--primary" href="#install">Add to Claude</a>
-        <a class="btn" href="https://github.com/Makkov-design/makkov-harness">Read the code</a>
-      </div>
+      <div class="hero-mark"><svg class="wires routing-diagram" viewBox="0 0 1800 720" width="1800" height="720" aria-hidden="true" focusable="false"><g fill="none"><path id="w0" d="M0 110 L360 110 L420 200 L710 200 L750 290" class="wire wire--strong"/><path id="w1" d="M0 250 L300 250 L360 290 L695 290 L735 330" class="wire"/><path id="w2" d="M0 360 L410 360 L470 360 L688 360 L728 360" class="wire"/><path id="w3" d="M0 480 L320 480 L380 430 L695 430 L735 392" class="wire wire--strong"/><path id="w4" d="M0 620 L440 620 L500 520 L710 520 L750 432" class="wire"/><path id="w5" d="M1800 90 L1480 90 L1420 180 L1090 180 L1050 288" class="wire"/><path id="w6" d="M1800 280 L1520 280 L1460 320 L1108 320 L1068 336" class="wire wire--strong"/><path id="w7" d="M1800 460 L1510 460 L1450 410 L1106 410 L1066 390" class="wire"/><path id="w8" d="M1800 640 L1450 640 L1390 540 L1090 540 L1050 436" class="wire"/></g><circle cx="420" cy="200" r="4" class="node"/><rect x="357" y="107" width="6" height="6" class="node"/><circle cx="360" cy="290" r="4" class="node"/><rect x="297" y="247" width="6" height="6" class="node"/><circle cx="470" cy="360" r="4" class="node"/><rect x="407" y="357" width="6" height="6" class="node"/><circle cx="380" cy="430" r="4" class="node"/><rect x="317" y="477" width="6" height="6" class="node"/><circle cx="500" cy="520" r="4" class="node"/><rect x="437" y="617" width="6" height="6" class="node"/><circle cx="1420" cy="180" r="4" class="node"/><rect x="1477" y="87" width="6" height="6" class="node"/><circle cx="1460" cy="320" r="4" class="node"/><rect x="1517" y="277" width="6" height="6" class="node"/><circle cx="1450" cy="410" r="4" class="node"/><rect x="1507" y="457" width="6" height="6" class="node"/><circle cx="1390" cy="540" r="4" class="node"/><rect x="1447" y="637" width="6" height="6" class="node"/><g class="packets"><circle r="3.2" class="packet"><animateMotion dur="7.0s" begin="0.0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w0"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="8.6s" begin="0.9s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w1"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="10.2s" begin="1.8s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w2"/></animateMotion></circle><circle r="3.2" class="packet packet--opal"><animateMotion dur="11.8s" begin="2.7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w3"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="7.0s" begin="3.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w4"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="8.6s" begin="4.5s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w5"/></animateMotion></circle><circle r="3.2" class="packet"><animateMotion dur="10.2s" begin="5.4s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w6"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="11.8s" begin="6.3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w7"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="7.0s" begin="7.2s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w8"/></animateMotion></circle></g></svg><img src="img/brand/symbol.svg" width="260" height="264" alt="The makkov-harness mark: four fused nodes around one centre"></div>
     </div>
   </section>
 
-  <section class="band--ink on-ink" id="board" aria-labelledby="board-title">
+  <section class="board" id="switch" aria-labelledby="switch-title">
     <div class="container">
       <div class="board-head">
-        <div>
-          <h2 id="board-title">Situation in, skill out.</h2>
-          <p class="lead">The map loads with every session, so the agent reaches for the right tool.</p>
+        <h2 id="switch-title">Throw the switch yourself.</h2>
+        <p class="lead">Pick a request. The routing map loads in every session and sends it to its skill.</p>
+      </div>
+      <div class="switch">
+        <div class="requests" role="tablist" aria-label="Requests" aria-orientation="vertical">
+          <button type="button" role="tab" id="rq0" aria-controls="rt0" aria-selected="true"><span>Compare these three tools</span><span class="kind">skill</span></button>
+          <button type="button" role="tab" id="rq1" aria-controls="rt1" aria-selected="false"><span>Install this npm package</span><span class="kind">skill</span></button>
+          <button type="button" role="tab" id="rq2" aria-controls="rt2" aria-selected="false"><span>Make it feel like Linear</span><span class="kind">skill</span></button>
+          <button type="button" role="tab" id="rq3" aria-controls="rt3" aria-selected="false"><span>Animate this card</span><span class="kind">skill</span></button>
+          <button type="button" role="tab" id="rq4" aria-controls="rt4" aria-selected="false"><span>Make a release video</span><span class="kind">skill</span></button>
+          <button type="button" role="tab" id="rq5" aria-controls="rt5" aria-selected="false"><span>Review this screen</span><span class="kind">plugin</span></button>
+          <button type="button" role="tab" id="rq6" aria-controls="rt6" aria-selected="false"><span>Build a landing page</span><span class="kind">plugin</span></button>
+          <button type="button" role="tab" id="rq7" aria-controls="rt7" aria-selected="false"><span>We launch next week</span><span class="kind">plugin</span></button>
         </div>
-        <div class="seg" role="tablist" aria-label="Routing board">
-          <button type="button" role="tab" id="tab-skills" aria-controls="panel-skills" aria-selected="true">Skills</button>
-          <button type="button" role="tab" id="tab-companions" aria-controls="panel-companions" aria-selected="false" tabindex="-1">Companions</button>
+        <div class="routes">
+          <div class="route" id="rt0" role="tabpanel" aria-labelledby="rq0"><p class="route-from">You say<q>Compare these three tools</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">rich-report</p><p class="route-get">A designed report page with tables and charts, not a wall of chat.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt1" role="tabpanel" aria-labelledby="rq1"><p class="route-from">You say<q>Install this npm package</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">install-guard</p><p class="route-get">Fetched without running and scanned. A green, yellow or red verdict comes first.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt2" role="tabpanel" aria-labelledby="rq2"><p class="route-from">You say<q>Make it feel like Linear</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">design-md-library</p><p class="route-get">That product’s design system as a reference for your mockup.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt3" role="tabpanel" aria-labelledby="rq3"><p class="route-from">You say<q>Animate this card</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">animate</p><p class="route-get">Motion by Emil Kowalski’s rules: purpose, curve, duration, exit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt4" role="tabpanel" aria-labelledby="rq4"><p class="route-from">You say<q>Make a release video</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">hyperframes</p><p class="route-get">An MP4 rendered from HTML, with HeyGen’s toolkit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt5" role="tabpanel" aria-labelledby="rq5"><p class="route-from">You say<q>Review this screen</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">interfaces</p><p class="route-get">Accessibility, typography, colour, layout and copy, fixed.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt6" role="tabpanel" aria-labelledby="rq6"><p class="route-from">You say<q>Build a landing page</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">Hallmark</p><p class="route-get">A page that looks designed, not generated. Like this one.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+          <div class="route" id="rt7" role="tabpanel" aria-labelledby="rq7"><p class="route-from">You say<q>We launch next week</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">security-audit</p><p class="route-get">Cloudflare’s whole-project security review.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
         </div>
       </div>
-
-      <div class="board" role="tabpanel" id="panel-skills" aria-labelledby="tab-skills">
-        <table>
-          <caption>Skills in the harness</caption>
-          <thead><tr><th scope="col">Situation</th><th scope="col">Skill</th><th scope="col">What you get</th></tr></thead>
-          <tbody>
-            <tr><td>A plan, an audit or a comparison</td><td class="skill">rich-report</td><td>A designed page, one per topic</td></tr>
-            <tr><td>Installing anything third-party</td><td class="skill">third-party-install-guard</td><td>A green, yellow or red verdict first</td></tr>
-            <tr><td>“Make it like Linear”</td><td class="skill">design-md-library</td><td>That product’s design system as a reference</td></tr>
-            <tr><td>A transition or a motion pass</td><td class="skill">animate</td><td>Emil Kowalski’s rules for motion</td></tr>
-            <tr><td>A promo clip from HTML</td><td class="skill">hyperframes</td><td>An MP4, rendered by HeyGen’s tool</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="board" role="tabpanel" id="panel-companions" aria-labelledby="tab-companions">
-        <table>
-          <caption>Companion plugins, enabled from the same marketplace</caption>
-          <thead><tr><th scope="col">Situation</th><th scope="col">Plugin</th><th scope="col">What you get</th></tr></thead>
-          <tbody>
-            <tr><td>Before building anything</td><td class="skill">Superpowers</td><td>Brainstorming, plans, debugging</td></tr>
-            <tr><td>Reviewing a screen</td><td class="skill">interfaces</td><td>Accessibility, type, colour, layout</td></tr>
-            <tr><td>Shaping a feature</td><td class="skill">Impeccable</td><td>Bolder, quieter, onboarding, DESIGN.md</td></tr>
-            <tr><td>A new landing page</td><td class="skill">Hallmark</td><td>Pages like this one</td></tr>
-            <tr><td>A launch coming up</td><td class="skill">security-audit</td><td>Cloudflare’s whole-project review</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="board-foot">The full map, with motion and video helpers: <a href="https://github.com/Makkov-design/makkov-harness/blob/main/ROUTING.md">ROUTING.md</a></p>
+      <p class="board-foot">Every route lives in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/ROUTING.md">ROUTING.md</a>.</p>
     </div>
   </section>
 
-  <section class="route" id="install" aria-labelledby="install-title">
+  <section class="deliver" aria-labelledby="deliver-title">
     <div class="container">
-      <h2 id="install-title">Four stops to install.</h2>
-      <p class="lead">Once, in the browser. Then it works on every computer and in cloud sessions.</p>
-      <ol class="stops">
-        <li><h3>Open claude.ai</h3><p>Customize, then Plugins, then Add marketplace.</p></li>
-        <li><h3>Paste the address</h3><div class="plate"><code id="addr">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr">Copy</button></div></li>
-        <li><h3>Enable makkov-harness</h3><p>Companions are in the same list.</p></li>
-        <li><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
-      </ol>
-      <p class="route-foot">Other agents: <code>install/install.sh &lt;agent&gt;</code></p>
+      <h2 id="deliver-title">What each track delivers.</h2>
+      <div class="bento">
+        <article class="tile tile--wide tile--glass">
+          <h3>Reports you can send as they are</h3><p>Research, audits and plans arrive as designed pages with real tables and charts.</p>
+          <div class="mini-report" aria-hidden="true"><div class="mr-head"><span></span><span></span></div><div class="mr-row"><b></b><i style="--w:82%"></i></div><div class="mr-row mr-row--pick"><b></b><i style="--w:100%"></i></div><div class="mr-row"><b></b><i style="--w:64%"></i></div></div>
+        </article>
+        <article class="tile tile--narrow">
+          <h3>Installs, reviewed first</h3><p>Fetched without running, scanned, then a verdict.</p>
+          <ul class="verdicts"><li><code>crossenv</code><span class="pill pill--red">Red</span></li><li><code>cowsay 1.6.0</code><span class="pill pill--green">Green</span></li></ul>
+        </article>
+        <article class="tile tile--narrow">
+          <h3>Video from plain HTML</h3><p>Release clips and animated slides, rendered to MP4.</p>
+          <div class="frames" aria-hidden="true"><span>00:00</span><span>00:01</span><span>00:02</span><span>00:03</span></div>
+        </article>
+        <article class="tile tile--wide">
+          <h3>Any product’s look, on call</h3>
+          <p>Ask for a style and get that product’s design system as a reference.</p>
+          <div class="styles" aria-label="Design systems on file"><span>Linear</span><span>Stripe</span><span>Vercel</span><span>Notion</span><span>Apple</span><span>Airbnb</span><span>+78 more</span></div>
+        </article>
+      </div>
     </div>
   </section>
 
-  <section class="status" id="plugins" aria-labelledby="plugins-title">
+  <section class="gate" id="gate" aria-labelledby="gate-title">
     <div class="container">
       <div>
-        <h2 id="plugins-title">Checked before recommended.</h2>
-        <p class="lead">Each companion is pinned to the commit reviewed on 3 or 4 November 2026.</p>
-        <p class="status-note">A weekly check flags upstream changes in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>.</p>
+        <h2 id="gate-title">Checked at the gate.</h2>
+        <p class="lead">Every companion was fetched without running, scanned and read by hand, then pinned to that commit.</p>
+        <p class="gate-note">A weekly check flags new upstream versions in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>. Verdicts in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p>
       </div>
-      <ul class="rows">
-        <li><span><b>Superpowers</b><small>Jesse Vincent</small></span><span class="pin">7.0.1 at 2ce8aa1</span><span class="verdict">Green</span></li>
-        <li><span><b>interfaces</b><small>Jakub Krehel</small></span><span class="pin">1.17.0 at 60bf140</span><span class="verdict">Green</span></li>
-        <li><span><b>Impeccable</b><small>Paul Bakaus</small></span><span class="pin">4.8.0 at 9fadc41</span><span class="verdict verdict--warn">Yellow: telemetry on by default</span></li>
-        <li><span><b>Hallmark</b><small>Nutlope</small></span><span class="pin">2.0.0 at 52328cb</span><span class="verdict">Green</span></li>
-        <li><span><b>security-audit</b><small>Cloudflare</small></span><span class="pin">c1c8a8c</span><span class="verdict">Green</span></li>
+      <ul class="checks">
+        <li><span><b>Superpowers</b><small>Jesse Vincent</small></span><code class="pin">7.0.1 at 2ce8aa1</code><span class="pill pill--green">Green</span></li>
+        <li><span><b>interfaces</b><small>Jakub Krehel</small></span><code class="pin">1.17.0 at 60bf140</code><span class="pill pill--green">Green</span></li>
+        <li><span><b>Impeccable</b><small>Paul Bakaus</small></span><code class="pin">4.8.0 at 9fadc41</code><span class="pill pill--amber">Yellow, telemetry</span></li>
+        <li><span><b>Hallmark</b><small>Nutlope</small></span><code class="pin">2.0.0 at 52328cb</code><span class="pill pill--green">Green</span></li>
+        <li><span><b>security-audit</b><small>Cloudflare</small></span><code class="pin">c1c8a8c</code><span class="pill pill--green">Green</span></li>
       </ul>
     </div>
   </section>
 
-  <section class="where" aria-labelledby="where-title">
+  <section class="board-on" id="install" aria-labelledby="install-title">
     <div class="container">
-      <h2 id="where-title">Runs where you already work.</h2>
-      <div class="where-grid">
-        <div><h3>Claude</h3><p>Desktop app, Claude Code and cloud sessions, from one marketplace.</p><a href="https://github.com/Makkov-design/makkov-harness#install">Install for Claude</a></div>
-        <div><h3>Eight agents</h3><p>Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode and Aider, with one script.</p><a href="https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md">Install guide</a></div>
+      <h2 id="install-title">Four stops to board.</h2>
+      <ol class="stops">
+        <li><h3>Open claude.ai</h3><p>In a browser: Customize, Plugins, Add marketplace.</p></li>
+        <li><h3>Paste the address</h3><span class="addr"><code id="addr">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr">Copy</button></span></li>
+        <li><h3>Enable it</h3><p>Companions sit in the same list, one switch each.</p></li>
+        <li><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
+      </ol>
+      <p class="stops-foot">Once is enough: it follows your account to every computer and cloud session.</p>
+    </div>
+  </section>
+
+  <section class="runs" aria-labelledby="runs-title">
+    <div class="container">
+      <h2 id="runs-title">Runs where you already work.</h2>
+      <div class="agents">
+        <div><h3>Claude</h3><p>Desktop, Claude Code and cloud, from one marketplace.</p><a href="https://github.com/Makkov-design/makkov-harness#install-in-two-minutes">Install for Claude</a></div>
+        <div><h3>Eight more agents</h3><p>Codex, Cursor, Gemini CLI, Copilot and four more, with one script.</p><a href="https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md">Install guide</a></div>
         <div><h3>Chat apps</h3><p>ChatGPT, Grok, DeepSeek and Gemini, as a lighter pack.</p><a href="https://github.com/Makkov-design/makkov-harness/tree/main/adapters/chat-pack">Chat pack</a></div>
       </div>
     </div>
@@ -128,27 +149,28 @@
 
   <section class="close" aria-labelledby="close-title">
     <div class="container">
-      <div>
-        <h2 id="close-title">Add it once.</h2>
-        <p class="lead">In the browser, and every session after that knows the map.</p>
-      </div>
-      <div class="close-act">
-        <div class="plate"><code id="addr2">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr2">Copy</button></div>
-        <a class="btn btn--primary" href="https://claude.ai">Open claude.ai</a>
+      <div class="close-card">
+        <div>
+          <h2 id="close-title">Put your agent on the right track.</h2>
+          <p>Free and open source. A star helps other designers find it.</p>
+        </div>
+        <div class="actions">
+          <a class="btn btn--dark" href="https://github.com/Makkov-design/makkov-harness/stargazers">Star on GitHub</a>
+          <a class="btn" href="#install">Install it</a>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
-<footer class="mast">
+<footer class="foot">
   <div class="container">
-    <span class="big">makkov-harness</span>
+    <p class="statement">Describe the work. The harness picks the tool.</p>
     <ul>
       <li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
       <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">Security</a></li>
       <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li>
-            <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li>
-      <li><a href="https://github.com/Makkov-design/makkov-harness/stargazers">Star it on GitHub</a></li>
+      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li>
     </ul>
     <p>Third-party skills keep their own licenses. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</p>
   </div>
@@ -156,25 +178,41 @@
 
 <script>
 (() => {
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  const show = (t) => {
-    tabs.forEach((x) => { const on = x === t; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute('aria-controls')).hidden = !on; });
-  };
+  const list = document.querySelector('.requests');
+  const tabs = [...list.children];
+  const show = (t, fresh) => tabs.forEach((x) => {
+    const on = x === t, p = document.getElementById(x.getAttribute('aria-controls'));
+    x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; p.hidden = !on;
+    if (on && fresh) { p.removeAttribute('data-fresh'); void p.offsetWidth; p.setAttribute('data-fresh', ''); }
+  });
   tabs.forEach((t, i) => {
-    t.addEventListener('click', () => show(t));
+    t.addEventListener('click', () => show(t, true));
     t.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-      const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; show(n); n.focus();
+      const k = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]; if (!k) return;
+      e.preventDefault(); const n = tabs[(i + k + tabs.length) % tabs.length]; show(n, true); n.focus();
     });
   });
-  show(tabs[0]);
+  show(tabs[0], false);
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
     const el = document.getElementById(b.dataset.copy), text = el.textContent.trim();
     const done = () => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => { getSelection().selectAllChildren(el); });
-    else getSelection().selectAllChildren(el);
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => getSelection().selectAllChildren(el)); else getSelection().selectAllChildren(el);
   }));
 })();
 </script>
+<script>
+(() => {
+  document.querySelectorAll("[data-loop]").forEach((el) => {
+    const svg = el.querySelector("svg.wires"), btn = el.querySelector("[data-loop-toggle]");
+    const s = { seen: true, held: matchMedia("(prefers-reduced-motion: reduce)").matches };
+    const sync = () => { const run = s.seen && !s.held; run ? svg.unpauseAnimations() : svg.pauseAnimations(); el.classList.toggle("is-running", run); btn.textContent = s.held ? "Play motion" : "Pause motion"; };
+    btn.addEventListener("click", () => { s.held = !s.held; sync(); });
+    new IntersectionObserver(([e]) => { s.seen = e.isIntersecting; sync(); }).observe(el);
+    sync();
+  });
+})();
+</script>
+<script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
+document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
 </body>
 </html>
