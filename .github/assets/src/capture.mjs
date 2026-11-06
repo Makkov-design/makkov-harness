@@ -82,6 +82,7 @@ try {
   if (scene === "stops") {
     await page.evaluate(() => { const s = document.querySelector(".board-on"); scrollTo(0, s.getBoundingClientRect().top + scrollY - 40); });
     if (process.env.WAY) await page.click(`#way-${process.env.WAY}`); // another install path: agents or chat
+    if (process.env.OPEN) await page.evaluate(() => document.querySelector(".path:not([hidden]) .then-toggle")?.click()); // review the folded route open
     await sleep(800); // let the scroll handler run first, then light every step
     await page.evaluate(() => { document.querySelectorAll(".step").forEach((x) => { x.classList.add("is-lit", "is-in"); new MutationObserver(() => { if (!x.classList.contains("is-lit")) x.classList.add("is-lit"); }).observe(x, { attributes: true, attributeFilter: ["class"] }); }); document.querySelectorAll(".board-on [data-reveal]").forEach((x) => x.classList.add("is-in")); }); // every step lit, and kept lit while the page settles
     // a still picture: show every cursor and switch at its end state rather than mid-glide

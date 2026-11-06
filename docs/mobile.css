@@ -24,24 +24,6 @@
 .sit-prompt { padding: var(--pad-nest); }
 .steps, .agents, .sit-grid, .windows { gap: var(--gap-cards); }
 
-/* ===== Four stops: a quiet arrow in each gap links one step to the next ===== */
-.step { position: relative; }
-.steps > .step:not(:last-child)::before, .steps > .step:not(:last-child)::after { content: "" !important; position: absolute; z-index: 2; pointer-events: none; }
-/* the ring sits on the gap, half over each card */
-.steps > .step:not(:last-child)::before { top: 50%; right: calc(-14px - var(--gap-cards) / 2); width: 28px; height: 28px; margin-top: -14px; border: 1px solid var(--color-rule-2); border-radius: 50%; background: var(--color-paper); }
-.steps > .step:not(:last-child)::after { top: 50%; right: calc(-7px - var(--gap-cards) / 2); width: 14px; height: 14px; margin-top: -7px; background: var(--ink-dim); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; transition: background-color 500ms var(--ease-out); }
-/* the arrow lights once the step it points to is lit */
-.steps > .step:has(+ .step.is-lit)::before { border-color: var(--opal-2a); }
-.steps > .step:has(+ .step.is-lit)::after { background: var(--opal-2); }
-/* two columns: no arrow across the row break */
-@media (max-width: 60rem) and (min-width: 40.01rem) { .steps > .step:nth-child(2)::before, .steps > .step:nth-child(2)::after { content: none !important; } }
-/* one column: the arrow points down */
-@media (max-width: 40rem) {
-  .steps > .step:not(:last-child)::before { top: auto; right: auto; bottom: calc(-14px - var(--gap-cards) / 2); left: 50%; margin: 0 0 0 -14px; }
-  .steps > .step:not(:last-child)::after { top: auto; right: auto; bottom: calc(-7px - var(--gap-cards) / 2); left: 50%; margin: 0 0 0 -7px; rotate: 90deg; }
-  .steps { gap: 24px; --gap-cards: 24px; }
-}
-
 /* ===== Phone and small tablet ===== */
 @media (max-width: 60rem) {
   /* section heads sit centred, so every block opens the same way */

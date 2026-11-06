@@ -78,6 +78,13 @@
   });
   addEventListener('resize', aim); addEventListener('load', aim); document.fonts?.ready.then(aim); aim();
 
+  /* ---------- the other install route folds open below the onboarding line ---------- */
+  document.querySelectorAll('.then-toggle').forEach((b) => b.addEventListener('click', () => {
+    const open = b.getAttribute('aria-expanded') !== 'true';
+    b.setAttribute('aria-expanded', String(open));
+    document.getElementById(b.getAttribute('aria-controls')).classList.toggle('is-open', open);
+  }));
+
   /* ---------- where you work: three install paths ---------- */
   const ways = [...document.querySelectorAll('.ways [role="tab"]')];
   const pickWay = (i, focus) => {
