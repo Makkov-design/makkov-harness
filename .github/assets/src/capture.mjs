@@ -1,5 +1,5 @@
 // Records the README pictures (all but the banner) from the site itself: one scene per run, so each browser stays short-lived.
-//   node capture.mjs <scene>      scenes: before-after | routing | review | steps
+//   node capture.mjs <scene>      scenes: before-after | routing | review | steps | social
 //   steps takes WAY=claude|agents|chat and writes ../install-<way>.png
 // The site's header and scroll line are hidden, and every picture is cropped to the block itself.
 // Needs puppeteer-core (PUPPETEER_DIR = the folder that holds node_modules), Chrome or Edge (CHROME_PATH),
@@ -50,7 +50,16 @@ const browser = await puppeteer.launch({
 });
 try {
   const page = await browser.newPage();
-  const vp = { "before-after": [1280, 820], routing: [1280, 820], review: [1280, 860], steps: [1360, 1000] }[scene];
+  if (scene === "social") {
+    // the share card: the site's own picture for links, and the repository's social preview
+    await page.setViewport({ width: 1280, height: 640, deviceScaleFactor: 1 });
+    await page.goto(new URL("social-card.html", SITE).href, { waitUntil: "networkidle0", timeout: 30000 });
+    await page.evaluate(() => document.fonts.ready);
+    const site = path.join(out, "..", "..", "docs", "img", "social.png"), repo = path.join(out, "social-preview.png");
+    await page.screenshot({ path: site }); await page.screenshot({ path: repo });
+    console.log("wrote", site, "and", repo);
+  } else {
+  const vp = { "before-after": [1280, 820], routing: [1280, 820], review: [1280, 860], steps: [1360, 1000], social: [1280, 640] }[scene];
   if (!vp) throw new Error(`unknown scene ${scene}`);
   await page.setViewport({ width: vp[0], height: vp[1], deviceScaleFactor: scene === "steps" ? 2 : 1 });
   await page.goto(SITE, { waitUntil: "networkidle0", timeout: 30000 });
@@ -102,6 +111,7 @@ try {
     const file = path.join(out, `install-${way}.png`);
     await page.screenshot({ path: file, clip });
     console.log("wrote", file);
+  }
   }
 } finally {
   await browser.close();

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>makkov-harness share card</title>
+<meta name="robots" content="noindex">
+<!-- The 1280 x 640 picture shown when the site or the repository is shared. Rendered by .github/assets/src/capture.mjs (scene: social). -->
+<link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css?v=20261106w">
+<style>
+  html, body { margin: 0; background: var(--color-paper); }
+  .card { position: relative; width: 1280px; height: 640px; overflow: hidden; display: grid; grid-template-columns: 1fr 470px; gap: 56px; align-items: center; padding: 0 72px; box-sizing: border-box; color: var(--color-ink); font-family: var(--font-body);
+    background: radial-gradient(circle, oklch(100% 0 0 / 0.07) 1px, transparent 1.4px) 0 0 / 26px 26px, radial-gradient(60% 80% at 100% 50%, oklch(80% 0.055 300 / 0.12), transparent 70%), var(--color-paper); }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img.mark { width: 40px; height: 40px; }
+  .brand img.word { height: 22px; }
+  h1 { margin: 40px 0 0; font: 600 76px/0.98 var(--font-display); letter-spacing: -0.035em; }
+  h1 em { font-style: normal; color: var(--opal-2); }
+  p { margin: 26px 0 0; font-size: 24px; line-height: 1.4; color: var(--color-ink-2); max-width: 30ch; }
+  .meta { margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .meta span { padding: 8px 14px; border-radius: 99px; background: oklch(100% 0 0 / 0.06); color: var(--color-ink-2); font-size: 17px; }
+  .routes { display: grid; gap: 14px; }
+  .route { display: grid; gap: 10px; padding: 20px 22px; border-radius: 20px; background: var(--color-paper-2); }
+  .route span { color: var(--color-muted); font-size: 18px; }
+  .route b { font: 500 26px/1 var(--font-code); letter-spacing: -0.01em; color: var(--color-ink); }
+  .route:nth-child(1) b { color: var(--opal-2); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div>
+      <div class="brand"><img class="mark" src="img/brand/symbol.svg" alt=""><img class="word" src="img/brand/wordmark.svg" alt="makkov harness"></div>
+      <h1>The right <em>design skill</em> for every request.</h1>
+      <p>A free, open-source harness for designers who build with AI agents.</p>
+      <div class="meta"><span>Claude</span><span>Codex</span><span>Cursor</span><span>+6 agents</span><span>MIT</span></div>
+    </div>
+    <div class="routes">
+      <div class="route"><span>“Review this screen”</span><b>→ interfaces</b></div>
+      <div class="route"><span>“Make it feel like Linear”</span><b>→ design-md-library</b></div>
+      <div class="route"><span>“Animate this card”</span><b>→ animate</b></div>
+    </div>
+  </div>
+</body>
+</html>
