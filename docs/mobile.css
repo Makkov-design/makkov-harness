@@ -88,25 +88,35 @@
   .board-foot { margin-top: var(--space-md); }
   .output-head h2, .output-head .lead { margin-inline: auto; }
 
-  /* find your situation: one solid full-width picker instead of chips that run off the screen */
+  /* find your situation: one full-width dropdown of our own instead of chips that run off the screen */
   .find-nav { display: none !important; }
-  .find-pick { position: relative; display: block; width: 100%; max-width: 420px; margin-inline: auto; }
-  .find-pick select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 52px; padding: 0 52px 0 var(--space-lg); border: 1px solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-2); color: var(--color-ink); font: 500 var(--text-md)/1.2 var(--font-body); cursor: pointer; }
-  .find-pick select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-  .find-pick svg { position: absolute; right: 20px; top: 50%; width: 18px; height: 18px; margin-top: -9px; fill: none; stroke: var(--color-ink-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-  .find-pick-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .find-pick { position: relative; z-index: 5; width: 100%; max-width: 420px; margin-inline: auto; }
+  .find-pick-btn { display: flex; align-items: center; gap: var(--space-sm); width: 100%; min-height: 52px; padding: 0 var(--space-lg); border: 1px solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-2); color: var(--color-ink); font: 500 var(--text-md)/1.2 var(--font-body); text-align: left; cursor: pointer; transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
+  .find-pick-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .find-pick-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .find-pick em { font: 400 12px/1 var(--font-code); font-style: normal; color: var(--ink-dim); }
+  .find-pick-btn svg { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--color-ink-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: rotate var(--dur-short) var(--ease-out); }
+  .find-pick.is-open .find-pick-btn { border-color: var(--color-ink-2); background: var(--color-paper-3); }
+  .find-pick.is-open .find-pick-btn svg { rotate: 180deg; }
+  .find-pick-list { position: absolute; left: 0; right: 0; top: calc(100% + var(--space-xs)); margin: 0; padding: 6px; list-style: none; max-height: min(60dvh, 440px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--color-rule-2); border-radius: 20px; background: var(--color-paper-3); box-shadow: 0 24px 60px oklch(0% 0 0 / 0.55); transform-origin: 50% 0; outline: none; }
+  .find-pick-list li { display: flex; align-items: center; gap: var(--space-sm); min-height: 46px; padding: 0 var(--space-md); border-radius: 14px; color: var(--color-ink-2); cursor: pointer; }
+  .find-pick-list li span { flex: 1; min-width: 0; }
+  .find-pick-list li.is-act { background: var(--tint-2); color: var(--color-ink); }
+  .find-pick-list li[aria-selected="true"] { color: var(--color-ink); }
+  .find-pick-list li[aria-selected="true"]::before { content: ""; flex: none; width: 6px; height: 6px; margin-left: -2px; border-radius: 50%; background: var(--opal-2); }
+  @media (prefers-reduced-motion: no-preference) { .find-pick-list:not([hidden]) { animation: pick-in 180ms var(--ease-out) both; } }
   .find-head { flex-direction: column; align-items: center; }
   .find-head .find-all { display: none; }
-  .find-end { display: flex; justify-content: center; margin-top: var(--space-xl); }
-  .find-end .btn { width: 100%; max-width: 420px; justify-content: center; }
+  .find-end { position: relative; z-index: 2; display: flex; justify-content: center; margin-top: var(--space-xl); }
+  .find-end .btn { width: 100%; max-width: 420px; justify-content: center; background: var(--color-paper-2); }
   .sit-note { text-align: center; }
-  .sit-all { justify-self: center; }
 
-  /* checked at the gate: the crest and the four checks centred, the checks as a 2 x 2 */
+  /* checked at the gate: the crest and the four checks centred, the checks as a 2 x 2 of quiet tiles */
   .gate-side { justify-items: center; }
   .gate-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); width: 100%; }
-  .gate-steps li { flex-direction: column; justify-content: center; gap: var(--space-xs); min-height: 88px; padding: var(--space-md) var(--space-sm); border: 1px solid var(--color-rule); border-radius: var(--r-tile); background: var(--color-paper); text-align: center; font-size: var(--text-xs); }
-  .gate-sum { justify-content: center; text-align: center; width: 100%; }
+  .gate-steps li { flex-direction: column; justify-content: center; gap: var(--space-sm); min-height: 104px; padding: var(--space-md) var(--space-sm); border: 0; border-radius: var(--r-tile); background: var(--color-paper-3); text-align: center; font-size: var(--text-xs); color: var(--color-ink-2); }
+  .gate-steps .ico { width: 24px; height: 24px; }
+  .gate-sum { justify-content: center; text-align: center; width: 100%; border-top: 0; padding-top: var(--space-xs); }
   .gate-note { text-align: center; }
 
   /* closing banner: centred copy, full-width buttons */
@@ -120,9 +130,20 @@
   .foot-mark { aspect-ratio: 1630 / 430; width: calc(100% - 2 * var(--gutter)); margin-block: var(--space-xl) var(--space-lg); -webkit-mask-image: url("img/brand/wordmark-2l.svg"); mask-image: url("img/brand/wordmark-2l.svg"); }
 }
 @media (min-width: 60.01rem) { .find-end, .find-pick { display: none; } }
+@keyframes pick-in { from { opacity: 0; scale: 0.97; translate: 0 -6px; } to { opacity: 1; scale: 1; translate: 0 0; } }
 @media (max-width: 40rem) {
   /* on short phones the routing lead gives way so the card still fits */
   .board-head .lead { font-size: var(--text-sm); }
+
+  /* find: a fifth card fades out under the link to every situation, to show there is more */
+  .sit--peek { max-height: 170px; overflow: hidden; pointer-events: none; user-select: none; filter: blur(1.5px); -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, transparent 92%); }
+  .find-body:has(.has-peek) + .find-end { margin-top: -84px; }
+
+  /* gate rows: name, author and version grouped on the left, the verdict centred on the right, more air between rules */
+  .ck-row:not(.ck-head) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name verdict" "ver verdict"; column-gap: var(--space-md); row-gap: 6px; align-items: center; min-height: 0; padding-block: 22px; }
+  .ck-row:not(.ck-head) > span:first-child { grid-area: name; align-self: end; gap: 3px; }
+  .ck-row:not(.ck-head) > code { grid-area: ver; grid-column: 1; grid-row: 2; align-self: start; padding: 0; }
+  .ck-row:not(.ck-head) > span:last-child { grid-area: verdict; grid-column: 2; grid-row: 1 / 3; align-self: center; }
 }
 @media (max-width: 60rem) and (max-height: 740px) {
   .board-head .lead, .board-foot { display: none; }

@@ -23,23 +23,46 @@
   /* home: pick a group, see a few of its situations */
   document.querySelectorAll('[data-sit-home]').forEach((root) => {
     const nav = root.querySelector('[data-sit-nav]'), panel = root.querySelector('[data-sit-panel]');
-    const LIMIT = matchMedia('(max-width: 40rem)').matches ? 2 : 4; // phones get two cards, the rest is one tap away
+    // up to eight cards in two columns; phones show four, and a fifth fades out under the link to the rest
+    const phone = matchMedia('(max-width: 40rem)').matches, LIMIT = phone ? 4 : 8;
     nav.innerHTML = D.groups.map((g, i) => `<button type="button" role="tab" id="sg-${g.id}" aria-selected="${i === 0}" aria-controls="sit-panel" tabindex="${i === 0 ? 0 : -1}"><span>${esc(g.title)}</span><em>${g.rows.length}</em></button>`).join('');
     const tabs = [...nav.children];
-    // phones: the same groups as one full-width picker, so nothing runs off the screen
-    const pick = document.createElement('label'); pick.className = 'find-pick';
-    pick.innerHTML = `<span class="find-pick-label">Situation group</span><select>${D.groups.map((g, i) => `<option value="${i}">${esc(g.title)} · ${g.rows.length}</option>`).join('')}</select><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>`;
+
+    // phones: the groups as one full-width dropdown of our own, so nothing runs off the screen
+    const pick = document.createElement('div'); pick.className = 'find-pick';
+    pick.innerHTML = `<button type="button" class="find-pick-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="find-pick-list" aria-label="Situation group"><span class="find-pick-val"></span><em></em><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+      <ul class="find-pick-list" id="find-pick-list" role="listbox" tabindex="-1" aria-label="Situation groups" hidden>${D.groups.map((g, i) => `<li role="option" id="fp-${i}" data-i="${i}" aria-selected="false"><span>${esc(g.title)}</span><em>${g.rows.length}</em></li>`).join('')}</ul>`;
     nav.before(pick);
-    const sel = pick.querySelector('select');
-    sel.addEventListener('change', () => show(Number(sel.value)));
+    const btn = pick.querySelector('.find-pick-btn'), list = pick.querySelector('.find-pick-list'), opts = [...list.children];
+    let cur = 0, act = 0;
+    const activate = (i) => { act = (i + opts.length) % opts.length; opts.forEach((o, k) => o.classList.toggle('is-act', k === act)); list.setAttribute('aria-activedescendant', opts[act].id); opts[act].scrollIntoView({ block: 'nearest' }); };
+    const open = () => { list.hidden = false; btn.setAttribute('aria-expanded', 'true'); pick.classList.add('is-open'); activate(cur); list.focus({ preventScroll: true }); };
+    const close = (refocus) => { if (list.hidden) return; list.hidden = true; btn.setAttribute('aria-expanded', 'false'); pick.classList.remove('is-open'); if (refocus) btn.focus({ preventScroll: true }); };
+    btn.addEventListener('click', () => (list.hidden ? open() : close(true)));
+    btn.addEventListener('keydown', (e) => { if (['ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); open(); } });
+    list.addEventListener('click', (e) => { const o = e.target.closest('[role="option"]'); if (!o) return; show(Number(o.dataset.i)); close(true); });
+    list.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); activate(act + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activate(act - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); activate(0); }
+      else if (e.key === 'End') { e.preventDefault(); activate(opts.length - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(act); close(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+      else if (e.key === 'Tab') close(false);
+    });
+    document.addEventListener('pointerdown', (e) => { if (!pick.contains(e.target)) close(false); });
+
     const show = (i, focus) => {
       const g = D.groups[i];
-      sel.value = String(i);
+      cur = i;
+      pick.querySelector('.find-pick-val').textContent = g.title; pick.querySelector('.find-pick-btn em').textContent = g.rows.length;
+      opts.forEach((o, k) => o.setAttribute('aria-selected', String(k === i)));
       tabs.forEach((t, k) => { t.setAttribute('aria-selected', k === i); t.tabIndex = k === i ? 0 : -1; });
       if (focus) tabs[i].focus();
       panel.setAttribute('aria-labelledby', `sg-${g.id}`);
-      const more = g.rows.length > LIMIT ? `<a class="sit-all" href="situations.html#${g.id}">All ${g.rows.length} in ${esc(g.title.toLowerCase())}<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>` : '';
-      panel.innerHTML = `<p class="sit-note">${esc(g.note)}</p><div class="sit-grid">${g.rows.slice(0, LIMIT).map((r) => card(r, false)).join('')}</div>${more}`;
+      const peek = phone && g.rows.length > LIMIT ? card(g.rows[LIMIT], false).replace('<article class="sit">', '<article class="sit sit--peek" aria-hidden="true" inert>') : '';
+      panel.classList.toggle('has-peek', !!peek);
+      panel.innerHTML = `<p class="sit-note">${esc(g.note)}</p><div class="sit-grid">${g.rows.slice(0, LIMIT).map((r) => card(r, false)).join('')}${peek}</div>`;
       panel.classList.remove('is-in'); void panel.offsetWidth; panel.classList.add('is-in');
     };
     tabs.forEach((t, i) => {
