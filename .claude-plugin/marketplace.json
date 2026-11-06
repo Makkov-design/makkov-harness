@@ -26,7 +26,7 @@
     },
     {
       "name": "impeccable",
-      "source": { "source": "git-subdir", "url": "https://github.com/pbakaus/impeccable.git", "path": "plugin", "sha": "c8891a9ae865d6ee311836ae5199bfce0fe115b1" },
+      "source": { "source": "git-subdir", "url": "https://github.com/pbakaus/impeccable.git", "path": "plugin", "sha": "c3bb418ee38ee49a6b999b7752c1368f3123a2bd" },
       "description": "By Paul Bakaus. Creative direction: shape, bolder, quieter, delight, onboarding, DESIGN.md. Pinned to the reviewed version (4.8.0). Turn telemetry off with `impeccable telemetry off`.",
       "homepage": "https://impeccable.style"
     },
