@@ -12,7 +12,7 @@
     },
     {
       "name": "superpowers",
-      "source": { "source": "github", "repo": "obra/superpowers", "ref": "v7.0.1", "sha": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b" },
+      "source": { "source": "github", "repo": "obra/superpowers", "ref": "v7.0.2", "sha": "22f0b463e7a5e579904dd6211a520321035526f7" },
       "description": "By Jesse Vincent. Brainstorming before building, systematic debugging, plans, verification. Pinned to the reviewed version.",
       "homepage": "https://github.com/obra/superpowers",
       "license": "MIT"
@@ -26,13 +26,13 @@
     },
     {
       "name": "impeccable",
-      "source": { "source": "git-subdir", "url": "https://github.com/pbakaus/impeccable.git", "path": "plugin", "sha": "9fadc41729c38fd47d7ae622b501558653f9d2e9" },
+      "source": { "source": "git-subdir", "url": "https://github.com/pbakaus/impeccable.git", "path": "plugin", "sha": "c8891a9ae865d6ee311836ae5199bfce0fe115b1" },
       "description": "By Paul Bakaus. Creative direction: shape, bolder, quieter, delight, onboarding, DESIGN.md. Pinned to the reviewed version (4.8.0). Turn telemetry off with `impeccable telemetry off`.",
       "homepage": "https://impeccable.style"
     },
     {
       "name": "hallmark",
-      "source": { "source": "git-subdir", "url": "https://github.com/Nutlope/hallmark.git", "path": "skills", "sha": "52328cb3129135499e4e178d4864ee90029dea2b" },
+      "source": { "source": "git-subdir", "url": "https://github.com/Nutlope/hallmark.git", "path": "skills", "sha": "407fa689f4a276f2fd389208d271d0fef08f5058" },
       "strict": false,
       "skills": ["./hallmark"],
       "description": "By Nutlope. New landing pages and sites that look designed, not generated. Pinned to the reviewed version (2.0.0).",

@@ -83,7 +83,7 @@ Then run `harness-onboarding` once, and you are set.
 
 ## Companion plugins, reviewed and pinned
 
-<p align="center"><img src=".github/assets/review.png" alt="Checked before recommended: Superpowers 7.0.1 green, interfaces 1.17.0 green, Impeccable 4.8.0 yellow with telemetry on by default, Hallmark 2.0.0 green, security-audit green." width="100%"></p>
+<p align="center"><img src=".github/assets/review.png" alt="Checked before recommended: Superpowers 7.0.2 green, interfaces 1.17.0 green, Impeccable 4.8.0 yellow with telemetry on by default, Hallmark 2.0.0 green, security-audit green." width="100%"></p>
 
 The best design plugins, in one list. Their code stays in their authors' repositories; the makkov-harness marketplace lists them, pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md)), so after adding the marketplace you enable each one with one switch. A newer version appears here only after it is reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills load twice. Figma's plugin is in Anthropic's official marketplace.
 

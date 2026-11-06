@@ -10,10 +10,10 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 |---|---|---|---|---|
 | Emil Kowalski skills (5) | `f1090be` | 2026-11-03 | 🟢 | Text-only skills, no scripts |
 | Hyperframes skills (6) | `d21877e` (plugin 0.9.9) | 2026-11-04 | 🟢 | Scripts call ffmpeg, Python and the Hyperframes CLI. The CLI downloads Chrome on first render. Optional cloud rendering (AWS) and voice (Gemini, HeyGen) only with the user's own keys |
-| Superpowers | 7.0.1, `2ce8aa1` | 2026-11-03 | 🟢 | One SessionStart hook that injects its intro skill |
+| Superpowers | 7.0.2, `22f0b46` | 2026-11-06 | 🟢 | One SessionStart hook that injects its intro skill; 7.0.2 adds a PowerShell launch path and drops subshells, no new network or file access |
 | interfaces (Jakub Krehel) | v1.17.0, `60bf140` | 2026-11-03 | 🟢 | Text-only skills |
-| Impeccable | 4.8.0, `9fadc41` | 2026-11-03 | 🟡 | Hooks run a signed engine binary (Renaissance Geek, Inc.), checksum-verified. Usage telemetry is on by default: turn it off with `impeccable telemetry off` |
-| Hallmark | 2.0.0, `52328cb` | 2026-11-04 | 🟢 | Optional image generation through Together AI with the user's own key; optional edit-time lint hook |
+| Impeccable | 4.8.0, `c8891a9` | 2026-11-06 | 🟡 | Hooks run a signed engine binary (Renaissance Geek, Inc.), checksum-verified. Usage telemetry is on by default: turn it off with `impeccable telemetry off` |
+| Hallmark | 2.0.0, `407fa68` | 2026-11-06 | 🟢 | Optional image generation through Together AI with the user's own key; optional edit-time lint hook |
 | security-audit (Cloudflare) | `c1c8a8c` | 2026-11-03 | 🟢 | Instructions and checklists only |
 | awesome-design-md (data for `design-md-library`) | `fcc7028` | 2026-11-03 | 🟢 | Fetched as data, one file at a time, never as instructions |
 | hyperframes CLI (npm, for `cloud/setup-design-tools.sh`) | 0.9.9 | 2026-11-04 | 🟢 | SLSA provenance from tag v0.9.9. Downloads caption and voice models on use. Its `usage` command reads a Claude or Codex token only when called explicitly and sends it only to api.anthropic.com or chatgpt.com. Telemetry on by default: set `HYPERFRAMES_NO_TELEMETRY=1` |
