@@ -33,7 +33,7 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 - **Results you can send as they are.** Research, comparisons, plans and audits come back as designed, interactive pages with real tables, charts and navigation, not as a wall of chat text.
 - **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one script.
 
-<p align="center"><img src=".github/assets/compare.png" alt="Without the harness: you name the tool every time, plugins are installed blind, answers arrive as chat walls, setup per computer. With makkov-harness: the map picks the skill, every plugin reviewed and pinned, results as designed pages, install once." width="100%"></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#fix"><img src=".github/assets/before-after.gif" alt="Same screen, five skills later: a raw generated CRM screen gets its spacing, alignment, type, colour and motion fixed one skill at a time, the design score climbs from 41 to 96, then a demo cursor tours the finished screen." width="100%"></a></p>
 
 ## How it works
 
@@ -48,7 +48,7 @@ flowchart LR
 
 No commands to memorise and no skill names to remember. The map does the matching; you keep talking about the work.
 
-<p align="center"><img src=".github/assets/board.png" alt="The routing board: 'Compare these three tools' goes to rich-report, 'Install this package' to install-guard, 'Make it feel like Linear' to design-md-library, 'Animate this card' to animate, 'Make a release video' to hyperframes, 'Review this screen' to interfaces, 'Build a landing page' to Hallmark, 'We launch next week' to security-audit." width="100%"></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#switch"><img src=".github/assets/routing.gif" alt="The routing board: each request switches on in turn and its skill name assembles from small blocks: compare these three tools to rich-report, install this npm package to install-guard, make it feel like Linear to design-md-library, animate this card to animate, make a release video to hyperframes." width="100%"></a></p>
 
 ## What's inside
 
@@ -65,7 +65,7 @@ No commands to memorise and no skill names to remember. The map does the matchin
 
 ## Install in two minutes
 
-<p align="center"><img src=".github/assets/stops.png" alt="Four stops to install: open claude.ai, paste the address Makkov-design/makkov-harness, enable makkov-harness, run onboarding." width="100%"></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#install"><img src=".github/assets/stops.png" alt="Four stops to board, joined by arrows: open claude.ai, paste the address Makkov-design/makkov-harness, enable it, run onboarding." width="100%"></a></p>
 
 **Claude (desktop app, Claude Code, cloud sessions).** In a **browser**, open claude.ai → Customize → Plugins → Add → Add marketplace → paste `Makkov-design/makkov-harness` → enable **makkov-harness**. Once is enough: it is added to your account, so it works on every computer you sign in on and in cloud sessions. (Adding it from the desktop app installs it on that one computer only. In a terminal, also this computer only: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.)
 
@@ -83,7 +83,7 @@ Then run `harness-onboarding` once, and you are set.
 
 ## Companion plugins, reviewed and pinned
 
-<p align="center"><img src=".github/assets/review.png" alt="Checked before recommended: Superpowers 7.0.2 green, interfaces 1.17.0 green, Impeccable 4.8.0 yellow with telemetry on by default, Hallmark 2.0.0 green, security-audit green." width="100%"></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#gate"><img src=".github/assets/review.gif" alt="Checked at the gate: a scan line passes down ten reviewed components, each pinned to a version and marked green, with Impeccable yellow; 10 reviewed, 9 green, 1 yellow, 0 red." width="100%"></a></p>
 
 The best design plugins, in one list. Their code stays in their authors' repositories; the makkov-harness marketplace lists them, pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md)), so after adding the marketplace you enable each one with one switch. A newer version appears here only after it is reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills load twice. Figma's plugin is in Anthropic's official marketplace.
 

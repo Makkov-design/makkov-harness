@@ -1,0 +1,81 @@
+/* ===== Find your situation: a group switcher, quiet cards, terminal commands ===== */
+.find-head { align-items: end; }
+.find-head .lead { margin-top: var(--space-md); max-width: 44ch; }
+.find-all { gap: var(--space-xs); }
+.find-all svg { width: 16px; height: 16px; transition: translate var(--dur-short) var(--ease-out); }
+.find-all:hover svg { translate: 3px 0; }
+
+.find-body { margin-top: var(--space-2xl); display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: var(--space-xl); align-items: start; }
+.find-nav { display: grid; gap: var(--space-3xs); position: sticky; top: 112px; }
+.find-nav button { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); min-height: 44px; padding: 0 var(--space-md); border: 0; border-radius: 10px; background: transparent; color: var(--color-muted); font: 500 var(--text-md)/1.2 var(--font-body); text-align: left; cursor: pointer; transition: color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
+.find-nav button em { font: 400 12px/1 var(--font-code); font-style: normal; color: var(--ink-dim); }
+.find-nav button:hover { color: var(--color-ink); background: var(--color-paper-2); }
+.find-nav button[aria-selected="true"] { color: var(--color-ink); background: var(--color-paper-2); box-shadow: inset 2px 0 0 var(--color-ink); }
+.find-nav button[aria-selected="true"] em { color: var(--color-muted); }
+.find-nav button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.find-panel { display: grid; gap: var(--space-lg); min-height: 520px; align-content: start; }
+.sit-note { color: var(--color-muted); }
+@media (prefers-reduced-motion: no-preference) { .find-panel.is-in > * { animation: sit-in 500ms var(--ease-out) both; } .find-panel.is-in > .sit-grid { animation-delay: 60ms; } .find-panel.is-in > .sit-all { animation-delay: 120ms; } }
+@keyframes sit-in { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+.sit-all { justify-self: start; display: inline-flex; align-items: center; gap: var(--space-xs); min-height: 44px; color: var(--color-ink-2); font-weight: 500; text-decoration: none; }
+.sit-all svg { width: 16px; height: 16px; transition: translate var(--dur-short) var(--ease-out); }
+.sit-all:hover { color: var(--color-ink); }
+.sit-all:hover svg { translate: 3px 0; }
+
+/* cards: a title, one line, the command, and the prompt */
+.sit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--space-md); }
+.sit { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-lg); border: 1px solid var(--color-rule); border-radius: var(--radius-inner); background: var(--color-paper-2); }
+.sit h3 { font-size: var(--text-lg); line-height: 1.2; letter-spacing: -0.015em; }
+.sit .sit-what { color: var(--color-muted); font-size: var(--text-sm); }
+
+/* the command, set like a terminal line */
+.sit-cmd { display: flex; align-items: center; gap: var(--space-xs); min-height: 44px; margin-top: var(--space-2xs); padding: 0 var(--space-2xs) 0 var(--space-sm); border: 1px solid var(--glass-edge); border-radius: 10px; background: var(--tint-1); font-family: var(--font-code); }
+.sit-sign { color: var(--ink-dim); font: 500 13px/1 var(--font-code); }
+.sit-cmd code { flex: 1; min-width: 0; padding-block: var(--space-xs); font: 500 13px/1.35 var(--font-code); color: var(--color-ink); overflow-wrap: anywhere; letter-spacing: 0; }
+.sit-cmd--say code { color: var(--color-ink-2); font-weight: 400; }
+
+/* copy buttons keep their colours; the icon and word change */
+.copy { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 var(--space-sm); border: 1px solid transparent; border-radius: 8px; background: var(--tint-2); color: var(--color-ink-2); font: 500 12px/1 var(--font-body); white-space: nowrap; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out); }
+.copy svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.copy:hover { background: var(--tint-3); color: var(--color-ink); }
+.copy:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.copy.is-done, .copy.is-done:hover { background: var(--tint-2); color: var(--color-ink); border-color: transparent; }
+.copy.is-done svg { color: var(--opal-2); stroke: var(--opal-2); }
+
+/* the prompt: quiet until the card is pointed at */
+.sit-prompt { margin-top: auto; display: grid; gap: var(--space-xs); padding: var(--space-sm); border-radius: 10px; background: var(--tint-1); transition: filter var(--dur-long) var(--ease-out), opacity var(--dur-long) var(--ease-out); }
+.sit-prompt p { font-size: var(--text-sm); color: var(--color-ink-2); }
+.sit-prompt .copy { justify-self: start; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .find .sit .sit-prompt { filter: blur(2px); opacity: 0.6; }
+  .find .sit:hover .sit-prompt, .find .sit:focus-within .sit-prompt { filter: none; opacity: 1; }
+}
+.sit-more { margin-top: auto; }
+.sit-more .sit-prompt { margin-top: var(--space-xs); }
+
+/* ===== the catalog page: no sticky bar, a quiet rail on the side ===== */
+.catalog { padding-block: var(--space-xl) var(--section-gap); }
+.sit-block { padding-top: var(--space-2xl); scroll-margin-top: 96px; }
+.sit-block-head { display: grid; gap: var(--space-xs); margin-bottom: var(--space-lg); }
+.sit-block-head h2 { font-size: var(--text-section); }
+.sit-block-head p { color: var(--color-muted); }
+.sit-rail { position: fixed; z-index: var(--z-sticky); left: max(var(--space-md), env(safe-area-inset-left, 0px)); top: 50%; translate: 0 -50%; display: grid; gap: var(--space-3xs); padding: var(--space-xs); border-radius: 14px; }
+.sit-rail a { display: flex; align-items: center; gap: var(--space-sm); min-height: 26px; padding-right: var(--space-sm); color: var(--ink-dim); text-decoration: none; font-size: var(--text-sm); }
+.sit-rail i { flex: none; width: 26px; height: 2px; border-radius: 2px; background: var(--color-rule-2); transform-origin: 0 50%; scale: 0.55 1; transition: scale var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
+.sit-rail span { opacity: 0; translate: -6px 0; white-space: nowrap; transition: opacity var(--dur-short) var(--ease-out), translate var(--dur-short) var(--ease-out); }
+.sit-rail a[aria-current] i { scale: 1 1; background: var(--color-ink); }
+.sit-rail a:hover i { background: var(--color-ink-2); }
+.sit-rail:hover, .sit-rail:focus-within { background: var(--color-paper-2); box-shadow: 0 10px 30px var(--gen-shadow); }
+.sit-rail:hover span, .sit-rail:focus-within span { opacity: 1; translate: 0 0; }
+.sit-rail a:hover, .sit-rail a[aria-current] { color: var(--color-ink); }
+.sit-rail a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 6px; }
+@media (max-width: 75rem) { .sit-rail { display: none; } }
+
+@media (max-width: 60rem) {
+  .find-body { grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
+  .find-nav { position: static; display: flex; overflow-x: auto; scrollbar-width: none; gap: var(--space-2xs); margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); }
+  .find-nav::-webkit-scrollbar { display: none; }
+  .find-nav button { flex: none; min-height: 40px; border: 1px solid var(--color-rule); border-radius: var(--radius-pill); }
+  .find-nav button[aria-selected="true"] { box-shadow: none; border-color: var(--color-ink-2); }
+  .find-panel { min-height: 0; }
+}

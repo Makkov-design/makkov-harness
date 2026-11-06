@@ -10,7 +10,9 @@
 /* Hallmark · dismissed 42 · the nav is a floating pill on blur with three links and one action, named in the stamp */
 /* Hallmark · answered F4 · the close card is ember, so its primary is the ink pill; it is the same action family as the hero primary */
 /* Hallmark · answered F7 · pills here are tags, the route bar and the skip link, all controls or signals */
-@import url("./tokens.css");
+/* Hallmark · waive 2b · .chrome on the closing head · the owner asked for one chrome gradient on the words Totally free, the only gradient text on the page */
+/* Hallmark · waive 38iii · Totally free set as its own second line of the closing head · the free promise is the point of that card, so it gets its own line in chrome */
+@import url("./tokens.css?v=20261106w");
 @import url("./base.css");
 
 body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }

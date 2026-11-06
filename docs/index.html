@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>makkov-harness: the right skill for every request</title>
-<meta name="description" content="A designer's harness for AI agents: a routing map that picks the right skill, results as designed pages, and companion plugins reviewed before you install them.">
+<meta name="description" content="A free, open-source designer's harness for AI agents: a routing map that picks the right skill, results as designed pages, and companion plugins reviewed before you install them.">
 <meta property="og:title" content="makkov-harness">
-<meta property="og:description" content="Your agent, switched to the right skill. A designer's harness for AI agents.">
+<meta property="og:description" content="Your agent, switched to the right skill. A free, open-source designer's harness for AI agents.">
 <meta property="og:image" content="https://makkov-design.github.io/makkov-harness/img/social.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="img/mark-64.png">
@@ -14,11 +14,59 @@
 <link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<script>document.documentElement.classList.add('js');</script>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500;600&family=Space+Grotesk:wght@600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261106w">
+<link rel="stylesheet" href="fx.css?v=20261106c">
+<link rel="stylesheet" href="blocks.css?v=20261106x">
+<link rel="stylesheet" href="fix.css?v=20261107a">
+<link rel="stylesheet" href="sit.css?v=20261106c">
+<link rel="stylesheet" href="out.css?v=20261106c">
+<link rel="stylesheet" href="gate.css?v=20261106f">
+<link rel="stylesheet" href="last.css?v=20261107c">
+<link rel="stylesheet" href="mobile.css?v=20261107c">
+<script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('intro');setTimeout(function(){document.documentElement.classList.add('intro-go','intro-copy','intro-done')},5000);}</script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+<symbol id="l-claude" viewBox="0 0 24 24"><path fill="currentColor" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></symbol>
+<symbol id="l-openai" viewBox="0 0 24 24"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></symbol>
+<symbol id="l-gemini" viewBox="0 0 24 24"><path fill="currentColor" d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></symbol>
+<symbol id="l-copilot" viewBox="0 0 24 24"><path fill="currentColor" d="M23.922 16.997C23.061 18.492 18.063 22.02 12 22.02 5.937 22.02.939 18.492.078 16.997A.641.641 0 0 1 0 16.741v-2.869a.883.883 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.098 10.098 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952C7.255 2.937 9.248 1.98 11.978 1.98c2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.841.841 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256Zm-11.75-5.992h-.344a4.359 4.359 0 0 1-.355.508c-.77.947-1.918 1.492-3.508 1.492-1.725 0-2.989-.359-3.782-1.259a2.137 2.137 0 0 1-.085-.104L4 11.746v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.359 4.359 0 0 1-.355-.508Zm2.328 3.25c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm-5 0c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm3.313-6.185c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z"/></symbol>
+<symbol id="l-windsurf" viewBox="0 0 24 24"><path fill="currentColor" d="M23.55 5.067c-1.2038-.002-2.1806.973-2.1806 2.1765v4.8676c0 .972-.8035 1.7594-1.7597 1.7594-.568 0-1.1352-.286-1.4718-.7659l-4.9713-7.1003c-.4125-.5896-1.0837-.941-1.8103-.941-1.1334 0-2.1533.9635-2.1533 2.153v4.8957c0 .972-.7969 1.7594-1.7596 1.7594-.57 0-1.1363-.286-1.4728-.7658L.4076 5.1598C.2822 4.9798 0 5.0688 0 5.2882v4.2452c0 .2147.0656.4228.1884.599l5.4748 7.8183c.3234.462.8006.8052 1.3509.9298 1.3771.313 2.6446-.747 2.6446-2.0977v-4.893c0-.972.7875-1.7593 1.7596-1.7593h.003a1.798 1.798 0 0 1 1.4718.7658l4.9723 7.0994c.4135.5905 1.05.941 1.8093.941 1.1587 0 2.1515-.9645 2.1515-2.153v-4.8948c0-.972.7875-1.7594 1.7596-1.7594h.194a.22.22 0 0 0 .2204-.2202v-4.622a.22.22 0 0 0-.2203-.2203Z"/></symbol>
+<symbol id="l-x" viewBox="0 0 24 24"><path fill="currentColor" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></symbol>
+<symbol id="l-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+<symbol id="b-linear" viewBox="0 0 24 24"><path fill="currentColor" d="M2.886 4.18A11.982 11.982 0 0 1 11.99 0C18.624 0 24 5.376 24 12.009c0 3.64-1.62 6.903-4.18 9.105L2.887 4.18ZM1.817 5.626l16.556 16.556c-.524.33-1.075.62-1.65.866L.951 7.277c.247-.575.537-1.126.866-1.65ZM.322 9.163l14.515 14.515c-.71.172-1.443.282-2.195.322L0 11.358a12 12 0 0 1 .322-2.195Zm-.17 4.862 9.823 9.824a12.02 12.02 0 0 1-9.824-9.824Z"/></symbol>
+<symbol id="b-stripe" viewBox="0 0 24 24"><path fill="currentColor" d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305h.003z"/></symbol>
+<symbol id="b-notion" viewBox="0 0 24 24"><path fill="currentColor" d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></symbol>
+<symbol id="b-vercel" viewBox="0 0 24 24"><path fill="currentColor" d="m12 1.608 12 20.784H0Z"/></symbol>
+<symbol id="b-apple" viewBox="0 0 24 24"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></symbol>
+<symbol id="b-airbnb" viewBox="0 0 24 24"><path fill="currentColor" d="M12.001 18.275c-1.353-1.697-2.148-3.184-2.413-4.457-.263-1.027-.16-1.848.291-2.465.477-.71 1.188-1.056 2.121-1.056s1.643.345 2.12 1.063c.446.61.558 1.432.286 2.465-.291 1.298-1.085 2.785-2.412 4.458zm9.601 1.14c-.185 1.246-1.034 2.28-2.2 2.783-2.253.98-4.483-.583-6.392-2.704 3.157-3.951 3.74-7.028 2.385-9.018-.795-1.14-1.933-1.695-3.394-1.695-2.944 0-4.563 2.49-3.927 5.382.37 1.565 1.352 3.343 2.917 5.332-.98 1.085-1.91 1.856-2.732 2.333-.636.344-1.245.558-1.828.609-2.679.399-4.778-2.2-3.825-4.88.132-.345.395-.98.845-1.961l.025-.053c1.464-3.178 3.242-6.79 5.285-10.795l.053-.132.58-1.116c.45-.822.635-1.19 1.351-1.643.346-.21.77-.315 1.246-.315.954 0 1.698.558 2.016 1.007.158.239.345.557.582.953l.558 1.089.08.159c2.041 4.004 3.821 7.608 5.279 10.794l.026.025.533 1.22.318.764c.243.613.294 1.222.213 1.858zm1.22-2.39c-.186-.583-.505-1.271-.9-2.094v-.03c-1.889-4.006-3.642-7.608-5.307-10.844l-.111-.163C15.317 1.461 14.468 0 12.001 0c-2.44 0-3.476 1.695-4.535 3.898l-.081.16c-1.669 3.236-3.421 6.843-5.303 10.847v.053l-.559 1.22c-.21.504-.317.768-.345.847C-.172 20.74 2.611 24 5.98 24c.027 0 .132 0 .265-.027h.372c1.75-.213 3.554-1.325 5.384-3.317 1.829 1.989 3.635 3.104 5.382 3.317h.372c.133.027.239.027.265.027 3.37.003 6.152-3.261 4.802-6.975z"/></symbol>
+<symbol id="b-figma" viewBox="0 0 24 24"><path fill="currentColor" d="M15.852 8.981h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.491-4.49 4.491zM12.735 7.51h3.117c1.665 0 3.019-1.355 3.019-3.019s-1.355-3.019-3.019-3.019h-3.117V7.51zm0 1.471H8.148c-2.476 0-4.49-2.014-4.49-4.49S5.672 0 8.148 0h4.588v8.981zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.354 3.02 3.019 3.02h3.117V1.471H8.148zm4.587 15.019H8.148c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h4.588v8.98zM8.148 8.981c-1.665 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h3.117V8.981H8.148zM8.172 24c-2.489 0-4.515-2.014-4.515-4.49s2.014-4.49 4.49-4.49h4.588v4.441c0 2.503-2.047 4.539-4.563 4.539zm-.024-7.51a3.023 3.023 0 0 0-3.019 3.019c0 1.665 1.365 3.019 3.044 3.019 1.705 0 3.093-1.376 3.093-3.068v-2.97H8.148zm7.704 0h-.098c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h.098c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.49-4.49 4.49zm-.097-7.509c-1.665 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h.098c1.665 0 3.019-1.355 3.019-3.019s-1.355-3.019-3.019-3.019h-.098z"/></symbol>
+<symbol id="b-spotify" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.3 0 1.9-1 1.4-2.1-.6-1.3.3-2.4 1.6-2.4H17a3.5 3.5 0 0 0 3.5-3.5c0-5-3.8-9-8.5-9Z"/><circle cx="8" cy="11" r="1.1"/><circle cx="11" cy="7.5" r="1.1"/><circle cx="15.5" cy="8.5" r="1.1"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7Z"/><path d="M19 16c.3 1.7 1 2.4 2.5 2.6-1.5.3-2.2 1-2.5 2.6-.3-1.6-1-2.3-2.5-2.6 1.5-.2 2.2-.9 2.5-2.6Z"/></symbol>
+<symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m10 9.2 5 2.8-5 2.8Z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M9 9v11"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z"/><path d="m8.8 12 2.2 2.2 4.4-4.4"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="4.5" width="13" height="16.5" rx="2.5"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h4"/></symbol>
+<symbol id="i-toggle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="2.6"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9.5L4 20Z"/><path d="M8.5 10.5h7"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.3 6.6 19.4l1.3-6L3.4 9.3l6-.7Z"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="m7 9 3 3-3 3M12.5 15H17"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4M9 12h6M9 16h4"/></symbol>
+<symbol id="i-swatch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="4"/><rect x="3" y="13" width="8" height="8" rx="4"/><rect x="13" y="13" width="8" height="8" rx="2"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.8c1.8.6 3 2.4 3.5 5.2"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.5 5.5 5h13l2.5 8.5V19H3Z"/><path d="M3 13.5h5l1.5 2.5h5l1.5-2.5h5"/></symbol>
+</svg>
+<div class="preload" aria-hidden="true"><div class="pl-mark"></div><i class="pl-bar"></i></div>
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="nav">
@@ -26,137 +74,300 @@
     <a class="wordmark" href="#main" aria-label="makkov-harness, back to top"><img class="wm-mark" src="img/brand/symbol.svg" width="28" height="28" alt=""><img class="wm-text" src="img/brand/wordmark.svg" width="230" height="17" alt="makkov harness"></a>
     <ul>
       <li class="hide-s"><a href="#switch">Routing</a></li>
+      <li class="hide-s"><a href="situations.html">Situations</a></li>
       <li class="hide-s"><a href="#gate">Security</a></li>
-      <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
+      <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness" aria-label="GitHub"><svg class="ico" aria-hidden="true"><use href="#l-github"/></svg></a></li>
       <li><a class="btn btn--primary btn--sm" href="#install">Install</a></li>
     </ul>
   </div>
 </header>
 
 <main id="main">
-  <section class="hero" aria-labelledby="hero-title" data-loop>
-    <button class="loop-toggle" type="button" data-loop-toggle>Pause motion</button>
+  <section class="hero" aria-labelledby="hero-title" data-loop data-hud="00 · harness">
     <div class="container">
-      <div>
+      <div class="hero-copy">
+        <p class="free-tag">Free and open source, MIT</p>
         <h1 id="hero-title">Your agent, switched to the right skill.</h1>
-        <p class="lead">A designer’s harness: routing, reviewed plugins and reports that ship.</p>
+        <p class="lead">A designer’s harness: routing, reviewed plugins and reports that ship. <b class="free">Totally free.</b></p>
         <div class="actions">
           <a class="btn btn--primary" href="#install">Install in two minutes</a>
-          <a class="btn" href="https://github.com/Makkov-design/makkov-harness"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.3 6.6 19.4l1.3-6L3.4 9.3l6-.7Z"/></svg>Star on GitHub</a>
+          <a class="btn" href="https://github.com/Makkov-design/makkov-harness"><svg aria-hidden="true"><use href="#i-star"/></svg>Star on GitHub</a>
         </div>
+        <p class="works"><span>Works in</span><span class="works-logos"><svg aria-label="Claude" role="img"><use href="#l-claude"/></svg><svg aria-label="Codex" role="img"><use href="#l-openai"/></svg><svg aria-label="Gemini" role="img"><use href="#l-gemini"/></svg><svg aria-label="GitHub Copilot" role="img"><use href="#l-copilot"/></svg><svg aria-label="Windsurf" role="img"><use href="#l-windsurf"/></svg></span><span>and four more agents</span></p>
       </div>
-      <div class="hero-mark"><svg class="wires routing-diagram" viewBox="0 0 1800 720" width="1800" height="720" aria-hidden="true" focusable="false"><g fill="none"><path id="w0" d="M0 110 L360 110 L420 200 L710 200 L750 290" class="wire wire--strong"/><path id="w1" d="M0 250 L300 250 L360 290 L695 290 L735 330" class="wire"/><path id="w2" d="M0 360 L410 360 L470 360 L688 360 L728 360" class="wire"/><path id="w3" d="M0 480 L320 480 L380 430 L695 430 L735 392" class="wire wire--strong"/><path id="w4" d="M0 620 L440 620 L500 520 L710 520 L750 432" class="wire"/><path id="w5" d="M1800 90 L1480 90 L1420 180 L1090 180 L1050 288" class="wire"/><path id="w6" d="M1800 280 L1520 280 L1460 320 L1108 320 L1068 336" class="wire wire--strong"/><path id="w7" d="M1800 460 L1510 460 L1450 410 L1106 410 L1066 390" class="wire"/><path id="w8" d="M1800 640 L1450 640 L1390 540 L1090 540 L1050 436" class="wire"/></g><circle cx="420" cy="200" r="4" class="node"/><rect x="357" y="107" width="6" height="6" class="node"/><circle cx="360" cy="290" r="4" class="node"/><rect x="297" y="247" width="6" height="6" class="node"/><circle cx="470" cy="360" r="4" class="node"/><rect x="407" y="357" width="6" height="6" class="node"/><circle cx="380" cy="430" r="4" class="node"/><rect x="317" y="477" width="6" height="6" class="node"/><circle cx="500" cy="520" r="4" class="node"/><rect x="437" y="617" width="6" height="6" class="node"/><circle cx="1420" cy="180" r="4" class="node"/><rect x="1477" y="87" width="6" height="6" class="node"/><circle cx="1460" cy="320" r="4" class="node"/><rect x="1517" y="277" width="6" height="6" class="node"/><circle cx="1450" cy="410" r="4" class="node"/><rect x="1507" y="457" width="6" height="6" class="node"/><circle cx="1390" cy="540" r="4" class="node"/><rect x="1447" y="637" width="6" height="6" class="node"/><g class="packets"><circle r="3.2" class="packet"><animateMotion dur="7.0s" begin="0.0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w0"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="8.6s" begin="0.9s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w1"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="10.2s" begin="1.8s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w2"/></animateMotion></circle><circle r="3.2" class="packet packet--opal"><animateMotion dur="11.8s" begin="2.7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w3"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="7.0s" begin="3.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w4"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="8.6s" begin="4.5s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w5"/></animateMotion></circle><circle r="3.2" class="packet"><animateMotion dur="10.2s" begin="5.4s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w6"/></animateMotion></circle><circle r="2.4" class="packet packet--opal"><animateMotion dur="11.8s" begin="6.3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w7"/></animateMotion></circle><circle r="2.4" class="packet"><animateMotion dur="7.0s" begin="7.2s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#w8"/></animateMotion></circle></g></svg><img src="img/brand/symbol.svg" width="260" height="264" alt="The makkov-harness mark: four fused nodes around one centre"></div>
+      <div class="hero-mark"><img src="img/brand/symbol.svg" width="260" height="264" alt="The makkov-harness mark: four fused nodes around one centre"></div>
     </div>
   </section>
 
-  <section class="board" id="switch" aria-labelledby="switch-title">
-    <div class="container">
-      <div class="board-head">
-        <h2 id="switch-title">Throw the switch yourself.</h2>
-        <p class="lead">Pick a request. The routing map loads in every session and sends it to its skill.</p>
-      </div>
-      <div class="switch">
-        <div class="requests" role="tablist" aria-label="Requests" aria-orientation="vertical">
-          <button type="button" role="tab" id="rq0" aria-controls="rt0" aria-selected="true"><span>Compare these three tools</span><span class="kind">skill</span></button>
-          <button type="button" role="tab" id="rq1" aria-controls="rt1" aria-selected="false"><span>Install this npm package</span><span class="kind">skill</span></button>
-          <button type="button" role="tab" id="rq2" aria-controls="rt2" aria-selected="false"><span>Make it feel like Linear</span><span class="kind">skill</span></button>
-          <button type="button" role="tab" id="rq3" aria-controls="rt3" aria-selected="false"><span>Animate this card</span><span class="kind">skill</span></button>
-          <button type="button" role="tab" id="rq4" aria-controls="rt4" aria-selected="false"><span>Make a release video</span><span class="kind">skill</span></button>
-          <button type="button" role="tab" id="rq5" aria-controls="rt5" aria-selected="false"><span>Review this screen</span><span class="kind">plugin</span></button>
-          <button type="button" role="tab" id="rq6" aria-controls="rt6" aria-selected="false"><span>Build a landing page</span><span class="kind">plugin</span></button>
-          <button type="button" role="tab" id="rq7" aria-controls="rt7" aria-selected="false"><span>We launch next week</span><span class="kind">plugin</span></button>
+  <section class="fix" id="fix" aria-labelledby="fix-title" data-hud="01 · before / after">
+    <div class="fix-track">
+      <div class="fix-sticky">
+        <div class="container fix-head">
+          <div class="fix-title">
+            <h2 id="fix-title">Same screen. Five skills later.</h2>
+            <p class="fix-note" data-note aria-live="polite"></p>
+          </div>
+          <div class="fix-score" aria-hidden="true">
+            <svg viewBox="0 0 44 44" class="fix-ring"><circle cx="22" cy="22" r="19"/><circle cx="22" cy="22" r="19" class="fix-ring-v" pathLength="100"/></svg>
+            <span><b data-score>41</b><small>design score</small></span>
+            <span class="fix-issues"><b data-issues>14</b><small>issues</small></span>
+          </div>
         </div>
-        <div class="routes">
-          <div class="route" id="rt0" role="tabpanel" aria-labelledby="rq0"><p class="route-from">You say<q>Compare these three tools</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">rich-report</p><p class="route-get">A designed report page with tables and charts, not a wall of chat.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt1" role="tabpanel" aria-labelledby="rq1"><p class="route-from">You say<q>Install this npm package</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">install-guard</p><p class="route-get">Fetched without running and scanned. A green, yellow or red verdict comes first.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt2" role="tabpanel" aria-labelledby="rq2"><p class="route-from">You say<q>Make it feel like Linear</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">design-md-library</p><p class="route-get">That product’s design system as a reference for your mockup.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt3" role="tabpanel" aria-labelledby="rq3"><p class="route-from">You say<q>Animate this card</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">animate</p><p class="route-get">Motion by Emil Kowalski’s rules: purpose, curve, duration, exit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt4" role="tabpanel" aria-labelledby="rq4"><p class="route-from">You say<q>Make a release video</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">hyperframes</p><p class="route-get">An MP4 rendered from HTML, with HeyGen’s toolkit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt5" role="tabpanel" aria-labelledby="rq5"><p class="route-from">You say<q>Review this screen</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">interfaces</p><p class="route-get">Accessibility, typography, colour, layout and copy, fixed.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt6" role="tabpanel" aria-labelledby="rq6"><p class="route-from">You say<q>Build a landing page</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">Hallmark</p><p class="route-get">A page that looks designed, not generated. Like this one.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
-          <div class="route" id="rt7" role="tabpanel" aria-labelledby="rq7"><p class="route-from">You say<q>We launch next week</q></p><div class="track" aria-hidden="true"><i></i></div><p class="route-to">security-audit</p><p class="route-get">Cloudflare’s whole-project security review.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+        <div class="container fix-body">
+          <div class="fix-stage" data-step="0">
+            <div class="ui is-gen" aria-hidden="true">
+              <aside class="ui-side">
+                <div class="ui-brand fx-el" ><i></i><b>Sales</b></div>
+                <nav class="ui-nav">
+                  <span class="fx-el" ><svg><use href="#i-grid"/></svg>Dashboard</span>
+                  <span class="is-on fx-el" ><svg><use href="#i-chart"/></svg>Deals</span>
+                  <span class="fx-el" ><svg><use href="#i-users"/></svg>Contacts</span>
+                  <span class="fx-el" ><svg><use href="#i-folder"/></svg>Companies</span>
+                  <span class="fx-el" ><svg><use href="#i-inbox"/></svg>Inbox<em>12</em></span>
+                  <span class="fx-el" ><svg><use href="#i-gear"/></svg>Settings</span>
+                </nav>
+              </aside>
+              <div class="ui-main">
+                <header class="ui-top">
+                  <b class="ui-title fx-el"  data-g="title">Deals</b>
+                  <span class="ui-search fx-el" >Search deals, people, companies</span>
+                  <span class="ui-btn fx-el"  data-g="btn">New deal</span>
+                  <i class="ui-av"></i>
+                </header>
+                <div class="ui-stats">
+                  <div class="ui-stat fx-el"  data-g="s1"><span class="ui-k">Open deals</span><b class="ui-n" data-count="128" data-g="num">128</b><span class="ui-d">+12 this month</span><svg class="ui-spark" viewBox="0 0 80 28" preserveAspectRatio="none"><defs><linearGradient id="spk0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sp-a"/><stop offset="1" class="sp-b"/></linearGradient></defs><line class="sp-grid" x1="0" y1="9" x2="80" y2="9"/><line class="sp-grid" x1="0" y1="19" x2="80" y2="19"/><path class="sp-area" d="M0 21 C8 20 12 16 20 17 S32 12 40 13 S52 9 60 8 S72 5 80 3 L80 28 L0 28 Z" fill="url(#spk0)"/><path class="sp-line" d="M0 21 C8 20 12 16 20 17 S32 12 40 13 S52 9 60 8 S72 5 80 3" pathLength="100"/></svg></div>
+                  <div class="ui-stat fx-el"  data-g="s2"><span class="ui-k">Pipeline value</span><b class="ui-n" data-count="482" data-prefix="$" data-suffix="k">$482k</b><span class="ui-d">+8.4%</span><svg class="ui-spark" viewBox="0 0 80 28" preserveAspectRatio="none"><line class="sp-grid" x1="0" y1="9" x2="80" y2="9"/><line class="sp-grid" x1="0" y1="19" x2="80" y2="19"/><rect class="sp-bar" x="1.5" y="19" width="7" height="9" rx="1.5"/><rect class="sp-bar" x="11.5" y="16" width="7" height="12" rx="1.5"/><rect class="sp-bar" x="21.5" y="18" width="7" height="10" rx="1.5"/><rect class="sp-bar" x="31.5" y="13" width="7" height="15" rx="1.5"/><rect class="sp-bar" x="41.5" y="15" width="7" height="13" rx="1.5"/><rect class="sp-bar" x="51.5" y="10" width="7" height="18" rx="1.5"/><rect class="sp-bar" x="61.5" y="12" width="7" height="16" rx="1.5"/><rect class="sp-bar is-now" x="71.5" y="5" width="7" height="23" rx="1.5"/></svg></div>
+                  <div class="ui-stat fx-el"  data-g="s3"><span class="ui-k">Win rate</span><b class="ui-n" data-count="34" data-suffix="%">34%</b><span class="ui-d">+3 points</span><svg class="ui-spark" viewBox="0 0 80 28" preserveAspectRatio="none"><defs><linearGradient id="spk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sp-a"/><stop offset="1" class="sp-b"/></linearGradient></defs><line class="sp-target" x1="0" y1="7" x2="80" y2="7"/><path class="sp-area" d="M0 18 H14 V16 H28 V17 H40 V13 H54 V12 H66 V9 H80 V28 H0 Z" fill="url(#spk2)"/><path class="sp-line" d="M0 18 H14 V16 H28 V17 H40 V13 H54 V12 H66 V9 H80" pathLength="100"/></svg></div>
+                </div>
+                <div class="ui-table">
+                  <div class="ui-tr ui-th fx-el" ><span>Company</span><span>Stage</span><span>Probability</span><span>Value</span><span>Close</span></div>
+                  <div class="ui-tr fx-el" style="--rp:6px" data-g="r1"><span class="ui-name"><i style="--av:var(--opal-1)">HL</i>Halcyon Labs</span><span class="ui-pill ok">Proposal</span><span class="ui-prog"><i style="--v:72%"></i></span><span class="ui-val">$48,200</span><span class="ui-date" data-before="11/18/2026" data-after="Nov 18">11/18/2026</span></div>
+                  <div class="ui-tr fx-el" style="--rp:10px" data-g="r2"><span class="ui-name"><i style="--av:var(--opal-2)">NB</i>Northbeam</span><span class="ui-pill risk">Stalled</span><span class="ui-prog"><i style="--v:31%"></i></span><span class="ui-val">$12,950</span><span class="ui-date" data-before="Nov 21" data-after="Nov 21">Nov 21</span></div>
+                  <div class="ui-tr fx-el" style="--rp:6px" data-g="r3"><span class="ui-name"><i style="--av:var(--opal-3)">BC</i>Brightside Co</span><span class="ui-pill ok">Negotiation</span><span class="ui-prog"><i style="--v:88%"></i></span><span class="ui-val">$96,000</span><span class="ui-date" data-before="2026-11-25" data-after="Nov 25">2026-11-25</span></div>
+                  <div class="ui-tr fx-el" style="--rp:9px" data-g="r4"><span class="ui-name"><i style="--av:var(--color-line-2)">KF</i>Kestrel Foods</span><span class="ui-pill hold">On hold</span><span class="ui-prog"><i style="--v:14%"></i></span><span class="ui-val">$7,400</span><span class="ui-date" data-before="12/2" data-after="Dec 2">12/2</span></div>
+                </div>
+              </div>
+              <span class="ui-ripple" aria-hidden="true"></span><span class="ui-cursor" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span>
+              <span class="ui-toast" aria-hidden="true"><svg><use href="#i-spark"/></svg>Deal added to pipeline</span>
+            </div>
+            <div class="fx-scan" aria-hidden="true"></div>
+            <div class="fx-guides" aria-hidden="true"></div>
+          </div>
+          <ol class="fix-rail" aria-label="Steps">
+            <li><button type="button" data-goto="0"><i>01</i><b>Spacing</b><code>better-layout</code></button></li>
+            <li><button type="button" data-goto="1"><i>02</i><b>Alignment</b><code>better-layout</code></button></li>
+            <li><button type="button" data-goto="2"><i>03</i><b>Type</b><code>better-typography</code></button></li>
+            <li><button type="button" data-goto="3"><i>04</i><b>Colour</b><code>better-colors</code></button></li>
+            <li><button type="button" data-goto="4"><i>05</i><b>Motion</b><code>animate</code></button></li>
+          </ol>
         </div>
       </div>
-      <p class="board-foot">Every route lives in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/ROUTING.md">ROUTING.md</a>.</p>
     </div>
   </section>
 
-  <section class="deliver" aria-labelledby="deliver-title">
-    <div class="container">
-      <h2 id="deliver-title">What each track delivers.</h2>
-      <div class="bento">
-        <article class="tile tile--wide tile--glass">
-          <h3>Reports you can send as they are</h3><p>Research, audits and plans arrive as designed pages with real tables and charts.</p>
-          <div class="mini-report" aria-hidden="true"><div class="mr-head"><span></span><span></span></div><div class="mr-row"><b></b><i style="--w:82%"></i></div><div class="mr-row mr-row--pick"><b></b><i style="--w:100%"></i></div><div class="mr-row"><b></b><i style="--w:64%"></i></div></div>
-        </article>
-        <article class="tile tile--narrow">
-          <h3>Installs, reviewed first</h3><p>Fetched without running, scanned, then a verdict.</p>
-          <ul class="verdicts"><li><code>crossenv</code><span class="pill pill--red">Red</span></li><li><code>cowsay 1.6.0</code><span class="pill pill--green">Green</span></li></ul>
-        </article>
-        <article class="tile tile--narrow">
-          <h3>Video from plain HTML</h3><p>Release clips and animated slides, rendered to MP4.</p>
-          <div class="frames" aria-hidden="true"><span>00:00</span><span>00:01</span><span>00:02</span><span>00:03</span></div>
-        </article>
-        <article class="tile tile--wide">
-          <h3>Any product’s look, on call</h3>
-          <p>Ask for a style and get that product’s design system as a reference.</p>
-          <div class="styles" aria-label="Design systems on file"><span>Linear</span><span>Stripe</span><span>Vercel</span><span>Notion</span><span>Apple</span><span>Airbnb</span><span>+78 more</span></div>
-        </article>
+  <section class="board" id="switch" aria-labelledby="switch-title" data-hud="02 · routing">
+    <div class="board-track">
+      <div class="board-sticky">
+        <div class="container">
+          <div class="board-head">
+            <h2 id="switch-title">Throw the switch yourself.</h2>
+            <p class="lead">Scroll, or pick a request. The routing map loads in every session and sends it to its skill.</p>
+          </div>
+          <div class="switch">
+            <div class="requests" role="tablist" aria-label="Requests" aria-orientation="vertical">
+              <button type="button" role="tab" id="rq0" aria-controls="rt0" aria-selected="true"><svg aria-hidden="true"><use href="#i-chart"/></svg><span>Compare these three tools</span><span class="kind">skill</span></button>
+              <button type="button" role="tab" id="rq1" aria-controls="rt1" aria-selected="false"><svg aria-hidden="true"><use href="#i-package"/></svg><span>Install this npm package</span><span class="kind">skill</span></button>
+              <button type="button" role="tab" id="rq2" aria-controls="rt2" aria-selected="false"><svg aria-hidden="true"><use href="#i-palette"/></svg><span>Make it feel like Linear</span><span class="kind">skill</span></button>
+              <button type="button" role="tab" id="rq3" aria-controls="rt3" aria-selected="false"><svg aria-hidden="true"><use href="#i-spark"/></svg><span>Animate this card</span><span class="kind">skill</span></button>
+              <button type="button" role="tab" id="rq4" aria-controls="rt4" aria-selected="false"><svg aria-hidden="true"><use href="#i-film"/></svg><span>Make a release video</span><span class="kind">skill</span></button>
+              <button type="button" role="tab" id="rq5" aria-controls="rt5" aria-selected="false"><svg aria-hidden="true"><use href="#i-eye"/></svg><span>Review this screen</span><span class="kind">plugin</span></button>
+              <button type="button" role="tab" id="rq6" aria-controls="rt6" aria-selected="false"><svg aria-hidden="true"><use href="#i-layout"/></svg><span>Build a landing page</span><span class="kind">plugin</span></button>
+              <button type="button" role="tab" id="rq7" aria-controls="rt7" aria-selected="false"><svg aria-hidden="true"><use href="#i-shield"/></svg><span>We launch next week</span><span class="kind">plugin</span></button>
+            </div>
+            <div class="routes">
+              <div class="route spot" id="rt0" role="tabpanel" aria-labelledby="rq0"><p class="route-from">You say<q>Compare these three tools</q></p><p class="route-to" data-route-to>rich-report</p><p class="route-get">A designed report page with tables and charts, not a wall of chat.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt1" role="tabpanel" aria-labelledby="rq1"><p class="route-from">You say<q>Install this npm package</q></p><p class="route-to" data-route-to>install-guard</p><p class="route-get">Fetched without running and scanned. A green, yellow or red verdict comes first.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt2" role="tabpanel" aria-labelledby="rq2"><p class="route-from">You say<q>Make it feel like Linear</q></p><p class="route-to" data-route-to>design-md-library</p><p class="route-get">That product’s design system as a reference for your mockup.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt3" role="tabpanel" aria-labelledby="rq3"><p class="route-from">You say<q>Animate this card</q></p><p class="route-to" data-route-to>animate</p><p class="route-get">Motion by Emil Kowalski’s rules: purpose, curve, duration, exit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt4" role="tabpanel" aria-labelledby="rq4"><p class="route-from">You say<q>Make a release video</q></p><p class="route-to" data-route-to>hyperframes</p><p class="route-get">An MP4 rendered from HTML, with HeyGen’s toolkit.</p><p class="route-meta"><span class="tag tag--skill">skill in the harness</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt5" role="tabpanel" aria-labelledby="rq5"><p class="route-from">You say<q>Review this screen</q></p><p class="route-to" data-route-to>interfaces</p><p class="route-get">Accessibility, typography, colour, layout and copy, fixed.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt6" role="tabpanel" aria-labelledby="rq6"><p class="route-from">You say<q>Build a landing page</q></p><p class="route-to" data-route-to>Hallmark</p><p class="route-get">A page that looks designed, not generated. Like this one.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+              <div class="route spot" id="rt7" role="tabpanel" aria-labelledby="rq7"><p class="route-from">You say<q>We launch next week</q></p><p class="route-to" data-route-to>security-audit</p><p class="route-get">Cloudflare’s whole-project security review.</p><p class="route-meta"><span class="tag tag--skill">companion plugin</span><span class="tag">picked by ROUTING.md</span></p></div>
+            </div>
+          </div>
+          <p class="board-foot">Every route lives in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/ROUTING.md">ROUTING.md</a>.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="gate" id="gate" aria-labelledby="gate-title">
+  <section class="find" id="find" aria-labelledby="find-title" data-hud="03 · situations">
+    <div class="container" data-sit-home>
+      <div class="find-head">
+        <div>
+          <h2 id="find-title">Find your situation.</h2>
+          <p class="lead">Pick what you are doing. Get the skill, the command and a prompt to paste.</p>
+        </div>
+        <a class="btn find-all" href="situations.html">All 69 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="find-body">
+        <div class="find-nav" role="tablist" aria-label="Situation groups" aria-orientation="vertical" data-sit-nav></div>
+        <div class="find-panel" id="sit-panel" role="tabpanel" data-sit-panel></div>
+      </div>
+      <p class="find-end"><a class="btn" href="situations.html">All 69 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a></p>
+    </div>
+  </section>
+
+  <section class="output" aria-labelledby="output-title" data-hud="04 · output">
     <div class="container">
-      <div>
+      <div class="output-head">
+        <h2 id="output-title">You ask in plain words. You get the finished thing.</h2>
+        <p class="lead">Four real outputs, shown the way they arrive.</p>
+      </div>
+      <div class="windows">
+        <figure class="win win--wide spot" data-reveal>
+          <div class="win-bar"><i></i><i></i><i></i><span><svg class="ico"><use href="#i-doc"/></svg>traffic-channels.html</span><em class="win-skill">rich-report</em></div>
+          <div class="win-body report" data-report>
+            <header class="rp-head"><div><b>Traffic channels, Q3</b><span>12 weeks, sourced</span></div><span class="rp-pick"><svg class="ico"><use href="#i-spark"/></svg>Pick: paid search</span></header>
+            <div class="rp-chartbox">
+              <div class="rp-chart-head"><span data-chart-title>Paid share by week</span></div>
+              <div class="rp-chart" data-chart></div>
+              <div class="rp-axis" aria-hidden="true"><span>W1</span><span>W4</span><span>W8</span><span>W12</span></div>
+            </div>
+            <div class="rp-table" role="table" aria-label="Channels"><div class="rp-card-title">Channels, share and return</div>
+              
+              <div class="rp-row is-key" role="row"><span role="cell">Paid search</span><span role="cell" class="rp-share">27%</span><span role="cell">2.4×</span><span role="cell"><em>Recommended</em></span></div>
+              <div class="rp-row" role="row"><span role="cell">Organic</span><span role="cell" class="rp-share">41%</span><span role="cell">1.9×</span><span role="cell"></span></div>
+              <div class="rp-row" role="row"><span role="cell">Referral</span><span role="cell" class="rp-share">18%</span><span role="cell">1.2×</span><span role="cell"></span></div>
+            </div>
+          </div>
+          <figcaption><span class="ask">“Compare our traffic channels”</span><span class="got"><svg class="ico"><use href="#i-arrow"/></svg><code>rich-report</code> a designed page with charts, a table and a clear pick</span></figcaption>
+        </figure>
+        <figure class="win win--narrow spot" data-reveal>
+          <div class="win-bar"><i></i><i></i><i></i><span><svg class="ico"><use href="#i-terminal"/></svg>install-guard</span><em class="win-skill">install-guard</em></div>
+          <div class="win-body term" data-term aria-label="install-guard checking two packages"></div>
+          <figcaption><span class="ask">“Install this package”</span><span class="got"><svg class="ico"><use href="#i-arrow"/></svg><code>install-guard</code> every check runs before anything does</span></figcaption>
+        </figure>
+        <figure class="win win--narrow spot" data-reveal>
+          <div class="win-bar"><i></i><i></i><i></i><span><svg class="ico"><use href="#i-film"/></svg>release-v2.mp4</span><em class="win-skill">hyperframes</em></div>
+          <div class="win-body video" data-video>
+            <div class="vid-frame" aria-hidden="true">
+              <div class="vid-scene" data-scene="0"><b>v2.0</b><span>is here</span></div>
+              <div class="vid-scene" data-scene="1"><div class="vid-card"><i></i><div><b>Faster routing</b><span>Skills load in half the time</span></div></div><div class="vid-card vid-card--2"><i></i><div><b>Reviewed plugins</b><span>Pinned to the commit we read</span></div></div></div>
+              <div class="vid-scene" data-scene="2"><img src="img/brand/symbol.svg" width="56" height="57" alt=""><b>makkov-harness</b><span>free and open source</span></div>
+              <span class="vid-tc" data-timecode>00:00</span>
+            </div>
+            <div class="vid-tl" aria-hidden="true"><div class="vid-ruler"><span>0s</span><span>3s</span><span>6s</span><span>9s</span></div><div class="vid-clips"><i data-clip="0">Title</i><i data-clip="1">Features</i><i data-clip="2">End card</i></div><div class="vid-audio"></div><em class="vid-head"></em></div>
+            <div class="vid-render" aria-hidden="true"><span data-render>Rendering MP4</span><div class="vid-bar"><i></i></div><b data-render-pct>0%</b></div>
+          </div>
+          <figcaption><span class="ask">“Make a release video”</span><span class="got"><svg class="ico"><use href="#i-arrow"/></svg><code>hyperframes</code> scenes written in HTML, rendered to MP4</span></figcaption>
+        </figure>
+        <figure class="win win--wide spot" data-reveal>
+          <div class="win-bar"><i></i><i></i><i></i><span><svg class="ico"><use href="#i-swatch"/></svg>DESIGN.md</span><em class="win-skill">design-md-library</em></div>
+          <div class="win-body dstyle" data-styles>
+            <div class="st-tabs" role="group" aria-label="Design systems"></div>
+            <div class="st-panel">
+              <div class="st-sw" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+              <div class="st-type"><b>Aa</b><span data-st-font></span></div>
+              <dl class="st-meta"><div><dt>accent</dt><dd data-st-accent></dd></div><div><dt>radius</dt><dd data-st-radius></dd></div><div><dt>density</dt><dd data-st-density></dd></div></dl>
+            </div>
+            <div class="st-preview" aria-hidden="true">
+              <div class="st-card"><b>Upgrade your workspace</b><p>Unlimited projects for the whole team.</p><div class="st-actions"><span class="st-btn">Continue</span><span class="st-btn st-btn--ghost">Compare plans</span></div></div>
+              
+            </div>
+          </div>
+          <figcaption><span class="ask">“Make it feel like Linear”</span><span class="got"><svg class="ico"><use href="#i-arrow"/></svg><code>design-md-library</code> that product’s system applied, from 84 on file</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="gate" id="gate" aria-labelledby="gate-title" data-hud="05 · security">
+    <div class="container">
+      <div class="gate-side">
+        <div class="gate-shield" aria-hidden="true">
+          <svg viewBox="0 0 120 140">
+            <defs><clipPath id="shield-clip"><path d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/></clipPath></defs>
+            <path class="sh-fill" d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/>
+            <g clip-path="url(#shield-clip)"><rect class="sh-scan" x="0" y="0" width="120" height="26"/></g>
+            <path class="sh-edge" d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/>
+            <path class="sh-check" d="m40 68 14 14 28-30"/>
+          </svg>
+        </div>
         <h2 id="gate-title">Checked at the gate.</h2>
-        <p class="lead">Every companion was fetched without running, scanned and read by hand, then pinned to that commit.</p>
-        <p class="gate-note">A weekly check flags new upstream versions in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>. Verdicts in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+        <p class="lead">Nothing third-party reaches your machine unread. Every piece below passed the same four checks and is pinned to the commit that passed.</p>
+        <ol class="gate-steps">
+          <li><svg class="ico" aria-hidden="true"><use href="#i-package"/></svg>Fetched without running</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg>Scanned for risky patterns</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Hooks and scripts read by hand</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Pinned to the reviewed commit</li>
+        </ol>
+        <p class="gate-sum"><span><b>10</b> reviewed</span><span><b class="c-ok">9</b> green</span><span><b class="c-warn">1</b> yellow</span><span><b>0</b> red</span></p>
+        <p class="gate-note">Last review November 6, 2026. A weekly check flags new upstream versions in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>. Every verdict in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p>
       </div>
-      <ul class="checks">
-        <li><span><b>Superpowers</b><small>Jesse Vincent</small></span><code class="pin">7.0.2 at 22f0b46</code><span class="pill pill--green">Green</span></li>
-        <li><span><b>interfaces</b><small>Jakub Krehel</small></span><code class="pin">1.17.0 at 60bf140</code><span class="pill pill--green">Green</span></li>
-        <li><span><b>Impeccable</b><small>Paul Bakaus</small></span><code class="pin">4.8.0 at c3bb418</code><span class="pill pill--amber">Yellow, telemetry</span></li>
-        <li><span><b>Hallmark</b><small>Nutlope</small></span><code class="pin">2.0.0 at 407fa68</code><span class="pill pill--green">Green</span></li>
-        <li><span><b>security-audit</b><small>Cloudflare</small></span><code class="pin">c1c8a8c</code><span class="pill pill--green">Green</span></li>
-      </ul>
+      <div class="checks" role="table" aria-label="Reviewed components" data-reveal>
+        <div class="ck-row ck-head" role="row"><span role="columnheader">Component</span><span role="columnheader">Reviewed version</span><span role="columnheader" class="ck-live" title="A weekly check watches every upstream for new versions"><i></i>Watching</span></div>
+        <div class="ck-row" style="--r:1" role="row"><span role="cell"><b>Superpowers</b><small>Jesse Vincent, companion</small></span><code role="cell">7.0.2 at 22f0b46</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:2" role="row"><span role="cell"><b>interfaces</b><small>Jakub Krehel, companion</small></span><code role="cell">1.17.0 at 60bf140</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:3" role="row"><span role="cell"><b>Impeccable</b><small>Paul Bakaus, telemetry on by default</small></span><code role="cell">4.8.0 at c3bb418</code><span role="cell"><em class="vd vd--warn">Yellow</em></span></div>
+        <div class="ck-row" style="--r:4" role="row"><span role="cell"><b>Hallmark</b><small>Nutlope, companion</small></span><code role="cell">2.0.0 at 407fa68</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:5" role="row"><span role="cell"><b>security-audit</b><small>Cloudflare, companion</small></span><code role="cell">c1c8a8c</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:6" role="row"><span role="cell"><b>Motion skills</b><small>Emil Kowalski, animate and four more</small></span><code role="cell">f1090be</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:7" role="row"><span role="cell"><b>Hyperframes skills</b><small>HeyGen, six skills</small></span><code role="cell">0.9.9 at d21877e</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:8" role="row"><span role="cell"><b>awesome-design-md</b><small>data behind design-md-library</small></span><code role="cell">fcc7028</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:9" role="row"><span role="cell"><b>hyperframes CLI</b><small>npm, for cloud renders</small></span><code role="cell">0.9.9</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+        <div class="ck-row" style="--r:10" role="row"><span role="cell"><b>puppeteer-core</b><small>npm, installed without scripts</small></span><code role="cell">25.16.0</code><span role="cell"><em class="vd vd--ok">Green</em></span></div>
+      </div>
     </div>
   </section>
 
-  <section class="board-on" id="install" aria-labelledby="install-title">
+  <section class="board-on" id="install" aria-labelledby="install-title" data-hud="06 · install">
     <div class="container">
-      <h2 id="install-title">Four stops to board.</h2>
-      <ol class="stops">
-        <li><h3>Open claude.ai</h3><p>In a browser: Customize, Plugins, Add marketplace.</p></li>
-        <li><h3>Paste the address</h3><span class="addr"><code id="addr">Makkov-design/makkov-harness</code><button class="btn btn--sm" type="button" data-copy="addr">Copy</button></span></li>
-        <li><h3>Enable it</h3><p>Companions sit in the same list, one switch each.</p></li>
-        <li><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
+      <div class="steps-head">
+        <h2 id="install-title">Four stops to board.</h2>
+        <p class="lead">About two minutes, once. Free, no plan, no card.</p>
+      </div>
+      <ol class="steps" data-stops>
+        <li class="step"><div class="step-top"><span class="step-n">01</span><svg class="step-ico" aria-hidden="true"><use href="#i-globe"/></svg></div><h3>Open claude.ai</h3><p>In a browser: Customize, Plugins, Add marketplace.</p></li>
+        <li class="step"><div class="step-top"><span class="step-n">02</span><svg class="step-ico" aria-hidden="true"><use href="#i-clip"/></svg></div><h3>Paste the address</h3><div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code id="addr">Makkov-design/makkov-harness</code><button class="copy" type="button" data-copy-text="Makkov-design/makkov-harness" data-label="Copy" aria-label="Copy the marketplace address"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div></li>
+        <li class="step"><div class="step-top"><span class="step-n">03</span><svg class="step-ico" aria-hidden="true"><use href="#i-toggle"/></svg></div><h3>Enable it</h3><p>Companions sit in the same list, one switch each.</p></li>
+        <li class="step"><div class="step-top"><span class="step-n">04</span><svg class="step-ico" aria-hidden="true"><use href="#i-chat"/></svg></div><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
       </ol>
       <p class="stops-foot">Once is enough: it follows your account to every computer and cloud session.</p>
     </div>
   </section>
 
-  <section class="runs" aria-labelledby="runs-title">
+  <section class="runs" aria-labelledby="runs-title" data-hud="07 · agents">
     <div class="container">
       <h2 id="runs-title">Runs where you already work.</h2>
       <div class="agents">
-        <div><h3>Claude</h3><p>Desktop, Claude Code and cloud, from one marketplace.</p><a href="https://github.com/Makkov-design/makkov-harness#install-in-two-minutes">Install for Claude</a></div>
-        <div><h3>Eight more agents</h3><p>Codex, Cursor, Gemini CLI, Copilot and four more, with one script.</p><a href="https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md">Install guide</a></div>
-        <div><h3>Chat apps</h3><p>ChatGPT, Grok, DeepSeek and Gemini, as a lighter pack.</p><a href="https://github.com/Makkov-design/makkov-harness/tree/main/adapters/chat-pack">Chat pack</a></div>
+        <div class="spot" data-reveal><svg class="agent-logo" aria-hidden="true"><use href="#l-claude"/></svg><h3>Claude</h3><p>Desktop, Claude Code and cloud, from one marketplace.</p><a href="https://github.com/Makkov-design/makkov-harness#install-in-two-minutes">Install for Claude</a></div>
+        <div class="spot" data-reveal><span class="agent-logos" aria-hidden="true"><svg><use href="#l-openai"/></svg><svg><use href="#l-gemini"/></svg><svg><use href="#l-copilot"/></svg><svg><use href="#l-windsurf"/></svg></span><h3>Eight more agents</h3><p class="inline-logos"><span><svg aria-hidden="true"><use href="#l-openai"/></svg>Codex</span>, <span><i class="mono-logo" aria-hidden="true">C</i>Cursor</span>, <span><svg aria-hidden="true"><use href="#l-gemini"/></svg>Gemini CLI</span>, <span><svg aria-hidden="true"><use href="#l-copilot"/></svg>Copilot</span>, <span><svg aria-hidden="true"><use href="#l-windsurf"/></svg>Windsurf</span>, <span><i class="mono-logo" aria-hidden="true">C</i>Cline</span>, <span><i class="mono-logo" aria-hidden="true">O</i>OpenCode</span> and <span><i class="mono-logo" aria-hidden="true">A</i>Aider</span>, with one script.</p><a href="https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md">Install guide</a></div>
+        <div class="spot" data-reveal><span class="agent-logos" aria-hidden="true"><svg><use href="#l-openai"/></svg><svg><use href="#l-x"/></svg><svg><use href="#l-gemini"/></svg></span><h3>Chat apps</h3><p class="inline-logos"><span><svg aria-hidden="true"><use href="#l-openai"/></svg>ChatGPT</span>, <span><svg aria-hidden="true"><use href="#l-x"/></svg>Grok</span>, <span><i class="mono-logo" data-brand="deepseek" aria-hidden="true">D</i>DeepSeek</span> and <span><svg aria-hidden="true"><use href="#l-gemini"/></svg>Gemini</span>, as a lighter pack.</p><a href="https://github.com/Makkov-design/makkov-harness/tree/main/adapters/chat-pack">Chat pack</a></div>
       </div>
     </div>
   </section>
 
-  <section class="close" aria-labelledby="close-title">
+  <section class="close" aria-labelledby="close-title" data-hud="08 · star">
     <div class="container">
-      <div class="close-card">
-        <div>
-          <h2 id="close-title">Put your agent on the right track.</h2>
-          <p>Free and open source. A star helps other designers find it.</p>
+      <div class="close-card" data-reveal>
+        <div class="close-copy">
+          <h2 id="close-title">Put your agent on the right track. <span class="chrome">Totally free.</span></h2>
+          <p>Open source under MIT. No plan, no trial, no key to buy. A star is all it asks, and it helps other designers find it.</p>
+          <div class="actions">
+            <a class="btn btn--dark" href="https://github.com/Makkov-design/makkov-harness/stargazers"><svg aria-hidden="true"><use href="#i-star"/></svg>Star on GitHub</a>
+            <a class="btn" href="#install">Install it<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          </div>
         </div>
-        <div class="actions">
-          <a class="btn btn--dark" href="https://github.com/Makkov-design/makkov-harness/stargazers">Star on GitHub</a>
-          <a class="btn" href="#install">Install it</a>
+        <div class="close-art" aria-hidden="true">
+          <svg viewBox="0 0 520 380" class="close-svg">
+            <g class="cw" fill="none"><path id="cw0" d="M10 56 C150 56 98.8 129.5 168.8 129.5"/><path id="cw1" d="M10 191 C150 191 80.0 191.0 150.0 191.0"/><path id="cw2" d="M10 326 C150 326 98.8 252.5 168.8 252.5"/><path id="cw3" d="M510 44 C370 44 416.7 123.3 346.7 123.3"/><path id="cw4" d="M510 148 C370 148 438.3 171.9 368.3 171.9"/><path id="cw5" d="M510 238 C370 238 435.7 221.3 365.7 221.3"/><path id="cw6" d="M510 338 C370 338 409.1 267.4 339.1 267.4"/></g>
+            <circle class="c-ring" cx="260" cy="191" r="110" fill="none"/>
+            <g class="cn"><circle cx="10" cy="56" r="3.5"/><circle cx="10" cy="191" r="3.5"/><circle cx="10" cy="326" r="3.5"/><circle cx="510" cy="44" r="3.5"/><circle cx="510" cy="148" r="3.5"/><circle cx="510" cy="238" r="3.5"/><circle cx="510" cy="338" r="3.5"/></g>
+            <g class="c-ports"><circle cx="168.8" cy="129.5" r="3"/><circle cx="150.0" cy="191.0" r="3"/><circle cx="168.8" cy="252.5" r="3"/><circle cx="346.7" cy="123.3" r="3"/><circle cx="368.3" cy="171.9" r="3"/><circle cx="365.7" cy="221.3" r="3"/><circle cx="339.1" cy="267.4" r="3"/></g>
+            <g transform="translate(166 96) scale(0.68)" class="close-mark"><g transform="translate(20 20) scale(1.142857143) translate(-13 -11)"><path d="M 76.627 12.468 C 68.089 15.512, 62.156 22.402, 59.027 32.909 C 55.529 44.654, 49.022 52.173, 39.237 55.776 C 37.732 56.330, 34.293 57.571, 31.596 58.533 C 6.553 67.468, 8.037 104.141, 33.744 111.614 C 50.545 116.498, 65.215 109.037, 73.669 91.306 C 76.554 85.256, 79.273 81.096, 81.595 79.182 C 85.342 76.094, 85.746 75.872, 96.178 71.178 C 103.911 67.698, 108.777 62.002, 111.556 53.177 C 113.911 45.698, 113.211 31.119, 110.220 25.357 C 104.298 13.952, 88.967 8.070, 76.627 12.468" /><path d="M 134.081 14.117 C 111.459 25.422, 114.615 63.182, 138.959 72.484 C 150.400 76.856, 153.149 79.454, 159.017 91.440 C 164.624 102.892, 167.367 105.880, 175.861 109.784 C 190.990 116.738, 209.220 111.245, 216.200 97.628 C 223.373 83.635, 215.808 63.607, 201.442 58.560 C 198.999 57.702, 194.988 56.293, 192.528 55.428 C 183.467 52.243, 175.935 42.961, 173.034 31.405 C 168.835 14.678, 149.835 6.245, 134.081 14.117" /><path d="M 36.920 119.011 C 22.580 121.437, 11.582 135.417, 13.449 148.847 C 15.251 161.813, 22.473 169.995, 36.129 174.543 C 48.906 178.798, 55.564 185.916, 59.473 199.500 C 63.983 215.175, 78.580 223.880, 93.217 219.625 C 106.220 215.845, 113.111 205.891, 113.086 190.927 C 113.056 173.231, 106.663 163.063, 92 157.390 C 82.455 153.697, 78.026 149.258, 73.052 138.395 C 66.375 123.812, 52.509 116.374, 36.920 119.011" /><path d="M 177.275 120.654 C 170.201 123.159, 163.351 130.223, 158.889 139.613 C 154.278 149.320, 149.589 153.859, 140.692 157.228 C 132.857 160.196, 125.004 167.303, 121.907 174.230 C 118.281 182.339, 118.446 198.414, 122.229 205.638 C 134.248 228.588, 165.311 224.541, 173.064 199.015 C 176.863 186.507, 183.332 179.166, 193.826 175.454 C 207.483 170.624, 211.644 167.610, 215.698 159.610 C 222.922 145.353, 217.645 128.487, 203.801 121.588 C 197.653 118.524, 184.589 118.064, 177.275 120.654" /></g></g>
+            <g class="cp"><circle r="2.6" opacity="0"><animateMotion dur="3.4s" begin="0.0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw0"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="3.4s" begin="0.0s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="4.0s" begin="0.7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw1"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="4.0s" begin="0.7s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="4.6s" begin="1.4s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw2"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="4.6s" begin="1.4s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="3.4s" begin="2.1s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw3"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="3.4s" begin="2.1s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="4.0s" begin="2.8s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw4"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="4.0s" begin="2.8s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="4.6s" begin="3.5s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw5"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="4.6s" begin="3.5s" repeatCount="indefinite"/></circle><circle r="2.6" opacity="0"><animateMotion dur="3.4s" begin="4.2s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1"><mpath href="#cw6"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="3.4s" begin="4.2s" repeatCount="indefinite"/></circle></g>
+          </svg>
         </div>
       </div>
     </div>
@@ -165,54 +376,29 @@
 
 <footer class="foot">
   <div class="container">
-    <p class="statement">Describe the work. The harness picks the tool.</p>
-    <ul>
-      <li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
-      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">Security</a></li>
-      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li>
-      <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li>
-    </ul>
-    <p>Third-party skills keep their own licenses. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</p>
+    <div class="foot-top">
+      <div class="foot-lead">
+        <p class="statement">Describe the work. The harness picks the tool.</p>
+        <p class="foot-free">Free and open source under MIT. Made by a designer, for designers.</p>
+      </div>
+      <nav class="foot-cols" aria-label="Footer">
+        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="index.html#gate">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
+        <div><h3>Project</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/releases">Releases</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li></ul></div>
+        <div><h3>Community</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness/discussions">Discussions</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/issues">Issues</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CONTRIBUTING.md">Contributing</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/stargazers">Star it</a></li></ul></div>
+      </nav>
+    </div>
+    <p class="foot-legal">Third-party skills keep their own licenses. Product names and logos belong to their owners and only show where the harness runs. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</p>
   </div>
+  <div class="foot-mark" data-glow role="img" aria-label="makkov harness"></div>
 </footer>
-
-<script>
-(() => {
-  const list = document.querySelector('.requests');
-  const tabs = [...list.children];
-  const show = (t, fresh) => tabs.forEach((x) => {
-    const on = x === t, p = document.getElementById(x.getAttribute('aria-controls'));
-    x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; p.hidden = !on;
-    if (on && fresh) { p.removeAttribute('data-fresh'); void p.offsetWidth; p.setAttribute('data-fresh', ''); }
-  });
-  tabs.forEach((t, i) => {
-    t.addEventListener('click', () => show(t, true));
-    t.addEventListener('keydown', (e) => {
-      const k = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]; if (!k) return;
-      e.preventDefault(); const n = tabs[(i + k + tabs.length) % tabs.length]; show(n, true); n.focus();
-    });
-  });
-  show(tabs[0], false);
-  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
-    const el = document.getElementById(b.dataset.copy), text = el.textContent.trim();
-    const done = () => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => getSelection().selectAllChildren(el)); else getSelection().selectAllChildren(el);
-  }));
-})();
-</script>
-<script>
-(() => {
-  document.querySelectorAll("[data-loop]").forEach((el) => {
-    const svg = el.querySelector("svg.wires"), btn = el.querySelector("[data-loop-toggle]");
-    const s = { seen: true, held: matchMedia("(prefers-reduced-motion: reduce)").matches };
-    const sync = () => { const run = s.seen && !s.held; run ? svg.unpauseAnimations() : svg.pauseAnimations(); el.classList.toggle("is-running", run); btn.textContent = s.held ? "Play motion" : "Pause motion"; };
-    btn.addEventListener("click", () => { s.held = !s.held; sync(); });
-    new IntersectionObserver(([e]) => { s.seen = e.isIntersecting; sync(); }).observe(el);
-    sync();
-  });
-})();
-</script>
-<script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
-document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
+<script src="situations-data.js?v=20261106c"></script>
+<script src="situations.js?v=20261107b"></script>
+<script src="fx.js?v=20261107b"></script>
+<script src="pixtype.js?v=20261107g"></script>
+<script src="page.js?v=20261107c"></script>
+<script src="fix.js?v=20261107b"></script>
+<script src="out.js?v=20261106c"></script>
+<script src="gate.js?v=20261106f"></script>
+<script src="hero.js?v=20261106t"></script>
 </body>
 </html>

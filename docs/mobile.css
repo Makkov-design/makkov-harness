@@ -1,0 +1,130 @@
+/* ===== One spacing and radius system, then the phone layout =====
+   Three surface sizes, each with its own padding and radius; nested pieces sit inside the parent's radius.
+   banner  (closing card)                       big padding, biggest radius
+   card    (route, step, agent, window body)    one padding everywhere
+   tile    (situation, request tab)             a step smaller
+   nest    (command line, prompt, chips inside)  smallest radius */
+:root {
+  --pad-banner-b: 64px; --pad-banner-i: 64px; --r-banner: 32px;
+  --pad-card: 32px; --r-card: 24px;
+  --pad-tile: 24px; --r-tile: 14px;
+  --pad-nest: 12px; --r-nest: 10px;
+  --gap-cards: 16px;
+}
+@media (max-width: 60rem) { :root { --pad-banner-b: 56px; --pad-banner-i: 40px; --r-banner: 28px; } }
+@media (max-width: 40rem) { :root { --pad-banner-b: 40px; --pad-banner-i: 24px; --r-banner: 24px; --pad-card: 24px; --r-card: 20px; --pad-tile: 20px; } }
+
+.close-card { padding: var(--pad-banner-b) var(--pad-banner-i); border-radius: var(--r-banner); }
+.route, .step, .agents > .spot { padding: var(--pad-card); border-radius: var(--r-card); }
+.win { border-radius: var(--r-card); }
+.win-body { padding: var(--pad-card); }
+.sit, .requests button { border-radius: var(--r-tile); }
+.sit { padding: var(--pad-tile); }
+.sit-cmd, .sit-prompt { border-radius: var(--r-nest); }
+.sit-prompt { padding: var(--pad-nest); }
+.steps, .agents, .sit-grid, .windows { gap: var(--gap-cards); }
+
+/* ===== Four stops: a quiet arrow in each gap links one step to the next ===== */
+.step { position: relative; }
+.steps > .step:not(:last-child)::before, .steps > .step:not(:last-child)::after { content: "" !important; position: absolute; z-index: 2; pointer-events: none; }
+/* the ring sits on the gap, half over each card */
+.steps > .step:not(:last-child)::before { top: 50%; right: calc(-14px - var(--gap-cards) / 2); width: 28px; height: 28px; margin-top: -14px; border: 1px solid var(--color-rule-2); border-radius: 50%; background: var(--color-paper); }
+.steps > .step:not(:last-child)::after { top: 50%; right: calc(-7px - var(--gap-cards) / 2); width: 14px; height: 14px; margin-top: -7px; background: var(--ink-dim); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; transition: background-color 500ms var(--ease-out); }
+/* the arrow lights once the step it points to is lit */
+.steps > .step:has(+ .step.is-lit)::before { border-color: var(--opal-2a); }
+.steps > .step:has(+ .step.is-lit)::after { background: var(--opal-2); }
+/* two columns: no arrow across the row break */
+@media (max-width: 60rem) and (min-width: 40.01rem) { .steps > .step:nth-child(2)::before, .steps > .step:nth-child(2)::after { content: none !important; } }
+/* one column: the arrow points down */
+@media (max-width: 40rem) {
+  .steps > .step:not(:last-child)::before { top: auto; right: auto; bottom: calc(-14px - var(--gap-cards) / 2); left: 50%; margin: 0 0 0 -14px; }
+  .steps > .step:not(:last-child)::after { top: auto; right: auto; bottom: calc(-7px - var(--gap-cards) / 2); left: 50%; margin: 0 0 0 -7px; rotate: 90deg; }
+  .steps { gap: 24px; --gap-cards: 24px; }
+}
+
+/* ===== Phone and small tablet ===== */
+@media (max-width: 60rem) {
+  /* section heads sit centred, so every block opens the same way */
+  .board-head, .fix-head, .find-head, .steps-head, .output-head, .runs .container > h2, .gate-side { text-align: center; justify-content: center; justify-items: center; }
+  .board-head .lead, .find-head .lead, .steps-head .lead, .gate-side .lead { margin-inline: auto; }
+  .runs h2, .board-head h2, .fix-head h2, .find-head h2, .steps-head h2, .gate-side h2 { margin-inline: auto; }
+
+  /* hero: the mark on top, then the words, then the buttons, all centred */
+  .hero { padding-block: var(--space-xl) var(--section-gap-s); }
+  .hero .container { display: flex; flex-direction: column; align-items: center; gap: var(--space-xl); min-height: 0; text-align: center; }
+  .hero .hero-mark { order: -1; justify-self: center; width: min(208px, 54vw); margin: 0 auto; }
+  .hero-copy { display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .hero h1 { margin-inline: auto; }
+  .hero .lead { margin-inline: auto; }
+  .hero .actions { flex-direction: column; align-items: stretch; width: 100%; max-width: 420px; }
+  .hero .actions .btn { width: 100%; justify-content: center; }
+  .works { justify-content: center; }
+
+  /* before/after: the scroll drives it here too, inside one sticky screen */
+  .fix-track { height: 440vh; }
+  .fix-sticky { position: sticky; top: 0; height: 100dvh; min-height: 0; padding-block: 100px var(--space-md); gap: var(--space-md); justify-content: center; }
+  .fix-head { flex-direction: column; align-items: center; gap: var(--space-sm); }
+  .fix-title { margin: 0; justify-items: center; }
+  .fix-head h2 { margin: 0; }
+  .fix-score { min-height: 48px; }
+  .fix-body { flex: 1 1 auto; min-height: 0; max-height: 600px; }
+  .fix-stage { height: auto; min-height: 0; }
+  .ui-tr { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.15fr) minmax(0, 0.9fr); }
+
+  /* routing: one sticky screen; the requests become a row of icons, the scroll walks them */
+  .board-track { height: calc(100dvh + 8 * 42vh); }
+  .board-sticky { position: sticky; top: 0; height: 100dvh; min-height: 0; padding-block: 100px var(--space-md); align-items: center; }
+  .board-head { flex-direction: column; align-items: center; gap: var(--space-sm); }
+  .switch { margin-top: var(--space-lg); gap: var(--space-md); }
+  .requests { flex-direction: row; justify-content: space-between; gap: var(--space-2xs); }
+  .requests button { flex: 1 1 0; justify-content: center; min-height: 44px; min-width: 0; padding: 0; }
+  .requests button > svg { width: 18px; height: 18px; }
+  .requests button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .requests button::after { height: 2px; }
+  .route { gap: var(--space-md); }
+  .route-from q { font-size: var(--text-md); }
+  .route-get { font-size: var(--text-md); }
+  .board-foot, .stops-foot, .output-head .lead { text-align: center; }
+  .board-foot { margin-top: var(--space-md); }
+  .output-head h2, .output-head .lead { margin-inline: auto; }
+
+  /* find your situation: one solid full-width picker instead of chips that run off the screen */
+  .find-nav { display: none !important; }
+  .find-pick { position: relative; display: block; width: 100%; max-width: 420px; margin-inline: auto; }
+  .find-pick select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 52px; padding: 0 52px 0 var(--space-lg); border: 1px solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-2); color: var(--color-ink); font: 500 var(--text-md)/1.2 var(--font-body); cursor: pointer; }
+  .find-pick select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .find-pick svg { position: absolute; right: 20px; top: 50%; width: 18px; height: 18px; margin-top: -9px; fill: none; stroke: var(--color-ink-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .find-pick-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .find-head { flex-direction: column; align-items: center; }
+  .find-head .find-all { display: none; }
+  .find-end { display: flex; justify-content: center; margin-top: var(--space-xl); }
+  .find-end .btn { width: 100%; max-width: 420px; justify-content: center; }
+  .sit-note { text-align: center; }
+  .sit-all { justify-self: center; }
+
+  /* checked at the gate: the crest and the four checks centred, the checks as a 2 x 2 */
+  .gate-side { justify-items: center; }
+  .gate-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); width: 100%; }
+  .gate-steps li { flex-direction: column; justify-content: center; gap: var(--space-xs); min-height: 88px; padding: var(--space-md) var(--space-sm); border: 1px solid var(--color-rule); border-radius: var(--r-tile); background: var(--color-paper); text-align: center; font-size: var(--text-xs); }
+  .gate-sum { justify-content: center; text-align: center; width: 100%; }
+  .gate-note { text-align: center; }
+
+  /* closing banner: centred copy, full-width buttons */
+  .close-copy { text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .close-copy h2 { margin-inline: auto; }
+  .close-copy .actions { flex-direction: column; align-items: stretch; width: 100%; }
+  .close-copy .actions .btn { justify-content: center; }
+
+  /* footer: one solid sheet, the wordmark in two lines so it stays large */
+  .foot { background: var(--color-paper-3); border-top: 1px solid var(--color-rule-2); border-radius: var(--r-banner) var(--r-banner) 0 0; padding-top: var(--space-2xl); text-align: left; }
+  .foot-mark { aspect-ratio: 1630 / 430; width: calc(100% - 2 * var(--gutter)); margin-block: var(--space-xl) var(--space-lg); -webkit-mask-image: url("img/brand/wordmark-2l.svg"); mask-image: url("img/brand/wordmark-2l.svg"); }
+}
+@media (min-width: 60.01rem) { .find-end, .find-pick { display: none; } }
+@media (max-width: 40rem) {
+  /* on short phones the routing lead gives way so the card still fits */
+  .board-head .lead { font-size: var(--text-sm); }
+}
+@media (max-width: 60rem) and (max-height: 740px) {
+  .board-head .lead, .board-foot { display: none; }
+  .fix-note { display: none; }
+}

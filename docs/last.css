@@ -1,0 +1,150 @@
+:root { --ink-low: oklch(52% 0.012 240); }
+/* ===== no native scrollbar, no scroll readout: the thin progress line at the top is enough ===== */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.hud-read { display: none !important; }
+
+/* ===== Four stops to board: four quiet cards that switch on as you read ===== */
+.steps-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: var(--space-lg); }
+.steps-head .lead { color: var(--color-muted); }
+.steps { margin: var(--space-2xl) 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-md); counter-reset: none; }
+.steps::before, .steps::after { content: none; }
+.step { display: flex; flex-direction: column; gap: var(--space-sm); min-height: 220px; padding: var(--space-lg); border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper-2); transition: border-color 500ms var(--ease-out), background-color 500ms var(--ease-out); }
+.step::before, .step::after { content: none !important; }
+.step-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md); }
+.step-n { font: 500 13px/1 var(--font-code); color: var(--ink-dim); transition: color 500ms var(--ease-out); }
+.step-ico { width: 22px; height: 22px; color: var(--ink-dim); transition: color 500ms var(--ease-out); }
+.step h3 { font-size: var(--text-lg); letter-spacing: -0.015em; }
+.step p { color: var(--color-muted); font-size: var(--text-sm); max-width: 30ch; }
+.step-cmd { margin-top: auto; }
+.step-cmd code { font-size: 12px; }
+.js .step:not(.is-lit) h3, .js .step:not(.is-lit) p { opacity: 1; }
+.step.is-lit { border-color: var(--color-rule-2); background: linear-gradient(160deg, var(--tint-2), var(--tint-1) 60%), var(--color-paper-2); }
+.step.is-lit .step-n { color: var(--opal-2); }
+.step.is-lit .step-ico { color: var(--color-ink); }
+.stops-foot { margin-top: var(--space-lg); color: var(--ink-quiet, var(--color-muted)); }
+@media (max-width: 60rem) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 40rem) { .steps { grid-template-columns: minmax(0, 1fr); } .step { min-height: 0; } }
+
+/* ===== Runs where you already work: logos in their own colours ===== */
+.runs svg:has(use[href="#l-claude"]) { color: var(--br-claude); }
+.runs svg:has(use[href="#l-gemini"]) { color: var(--br-gemini); }
+.runs svg:has(use[href="#l-copilot"]) { color: var(--br-copilot); }
+.runs svg:has(use[href="#l-windsurf"]) { color: var(--br-windsurf); }
+.runs svg:has(use[href="#l-openai"]), .runs svg:has(use[href="#l-x"]) { color: var(--color-ink); }
+.runs .mono-logo { color: var(--color-ink); }
+.runs .inline-logos span:has(> .mono-logo):nth-of-type(n) .mono-logo { background: var(--tint-3); }
+.runs .inline-logos .mono-logo[data-brand="deepseek"] { background: var(--br-deepseek); color: var(--sys-ink-l); }
+.agents .agent-logos { gap: var(--space-md); }
+@media (min-width: 60.01rem) { .steps { grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr); } }
+.step-cmd code { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+
+/* ===== footer: link columns, then the wordmark as a dot matrix that lights under the pointer ===== */
+.foot { padding-block: var(--space-3xl) 0; border-top: 1px solid var(--color-rule); overflow: hidden; }
+.foot-top { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: var(--space-2xl); align-items: start; }
+.foot .statement { max-width: 16ch; }
+.foot-free { margin-top: var(--space-md); color: var(--color-muted); }
+.foot-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-lg); }
+.foot-cols h3 { font: 500 12px/1 var(--font-code); color: var(--ink-quiet, var(--color-muted)); letter-spacing: 0; margin-bottom: var(--space-md); }
+.foot-cols ul { margin: 0; padding: 0; border: 0; list-style: none; display: grid; gap: var(--space-sm); }
+.foot .foot-cols a { color: var(--ink-low); text-decoration: none; transition: color var(--dur-short) var(--ease-out); }
+.foot .foot-cols a:hover { color: var(--color-ink); }
+.foot .foot-legal { margin-top: var(--space-2xl); padding-top: var(--space-lg); border-top: 1px solid var(--color-rule); font-size: 12px; color: var(--ink-quiet, var(--color-muted)); max-width: none; }
+.foot-mark { --gx: 50%; --gy: 50%; position: relative; margin: var(--space-2xl) auto var(--space-xl); width: min(100% - 2 * var(--gutter), var(--container) - 2 * var(--gutter)); aspect-ratio: 3312 / 244; -webkit-mask: url("img/brand/wordmark.svg") center / 100% 100% no-repeat; mask: url("img/brand/wordmark.svg") center / 100% 100% no-repeat; background: radial-gradient(circle at 50% 50%, var(--color-rule-2) 0 1.2px, transparent 1.7px) 0 0 / 6px 6px; }
+/* a second dot layer in opal, shown only in a soft circle around the pointer */
+.foot-mark::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, var(--opal-2) 0 1.4px, transparent 1.9px) 0 0 / 6px 6px; -webkit-mask: radial-gradient(circle 240px at var(--gx) var(--gy), var(--color-ink), transparent 75%); mask: radial-gradient(circle 240px at var(--gx) var(--gy), var(--color-ink), transparent 75%); opacity: 0; transition: opacity 500ms var(--ease-out); }
+.foot-mark.is-lit::before { opacity: 1; }
+/* with no pointer, a slow glint drifts across the letters */
+@media (prefers-reduced-motion: no-preference) and (hover: none) { .foot-mark::before { opacity: 0.8; animation: foot-glint 8s var(--ease-in-out) infinite; } }
+@keyframes foot-glint { 0% { --gx: 0%; } 100% { --gx: 100%; } }
+@media (max-width: 60rem) { .foot-top { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 40rem) { .foot-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* header links share the footer's quieter rest state */
+.nav .nav-pill li > a:not(.btn) { color: var(--ink-low); }
+.nav .nav-pill li > a:not(.btn):hover, .nav .nav-pill li > a[aria-current="page"] { color: var(--color-ink); }
+
+/* accent buttons: no outer ring; on hover two soft waves ripple through the fill from the pointer */
+.btn--primary:hover, .btn--dark:hover, .btn--primary:focus-visible { box-shadow: none !important; animation: none !important; }
+.btn--primary::after, .btn--dark::after, .btn--primary::before, .btn--dark::before { content: ""; position: absolute; z-index: -1; left: var(--rx, 50%); top: var(--ry, 50%); width: 24px; height: 24px; margin: -12px 0 0 -12px; translate: none; border-radius: 50%; pointer-events: none; opacity: 0; background: radial-gradient(circle, transparent 38%, var(--btn-wave) 52%, transparent 68%); filter: blur(1px); }
+.btn--primary { --btn-wave: var(--opal-1); }
+.btn--dark { --btn-wave: var(--opal-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover::after, .btn--dark:hover::after { animation: btn-wave 900ms var(--ease-out) both; }
+  .btn--primary:hover::before, .btn--dark:hover::before { animation: btn-wave 900ms var(--ease-out) 180ms both; }
+}
+@keyframes btn-wave { 0% { opacity: 0.9; scale: 0.4; } 100% { opacity: 0; scale: 14; } }
+
+/* one wave per hover, slower and fuller: a thick soft ring with a bright crest, and the button gives a little as it passes */
+.btn--primary::before, .btn--dark::before { content: none !important; animation: none !important; }
+.btn--primary::after, .btn--dark::after { width: 40px; height: 40px; margin: -20px 0 0 -20px; filter: blur(2px); background: radial-gradient(circle, transparent 26%, var(--btn-wave) 42%, var(--btn-crest) 50%, var(--btn-wave) 58%, transparent 76%); }
+.btn--primary { --btn-crest: var(--opal-3); }
+.btn--dark { --btn-crest: var(--color-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover::after, .btn--dark:hover::after { animation: btn-gwave 1500ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  .btn--primary:hover, .btn--dark:hover { animation: btn-give 1500ms cubic-bezier(0.22, 0.61, 0.36, 1) both !important; }
+}
+@keyframes btn-gwave { 0% { opacity: 0; scale: 0.3; } 12% { opacity: 0.95; } 100% { opacity: 0; scale: 9; } }
+@keyframes btn-give { 0% { scale: 1; } 18% { scale: 0.985; } 45% { scale: 1.012; } 70% { scale: 0.998; } 100% { scale: 1; } }
+
+/* the wave as dark matter: a deep, wide, soft ring spreading through the light fill from the pointer */
+:root { --wave-dm: oklch(22% 0.03 285 / 0.62); --wave-dm-soft: oklch(30% 0.04 290 / 0.28); }
+.btn--primary { --btn-wave: var(--wave-dm-soft); --btn-crest: var(--wave-dm); }
+.btn--primary::after, .btn--dark::after { width: 56px; height: 56px; margin: -28px 0 0 -28px; filter: blur(5px); background: radial-gradient(circle, transparent 14%, var(--btn-wave) 32%, var(--btn-crest) 47%, var(--btn-wave) 63%, transparent 82%); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover::after, .btn--dark:hover::after { animation: btn-dm 2200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .btn--primary:hover, .btn--dark:hover { animation: btn-give 2200ms cubic-bezier(0.16, 1, 0.3, 1) both !important; }
+}
+@keyframes btn-dm { 0% { opacity: 0; scale: 0.2; } 10% { opacity: 1; } 55% { opacity: 0.85; } 100% { opacity: 0; scale: 8.5; } }
+
+/* the wave always clears the far edge; the button dips once, then holds its size */
+@keyframes btn-dm { 0% { opacity: 0; scale: 0.2; } 10% { opacity: 1; } 60% { opacity: 0.85; } 100% { opacity: 0; scale: var(--ws, 12); } }
+@keyframes btn-dip { 0% { scale: 1; } 35% { scale: 0.985; } 100% { scale: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover, .btn--dark:hover { animation: btn-dip 520ms cubic-bezier(0.22, 0.61, 0.36, 1) both !important; }
+}
+
+/* on the light closing card the secondary button keeps its light hover, so its dark text stays readable */
+.close-card .btn:not(.btn--primary):not(.btn--dark):hover { background: var(--opal-hover); color: var(--opal-ink); border-color: var(--opal-ink); }
+
+/* ===== intro: a small dot-matrix mark while loading, the field opens from the centre, then the hero arrives ===== */
+@property --fr { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.preload { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; align-content: center; gap: var(--space-md); background: var(--color-paper); transition: opacity 500ms var(--ease-out), visibility 0s linear 500ms; }
+html:not(.intro) .preload, .intro-go .preload { opacity: 0; visibility: hidden; }
+.pl-mark { width: 56px; aspect-ratio: 284 / 288; -webkit-mask: url("img/brand/symbol.svg") center / contain no-repeat; mask: url("img/brand/symbol.svg") center / contain no-repeat; background: radial-gradient(circle at 50% 50%, var(--color-ink-2) 0 1px, transparent 1.6px) 0 0 / 5px 5px; animation: pl-breathe 1.6s var(--ease-in-out) infinite; }
+.pl-bar { position: relative; width: 72px; height: 1px; overflow: hidden; background: var(--color-rule); }
+.pl-bar::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--opal-2), transparent); animation: pl-run 1.1s var(--ease-in-out) infinite; }
+@keyframes pl-breathe { 50% { opacity: 0.45; scale: 0.94; } }
+@keyframes pl-run { from { translate: -100% 0; } to { translate: 100% 0; } }
+
+.intro .field { -webkit-mask: radial-gradient(circle at 50% 40%, var(--color-ink) var(--fr), transparent calc(var(--fr) + 180px)); mask: radial-gradient(circle at 50% 40%, var(--color-ink) var(--fr), transparent calc(var(--fr) + 180px)); }
+.intro.intro-go .field { animation: field-in 1500ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.intro.intro-done .field { -webkit-mask: none; mask: none; animation: none; }
+@keyframes field-in { from { --fr: 0px; } to { --fr: 2400px; } }
+
+.intro .hero-copy > *, .intro .nav { opacity: 0; filter: blur(10px); translate: 0 16px; }
+.intro .nav { translate: 0 -18px; }
+.intro.intro-copy .hero-copy > *, .intro.intro-copy .nav { opacity: 1; filter: none; translate: 0 0; transition: opacity 800ms var(--ease-out), filter 800ms var(--ease-out), translate 800ms var(--ease-out); }
+.intro.intro-copy .hero-copy > :nth-child(2) { transition-delay: 90ms; }
+.intro.intro-copy .hero-copy > :nth-child(3) { transition-delay: 180ms; }
+.intro.intro-copy .hero-copy > :nth-child(4) { transition-delay: 270ms; }
+.intro.intro-copy .hero-copy > :nth-child(5) { transition-delay: 360ms; }
+.intro.intro-copy .nav { transition-delay: 460ms; }
+
+/* the hero lets its dots fly past its bottom edge instead of cutting them */
+.hero { overflow: visible; overflow-x: clip; }
+.hero .stage2d { height: auto; }
+/* the plain mark stays hidden through the intro; it shows only if the dot mark never starts */
+.intro:not(.intro-done) .hero-mark > img { visibility: hidden; }
+
+/* the field now boots dot by dot in its canvas, so the CSS mask reveal is off */
+.intro .field, .intro.intro-go .field { -webkit-mask: none; mask: none; animation: none; }
+
+/* the routed skill name drawn as tiny blocks; the real text stays for readers and search */
+.route-to { position: relative; }
+.px-on .route-to .px-text { color: transparent; }
+.route-to .px-canvas { position: absolute; left: -2px; top: 50%; translate: 0 -50%; pointer-events: none; }
+/* the routed name in Geist Mono: straight strokes that sit cleanly on the block grid */
+.px-on .route-to { font-family: "Space Grotesk", var(--font-outlier); font-weight: 600; letter-spacing: -0.04em; white-space: nowrap; }
+/* the routed card keeps the column's width; a long skill name shrinks instead of pushing the card wider */
+.routes { grid-template-columns: minmax(0, 1fr); }
+.routes > .route, .route-to { min-width: 0; }
