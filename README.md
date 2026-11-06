@@ -11,8 +11,9 @@
 
 <p align="center">
   <b>A designer's harness for AI agents.</b><br>
-  Your agent stops guessing which tool to use: a routing map picks the right skill for every situation,<br>
-  results come back as designed pages, and every third-party plugin is security-reviewed before you get it.
+  For product, UX and UI designers who build interfaces with AI. Your agent stops guessing which tool to use:<br>
+  a routing map picks the right design skill for every situation, results come back as designed pages,<br>
+  and every third-party plugin is security-reviewed before you get it.
 </p>
 
 <p align="center">
@@ -28,58 +29,136 @@
 
 AI agents already have hundreds of skills and plugins. The hard part is getting the right one to run at the right moment, without installing something you never checked. makkov-harness solves exactly that.
 
-- **The agent picks the right skill on its own.** A routing map loads at the start of every session and tells the agent which skill fits which situation. You say "compare these three tools", it builds a report page. You say "install this package", it reviews the package first.
+- **The agent picks the right design skill on its own.** A routing map loads at the start of every session. Say "review this screen" and it runs an accessibility, type, colour and layout pass. Say "make it feel like Linear" and it pulls Linear's design system as a reference. Say "animate this card" and the motion follows Emil Kowalski's rules.
 - **Nothing third-party reaches your machine unchecked.** Every companion plugin was fetched without running, scanned, and had its hooks and scripts read by hand. Each one is pinned to the exact commit that passed, and a weekly check flags new upstream versions for review.
-- **Results you can send as they are.** Research, comparisons, plans and audits come back as designed, interactive pages with real tables, charts and navigation, not as a wall of chat text.
-- **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one script.
+- **Results you can send as they are.** Audits, research, comparisons and plans come back as designed, interactive pages with real tables, charts and navigation, not as a wall of chat text.
+- **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one message.
 
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/#fix"><img src=".github/assets/before-after.gif" alt="Same screen, five skills later: a raw generated CRM screen gets its spacing, alignment, type, colour and motion fixed one skill at a time, the design score climbs from 41 to 96, then a demo cursor tours the finished screen." width="100%"></a></p>
+<p align="center"><sub>Same screen, five skills later: spacing, alignment, type, colour, motion. <a href="https://makkov-design.github.io/makkov-harness/#fix">Scroll through it live</a>.</sub></p>
 
 ## How it works
 
+You describe the work in plain words. The routing map matches the situation to a skill, and the skill does the job its author designed it for.
+
 ```mermaid
 flowchart LR
-    A["You: make a release video"] --> B["Routing map"]
-    B --> C["Skill: hyperframes"]
-    B -.-> D["Or a companion plugin"]
-    C --> E["Result: an MP4"]
-    D --> E
+    A["You: review this screen"] --> M{{"Routing map"}}
+    B["You: make it feel like Linear"] --> M
+    C["You: animate this card"] --> M
+    M --> D["interfaces<br/>accessibility, type, colour, layout"]
+    M --> E["design-md-library<br/>Linear's design system as a reference"]
+    M --> F["animate<br/>motion by Emil Kowalski's rules"]
 ```
 
 No commands to memorise and no skill names to remember. The map does the matching; you keep talking about the work.
 
-<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#switch"><img src=".github/assets/routing.gif" alt="The routing board: each request switches on in turn and its skill name assembles from small blocks: compare these three tools to rich-report, install this npm package to install-guard, make it feel like Linear to design-md-library, animate this card to animate, make a release video to hyperframes." width="100%"></a></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#switch"><img src=".github/assets/routing.gif" alt="The routing board: each design request switches on in turn and its skill name assembles from small blocks: make it feel like Linear to design-md-library, animate this card to animate, review this screen to interfaces, build a landing page to Hallmark." width="100%"></a></p>
+
+Design is the core, and the map covers the rest of a designer's day too: "compare these three tools" builds a report page, "install this package" runs the install guard first, "make a release video" renders an MP4 with Hyperframes. The full list is in [`ROUTING.md`](ROUTING.md).
 
 ## What's inside
 
 | Skill | What it does for you |
 |---|---|
+| `design-md-library` | "Make it in the style of Linear, Stripe or Notion": pulls that product's design-system write-up as a reference |
+| `animate`, `animate-expo`, `animation-performance`, `improve-animations`, `find-animation-opportunities` | Motion done right, by Emil Kowalski |
 | `rich-report` | Turns research, plans and audits into a designed, interactive report page (Claude Artifacts) |
 | `html-report` | The same reports as one self-contained HTML file, for every other agent |
 | `third-party-install-guard` | Reviews any package, plugin, skill or MCP server for malware and risky behavior **before** it is installed, with a green, yellow or red verdict |
-| `design-md-library` | "Make it in the style of Linear, Stripe or Notion": pulls that product's design-system write-up as a reference |
-| `animate`, `animate-expo`, `animation-performance`, `improve-animations`, `find-animation-opportunities` | Motion done right, by Emil Kowalski |
 | `hyperframes` + 5 helpers | HTML to video: promo clips, release videos, animated slides, by HeyGen |
 | `harness-onboarding` | A few questions, then the harness is tuned to you: language, role, tools |
 | `ROUTING.md` | The "situation → skill" map, loaded automatically in Claude and added to your instructions file elsewhere |
 
+Plus the best design plugins, reviewed and pinned: interfaces, Impeccable, Hallmark and more, [listed below](#companion-plugins-reviewed-and-pinned).
+
 ## Install in two minutes
 
-<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#install"><img src=".github/assets/stops.png" alt="Four stops to board: pick Claude, a coding agent or a chat app. For Claude: open claude.ai in a browser, Customize then Plugins, add the marketplace Makkov-design/makkov-harness, switch it on; each step shows a small screen with the thing to press highlighted." width="100%"></a></p>
+Pick where you work. Each path is four steps.
 
-**Claude (desktop app, Claude Code, cloud sessions).** In a **browser**, open claude.ai → Customize → Plugins → Add → Add marketplace → paste `Makkov-design/makkov-harness` → enable **makkov-harness**. Once is enough: it is added to your account, so it works on every computer you sign in on and in cloud sessions. (Adding it from the desktop app installs it on that one computer only. In a terminal, also this computer only: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.)
+### Claude: desktop app, Claude Code, cloud sessions
 
-**Easiest for any agent: give it this repository.** Paste the link and say "install this". The agent reads [`INSTALL.md`](INSTALL.md) and sets everything up for its own environment.
+<p align="center"><img src=".github/assets/install-claude.png" alt="Four steps for Claude: open claude.ai in a browser, Customize then Plugins, Add marketplace with the address Makkov-design/makkov-harness, switch makkov-harness on." width="100%"></p>
 
-**Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode, Aider.** Clone the repository and run `install/install.ps1 -Agent <agent>` (Windows) or `install/install.sh <agent>` (macOS, Linux). Details per tool in [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
+1. Open **[claude.ai](https://claude.ai)** in a **browser**. The website, not the desktop app: added there, it lands on your account, so every computer and cloud session gets it.
+2. Go to **Customize → Plugins**.
+3. Press **Add → Add marketplace**, paste `Makkov-design/makkov-harness` and confirm.
+4. Switch on **makkov-harness**. Companion plugins sit in the same list, one switch each, all optional.
 
-**Chat apps** (ChatGPT, Grok, DeepSeek, Gemini in a browser): a lighter pack you paste in, see [`adapters/chat-pack`](adapters/chat-pack/README.md).
+Then, in any chat, say **`run harness-onboarding`**. A few questions about your language, role and tools, and it is tuned to you.
 
-**Claude cloud sessions (claude.ai/code).** Nothing extra is required. When a session needs to render a Hyperframes video or run a Hallmark browser check and the tools are missing, the agent offers to install them (1–2 minutes, only after you say yes). If you render often, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs pinned, reviewed versions of ffmpeg, puppeteer-core and the Hyperframes CLI.
+<details>
+<summary><b>Only Claude Code, on one computer?</b> Use the terminal</summary>
+<br>
 
-**Updates.** Your account keeps the copy it took when you added the plugin. To get a newer version: claude.ai → Customize → Plugins → Manage marketplaces → `makkov-harness` → ⋯ → Sync, then fully quit and reopen the desktop app.
+This installs it on this computer only. The website route above follows your account everywhere.
 
-Then run `harness-onboarding` once, and you are set.
+```
+/plugin marketplace add Makkov-design/makkov-harness
+/plugin install makkov-harness@makkov-harness
+```
+</details>
+
+<details>
+<summary><b>Getting updates</b></summary>
+<br>
+
+Your account keeps the copy it took when you added the plugin. For a newer version: claude.ai → Customize → Plugins → Manage marketplaces → `makkov-harness` → ⋯ → Sync, then fully quit and reopen the desktop app.
+</details>
+
+<details>
+<summary><b>Claude cloud sessions</b> (claude.ai/code)</summary>
+<br>
+
+Nothing extra is required. When a session needs to render a Hyperframes video or run a Hallmark browser check and the tools are missing, the agent offers to install them (1–2 minutes, only after you say yes). If you render often, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs pinned, reviewed versions of ffmpeg, puppeteer-core and the Hyperframes CLI.
+</details>
+
+### Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode, Aider
+
+<p align="center"><img src=".github/assets/install-agents.png" alt="Four steps for coding agents: open your agent, paste the install message, answer two questions, restart the agent." width="100%"></p>
+
+1. Open your coding agent in any project.
+2. Paste this message: `Install https://github.com/Makkov-design/makkov-harness`. It reads [`INSTALL.md`](INSTALL.md) and does the rest.
+3. Answer its two questions: every project or only this one, then a yes before it writes anything. It shows every change first.
+4. Restart the agent, so it loads the skills and the routing map.
+
+Then ask it to **`run harness-onboarding`**.
+
+<details>
+<summary><b>Prefer to run the installer yourself?</b></summary>
+<br>
+
+Get a copy, then run the installer with your agent's name: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode` or `aider`. Cursor, Copilot, Windsurf and Aider also need your project folder at the end.
+
+```
+git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov-harness
+```
+
+macOS or Linux:
+
+```
+bash ~/makkov-harness/install/install.sh codex
+```
+
+Windows, in PowerShell:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent codex
+```
+
+What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
+</details>
+
+### ChatGPT, Gemini, Grok, DeepSeek
+
+<p align="center"><img src=".github/assets/install-chat.png" alt="Four steps for chat apps: create a project, upload the files, paste the instructions, ask as usual." width="100%"></p>
+
+1. Create a project. ChatGPT calls it Projects, Gemini calls it Gems; in Grok or DeepSeek, attach the files to a chat.
+2. Upload `ROUTING.md` and the skills you use. Start with html-report and the install guard. [Download every file (ZIP)](https://github.com/Makkov-design/makkov-harness/archive/refs/heads/main.zip).
+3. Paste the instructions from [the chat pack](adapters/chat-pack/README.md) into the project instructions and save.
+4. Ask as usual. Results come back in the chat; reports as one HTML file to save.
+
+A chat app cannot run installers or hooks, and rich-report needs Claude: you get html-report instead.
 
 ## Companion plugins, reviewed and pinned
 
@@ -89,10 +168,10 @@ The best design plugins, in one list. Their code stays in their authors' reposit
 
 | Plugin | Use it for | By |
 |---|---|---|
-| Superpowers | Brainstorming before building, debugging, plans | [obra/superpowers](https://github.com/obra/superpowers) |
 | interfaces | UI review: accessibility, typography, color, layout, copy | [jakubkrehel/skills](https://github.com/jakubkrehel/skills) |
 | Impeccable | Creative direction: bolder or quieter, onboarding, DESIGN.md | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
 | Hallmark | New landing pages and sites that look designed, not generated | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) |
+| Superpowers | Brainstorming before building, debugging, plans | [obra/superpowers](https://github.com/obra/superpowers) |
 | security-audit | Whole-project security review before a launch | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) |
 | ytlens | Watch and analyze YouTube videos (frames and audio) through Gemini | [Makkov-design/ytlens](https://github.com/Makkov-design/ytlens) |
 
@@ -109,6 +188,8 @@ If the harness saved you one wrong tool, one unchecked install or one wall of ch
 
 - **Share it** with a designer friend or your team: the link [makkov-design.github.io/makkov-harness](https://makkov-design.github.io/makkov-harness/) explains it in one screen.
 - **Ideas, bugs, a skill you want routed?** [Open an issue](https://github.com/Makkov-design/makkov-harness/issues). Pull requests are welcome: see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+<p align="center"><a href="https://star-history.com/#Makkov-design/makkov-harness&Date"><img src="https://api.star-history.com/svg?repos=Makkov-design/makkov-harness&type=Date&theme=dark" alt="Star history of makkov-harness" width="70%"></a></p>
 
 ---
 
