@@ -65,7 +65,7 @@ No commands to memorise and no skill names to remember. The map does the matchin
 
 ## Install in two minutes
 
-<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#install"><img src=".github/assets/stops.png" alt="Four stops to board, joined by arrows: open claude.ai, paste the address Makkov-design/makkov-harness, enable it, run onboarding." width="100%"></a></p>
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/#install"><img src=".github/assets/stops.png" alt="Four stops to board: pick Claude, a coding agent or a chat app. For Claude: open claude.ai in a browser, Customize then Plugins, add the marketplace Makkov-design/makkov-harness, switch it on; each step shows a small screen with the thing to press highlighted." width="100%"></a></p>
 
 **Claude (desktop app, Claude Code, cloud sessions).** In a **browser**, open claude.ai → Customize → Plugins → Add → Add marketplace → paste `Makkov-design/makkov-harness` → enable **makkov-harness**. Once is enough: it is added to your account, so it works on every computer you sign in on and in cloud sessions. (Adding it from the desktop app installs it on that one computer only. In a terminal, also this computer only: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.)
 

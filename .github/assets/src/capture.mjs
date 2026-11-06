@@ -81,12 +81,16 @@ try {
 
   if (scene === "stops") {
     await page.evaluate(() => { const s = document.querySelector(".board-on"); scrollTo(0, s.getBoundingClientRect().top + scrollY - 40); });
+    if (process.env.WAY) await page.click(`#way-${process.env.WAY}`); // another install path: agents or chat
     await sleep(800); // let the scroll handler run first, then light every step
-    await page.evaluate(() => { document.querySelectorAll(".step").forEach((x) => x.classList.add("is-lit", "is-in")); document.querySelectorAll(".board-on [data-reveal]").forEach((x) => x.classList.add("is-in")); });
-    await sleep(900);
-    const clip = await page.evaluate(() => { const r = document.querySelector(".board-on .container").getBoundingClientRect(); return { x: r.left, y: r.top - 48, width: r.width, height: r.height + 96 }; });
-    await page.screenshot({ path: path.join(out, "stops.png"), clip });
-    console.log("wrote", path.join(out, "stops.png"));
+    await page.evaluate(() => { document.querySelectorAll(".step").forEach((x) => { x.classList.add("is-lit", "is-in"); new MutationObserver(() => { if (!x.classList.contains("is-lit")) x.classList.add("is-lit"); }).observe(x, { attributes: true, attributeFilter: ["class"] }); }); document.querySelectorAll(".board-on [data-reveal]").forEach((x) => x.classList.add("is-in")); }); // every step lit, and kept lit while the page settles
+    // a still picture: show every cursor and switch at its end state rather than mid-glide
+    await page.addStyleTag({ content: ".sv-cur, .sv-tog, .sv-tog::before { transition: none !important; } .sv-cur::after, .sv-hit::after { animation: none !important; }" });
+    await sleep(600);
+    const clip = await page.evaluate(() => { const r = document.querySelector(".board-on .container").getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY - 48, width: r.width, height: r.height + 96 }; }); // page coordinates
+    const file = process.env.OUT_PNG || path.join(out, "stops.png");
+    await page.screenshot({ path: file, clip });
+    console.log("wrote", file);
   }
 } finally {
   await browser.close();

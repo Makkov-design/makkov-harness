@@ -56,17 +56,41 @@
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => getSelection().selectAllChildren(el)); else getSelection().selectAllChildren(el);
   }));
 
-  /* ---------- install stops: the line fills as you read, a pulse runs along it ---------- */
-  const stops = document.querySelector('[data-stops]');
-  if (stops) {
-    const items = [...stops.children];
-    onFrame(() => {
-      const r = stops.getBoundingClientRect();
-      const p = clamp((innerHeight * 0.8 - r.top) / (innerHeight * 0.55));
-      stops.style.setProperty('--fill', p.toFixed(3));
-      items.forEach((li, i) => li.classList.toggle('is-lit', p >= i / (items.length - 1) - 0.02));
-    });
-  }
+  /* ---------- install stops: each step lights as you reach it (in a row: one after another) ---------- */
+  const lists = [...document.querySelectorAll('[data-stops]')];
+  const lightStops = () => lists.forEach((stops) => {
+    if (!stops.offsetParent) return; // a hidden path
+    const items = [...stops.children], stacked = items.length > 1 && items[1].offsetTop > items[0].offsetTop + 10;
+    if (stacked) { items.forEach((li) => li.classList.toggle('is-lit', li.getBoundingClientRect().top < innerHeight * 0.7)); return; }
+    const r = stops.getBoundingClientRect(), p = clamp((innerHeight * 0.8 - r.top) / (innerHeight * 0.55));
+    items.forEach((li, i) => li.classList.toggle('is-lit', p >= i / (items.length - 1) - 0.02));
+  });
+  if (lists.length) onFrame(lightStops);
+
+  /* ---------- the cursor in each step's small screen lands on the thing to press, at any width ---------- */
+  const aim = () => document.querySelectorAll('.sv-cur').forEach((c) => {
+    const sv = c.parentElement, hits = sv.querySelectorAll('.sv-hit'), t = hits[hits.length - 1];
+    if (!t || !sv.offsetWidth) return;
+    const s = sv.getBoundingClientRect(), r = t.getBoundingClientRect(), w = c.offsetWidth;
+    // the arrow's tip sits at (6, 3.5) of its 28-unit box; put it a little right of the target's centre
+    c.style.left = `${r.left - s.left + r.width * 0.58 - (w * 6) / 28}px`;
+    c.style.top = `${r.top - s.top + r.height * 0.6 - (w * 3.5) / 28}px`;
+  });
+  addEventListener('resize', aim); addEventListener('load', aim); document.fonts?.ready.then(aim); aim();
+
+  /* ---------- where you work: three install paths ---------- */
+  const ways = [...document.querySelectorAll('.ways [role="tab"]')];
+  const pickWay = (i, focus) => {
+    ways.forEach((w, k) => { const on = k === i; w.setAttribute('aria-selected', String(on)); w.tabIndex = on ? 0 : -1; document.getElementById(w.getAttribute('aria-controls')).hidden = !on; });
+    if (focus) ways[i].focus();
+    // the new path's steps light at once if the list is already on screen, and replay their cursor
+    document.querySelectorAll('.path .step').forEach((li) => li.classList.remove('is-lit'));
+    requestAnimationFrame(() => { aim(); lightStops(); });
+  };
+  ways.forEach((w, i) => {
+    w.addEventListener('click', () => pickWay(i));
+    w.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return; e.preventDefault(); pickWay((i + d + ways.length) % ways.length, true); });
+  });
 
   /* ---------- output windows come alive only while on screen ---------- */
   const whenSeen = (el, on, off) => new IntersectionObserver(([e]) => (e.isIntersecting ? on() : off?.())).observe(el);

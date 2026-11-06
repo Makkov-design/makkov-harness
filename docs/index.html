@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="out.css?v=20261106c">
 <link rel="stylesheet" href="gate.css?v=20261106f">
 <link rel="stylesheet" href="last.css?v=20261107c">
+<link rel="stylesheet" href="install.css?v=20261107c">
 <link rel="stylesheet" href="mobile.css?v=20261107f">
 <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('intro');setTimeout(function(){document.documentElement.classList.add('intro-go','intro-copy','intro-done')},5000);}</script>
 </head>
@@ -325,15 +326,95 @@
     <div class="container">
       <div class="steps-head">
         <h2 id="install-title">Four stops to board.</h2>
-        <p class="lead">About two minutes, once. Free, no plan, no card.</p>
+        <p class="lead">Pick where you work. Four steps, about two minutes, no card.</p>
       </div>
-      <ol class="steps" data-stops>
-        <li class="step"><div class="step-top"><span class="step-n">01</span><svg class="step-ico" aria-hidden="true"><use href="#i-globe"/></svg></div><h3>Open claude.ai</h3><p>In a browser: Customize, Plugins, Add marketplace.</p></li>
-        <li class="step"><div class="step-top"><span class="step-n">02</span><svg class="step-ico" aria-hidden="true"><use href="#i-clip"/></svg></div><h3>Paste the address</h3><div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code id="addr">Makkov-design/makkov-harness</code><button class="copy" type="button" data-copy-text="Makkov-design/makkov-harness" data-label="Copy" aria-label="Copy the marketplace address"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div></li>
-        <li class="step"><div class="step-top"><span class="step-n">03</span><svg class="step-ico" aria-hidden="true"><use href="#i-toggle"/></svg></div><h3>Enable it</h3><p>Companions sit in the same list, one switch each.</p></li>
-        <li class="step"><div class="step-top"><span class="step-n">04</span><svg class="step-ico" aria-hidden="true"><use href="#i-chat"/></svg></div><h3>Run onboarding</h3><p>Ask for harness-onboarding: language, role, tools.</p></li>
-      </ol>
-      <p class="stops-foot">Once is enough: it follows your account to every computer and cloud session.</p>
+      <div class="ways" role="tablist" aria-label="Where you work">
+        <button type="button" role="tab" id="way-claude" aria-controls="path-claude" aria-selected="true"><span class="way-ico"><svg aria-hidden="true"><use href="#l-claude"/></svg></span><span class="way-txt"><b>Claude</b><small>App, web, Claude Code, cloud</small></span></button>
+        <button type="button" role="tab" id="way-agents" aria-controls="path-agents" aria-selected="false" tabindex="-1"><span class="way-ico"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span><span class="way-txt"><b>Coding agents</b><small>Codex, Cursor, Gemini CLI, five more</small></span></button>
+        <button type="button" role="tab" id="way-chat" aria-controls="path-chat" aria-selected="false" tabindex="-1"><span class="way-ico"><svg aria-hidden="true"><use href="#i-chat"/></svg></span><span class="way-txt"><b>Chat apps</b><small>ChatGPT, Gemini, Grok, DeepSeek</small></span></button>
+      </div>
+      <div class="path" id="path-claude" role="tabpanel" aria-labelledby="way-claude">
+        <ol class="steps" data-stops>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i><span class="sv-url sv-hit">claude.ai</span></div><div class="sv-page"><span class="sv-ph w40"></span><span class="sv-ph w25"></span><span class="sv-box"></span></div><span class="sv-cur" style="--cx:56%;--cy:17%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">01</span><h3>Open claude.ai in a browser</h3><p>The website, not the desktop app. Added there, it lands on your account, so every computer and cloud session gets it.</p></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i><span class="sv-url">claude.ai</span></div><div class="sv-app"><div class="sv-side"><span class="sv-ph w70"></span><span class="sv-ph w50"></span><span class="sv-ph w60"></span><span class="sv-item sv-hit"><b class="sv-n">1</b>Customize</span></div><div class="sv-main"><span class="sv-ph w35 tall"></span><span class="sv-item sv-hit"><b class="sv-n">2</b>Plugins</span><span class="sv-ph w60"></span><span class="sv-ph w45"></span></div></div><span class="sv-cur" style="--cx:63%;--cy:58%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">02</span><h3>Customize, then Plugins</h3><p>In the menu on the left open Customize, then the Plugins section.</p></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i><span class="sv-url">claude.ai</span></div><div class="sv-page sv-dimmed"><span class="sv-ph w40"></span><span class="sv-ph w60"></span></div><div class="sv-modal"><b class="sv-mt">Add marketplace</b><span class="sv-field">Makkov-design/makkov-harness<i class="sv-caret"></i></span><span class="sv-btn sv-hit">Add</span></div><span class="sv-cur" style="--cx:74%;--cy:79%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">03</span><h3>Add the marketplace</h3><p>Press Add, choose Add marketplace, paste this address and confirm.</p><div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code><span class="nb">Makkov-design</span>/<wbr><span class="nb">makkov-harness</span></code><button class="copy" type="button" data-copy-text="Makkov-design/makkov-harness" data-label="Copy" aria-label="Copy the marketplace address"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i><span class="sv-url">claude.ai</span></div><div class="sv-list"><span class="sv-row is-main"><b>makkov-harness</b><i class="sv-tog sv-hit"></i></span><span class="sv-row"><b>Superpowers</b><em>optional</em><i class="sv-tog"></i></span><span class="sv-row"><b>interfaces</b><em>optional</em><i class="sv-tog"></i></span><span class="sv-row"><b>Hallmark</b><em>optional</em><i class="sv-tog"></i></span></div><span class="sv-cur" style="--cx:86%;--cy:30%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">04</span><h3>Switch it on</h3><p>Turn on makkov-harness. Companion plugins sit in the same list, one switch each, all optional.</p></div>
+        </li>
+        </ol>
+        <div class="path-then">
+          <div class="then-main"><span class="then-k">Then</span><p>In any chat, say <code>run harness-onboarding</code>. A few questions about your language, role and tools, and it is tuned to you.</p><button class="copy" type="button" data-copy-text="run harness-onboarding" data-label="Copy" aria-label="Copy the onboarding request"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+          <details class="then-alt"><summary>Only Claude Code, on one computer? Use the terminal</summary>
+            <p>This installs it on this computer only. The website route above follows your account everywhere.</p>
+            <div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>/<wbr><span class="nb">plugin</span> <span class="nb">marketplace</span> <span class="nb">add</span> <span class="nb">Makkov-design</span>/<wbr><span class="nb">makkov-harness</span></code><button class="copy" type="button" data-copy-text="/plugin marketplace add Makkov-design/makkov-harness" data-label="Copy" aria-label="Copy the first command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+            <div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>/<wbr><span class="nb">plugin</span> <span class="nb">install</span> <span class="nb">makkov-harness@makkov-harness</span></code><button class="copy" type="button" data-copy-text="/plugin install makkov-harness@makkov-harness" data-label="Copy" aria-label="Copy the second command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+          </details>
+        </div>
+      </div>
+      <div class="path" id="path-agents" role="tabpanel" aria-labelledby="way-agents" hidden>
+        <ol class="steps" data-stops>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-logos"><span><svg><use href="#l-openai"/></svg>Codex</span><span><i>Cu</i>Cursor</span><span><svg><use href="#l-gemini"/></svg>Gemini CLI</span><span><svg><use href="#l-copilot"/></svg>Copilot</span><span><svg><use href="#l-windsurf"/></svg>Windsurf</span><span><i>Cl</i>Cline</span><span><i>Oc</i>OpenCode</span><span><i>Ai</i>Aider</span></div></div>
+          <div class="step-body"><span class="step-n">01</span><h3>Open your coding agent</h3><p>Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode or Aider, in any project.</p></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-chat"><span class="sv-ph w45"></span><span class="sv-ph w30"></span></div><div class="sv-composer"><span class="sv-typed">Install https://github.com/Makkov-design/makkov-harness</span><i class="sv-send sv-hit"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></i></div><span class="sv-cur" style="--cx:91%;--cy:82%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">02</span><h3>Paste this message</h3><p>It reads the install guide in the repository and does the rest.</p><div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">›</span><code><span class="nb">Install</span> <span class="nb">https:</span>/<wbr>/<wbr><span class="nb">github.com</span>/<wbr><span class="nb">Makkov-design</span>/<wbr><span class="nb">makkov-harness</span></code><button class="copy" type="button" data-copy-text="Install https://github.com/Makkov-design/makkov-harness" data-label="Copy" aria-label="Copy the message"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-chat sv-chat--q"><p>Every project, or only this one?</p><div class="sv-chips"><span class="sv-chip sv-hit"><b class="sv-n">1</b>Every project</span><span class="sv-chip">Only this one</span></div><p>Copy the skills and add the routing map?</p><div class="sv-chips"><span class="sv-chip sv-hit"><b class="sv-n">2</b>Yes</span><span class="sv-chip">No</span></div></div><span class="sv-cur" style="--cx:22%;--cy:83%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">03</span><h3>Answer two questions</h3><p>Where to install, then a yes before it writes anything. It shows every change first.</p></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-term"><p><i>✓</i>skills copied</p><p><i>✓</i>routing map added</p><p><i>✓</i>backup of your old file kept</p><p class="sv-hit">restart to load the skills</p></div></div>
+          <div class="step-body"><span class="step-n">04</span><h3>Restart the agent</h3><p>Close it and open it again, so it loads the skills and the routing map.</p></div>
+        </li>
+        </ol>
+        <div class="path-then">
+          <div class="then-main"><span class="then-k">Then</span><p>Ask your agent to <code>run harness-onboarding</code>. A few questions, and it is tuned to you.</p><button class="copy" type="button" data-copy-text="run harness-onboarding" data-label="Copy" aria-label="Copy the onboarding request"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+          <details class="then-alt"><summary>Prefer to run the installer yourself?</summary>
+            <p>Get a copy, then run the installer with your agent's name: codex, cursor, gemini, copilot, windsurf, cline, opencode or aider. Cursor, Copilot, Windsurf and Aider also need your project folder.</p>
+            <div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code><span class="nb">git</span> <span class="nb">clone</span> <span class="nb">--depth</span> <span class="nb">1</span> <span class="nb">https:</span>/<wbr>/<wbr><span class="nb">github.com</span>/<wbr><span class="nb">Makkov-design</span>/<wbr><span class="nb">makkov-harness.git</span> <span class="nb">~</span>/<wbr><span class="nb">makkov-harness</span></code><button class="copy" type="button" data-copy-text="git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov-harness" data-label="Copy" aria-label="Copy the clone command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+            <p class="then-os">macOS or Linux</p>
+            <div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code><span class="nb">bash</span> <span class="nb">~</span>/<wbr><span class="nb">makkov-harness</span>/<wbr><span class="nb">install</span>/<wbr><span class="nb">install.sh</span> <span class="nb">codex</span></code><button class="copy" type="button" data-copy-text="bash ~/makkov-harness/install/install.sh codex" data-label="Copy" aria-label="Copy the macOS and Linux command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+            <p class="then-os">Windows, in PowerShell</p>
+            <div class="sit-cmd step-cmd"><span class="sit-sign" aria-hidden="true">$</span><code><span class="nb">powershell</span> <span class="nb">-NoProfile</span> <span class="nb">-ExecutionPolicy</span> <span class="nb">Bypass</span> <span class="nb">-File</span> <span class="nb">~</span>/<wbr><span class="nb">makkov-harness</span>/<wbr><span class="nb">install</span>/<wbr><span class="nb">install.ps1</span> <span class="nb">-Agent</span> <span class="nb">codex</span></code><button class="copy" type="button" data-copy-text="powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent codex" data-label="Copy" aria-label="Copy the Windows command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy</span></button></div>
+          </details>
+        </div>
+      </div>
+      <div class="path" id="path-chat" role="tabpanel" aria-labelledby="way-chat" hidden>
+        <ol class="steps" data-stops>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-app"><div class="sv-side"><span class="sv-item sv-hit">+ New project</span><span class="sv-ph w70"></span><span class="sv-ph w50"></span><span class="sv-ph w60"></span></div><div class="sv-main"><span class="sv-ph w45 tall"></span><span class="sv-ph w70"></span><span class="sv-ph w55"></span></div></div><span class="sv-cur" style="--cx:30%;--cy:30%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">01</span><h3>Create a project</h3><p>ChatGPT: Projects. Gemini: Gems. Grok or DeepSeek: a chat you attach files to.</p></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-drop sv-hit"><span>ROUTING.md</span><span>html-report / SKILL.md</span><span>skeleton.html</span><span>install-guard / SKILL.md</span></div></div>
+          <div class="step-body"><span class="step-n">02</span><h3>Upload the files</h3><p>ROUTING.md and the skills you use. Start with html-report and the install guard.</p><a class="step-link" href="https://github.com/Makkov-design/makkov-harness/archive/refs/heads/main.zip">Download every file (ZIP)<svg aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-instr"><b>Instructions</b><span class="sv-ph w95"></span><span class="sv-ph w85"></span><span class="sv-ph w90"></span><span class="sv-ph w60"></span><span class="sv-btn sv-hit">Save</span></div><span class="sv-cur" style="--cx:84%;--cy:86%"><svg viewBox="0 0 28 28"><path d="M6 3.5 22 12.6l-6.9 1.9-3.6 6.6Z"/></svg></span></div>
+          <div class="step-body"><span class="step-n">03</span><h3>Paste the instructions</h3><p>Into the project instructions, then save. They tell the chat when to open each skill.</p><div class="step-copy"><button class="copy" type="button" data-copy-text="You have the makkov-harness files attached. ROUTING.md says which skill fits which situation. When a request matches a skill, open that skill&#x27;s SKILL.md from the attached files and follow it. You cannot run commands or write files: give results in chat, and for html-report give the complete HTML in one code block for me to save as a .html file. Never invent the output of a tool you do not have." data-label="Copy the instructions" aria-label="Copy the project instructions"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy the instructions</span></button></div></div>
+        </li>
+        <li class="step">
+          <div class="sv" aria-hidden="true"><div class="sv-bar"><i></i><i></i><i></i></div><div class="sv-chat sv-chat--a"><span class="sv-bub sv-bub--me">Compare these three tools</span><span class="sv-bub">Your report, as one HTML file<em>report.html</em></span></div></div>
+          <div class="step-body"><span class="step-n">04</span><h3>Ask as usual</h3><p>Describe the work. Results come back in the chat; reports as one HTML file to save.</p></div>
+        </li>
+        </ol>
+        <div class="path-then">
+          <div class="then-main"><span class="then-k">Good to know</span><p>A chat app cannot run installers or hooks, and rich-report needs Claude: you get html-report instead. The full guide is in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/adapters/chat-pack/README.md">the chat pack</a>.</p></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -395,7 +476,7 @@
 <script src="situations.js?v=20261107e"></script>
 <script src="fx.js?v=20261107b"></script>
 <script src="pixtype.js?v=20261107g"></script>
-<script src="page.js?v=20261107c"></script>
+<script src="page.js?v=20261107e"></script>
 <script src="fix.js?v=20261107b"></script>
 <script src="out.js?v=20261106c"></script>
 <script src="gate.js?v=20261106f"></script>
