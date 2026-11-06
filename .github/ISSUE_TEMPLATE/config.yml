@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/Makkov-design/makkov-harness/security/advisories/new
+    about: For anything sensitive, please do not open a public issue.
+  - name: Install guide
+    url: https://github.com/Makkov-design/makkov-harness/blob/main/INSTALL.md
+    about: Step-by-step setup for every supported agent.

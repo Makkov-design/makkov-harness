@@ -1,0 +1,16 @@
+name: Idea or skill request
+description: A situation the routing map should handle, or a skill or plugin worth adding.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: situation
+    attributes:
+      label: The situation
+      description: What you are trying to do as a designer, in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: tool
+    attributes:
+      label: The skill or plugin you have in mind
+      description: A link to its repository, if there is one. Third-party pieces are security-reviewed before they are added.

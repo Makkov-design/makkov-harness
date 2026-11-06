@@ -1,0 +1,37 @@
+name: Something does not work
+description: A skill misfires, the routing picks the wrong tool, or an install step fails.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked the agent, what it did, and what you expected instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - Claude (desktop app)
+        - Claude Code (terminal)
+        - Claude cloud session (claude.ai/code)
+        - Codex
+        - Cursor
+        - Gemini CLI
+        - GitHub Copilot
+        - Windsurf, Cline, OpenCode or Aider
+        - A chat app (chat pack)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Harness version or commit
+      description: The release tag, or the commit your account synced (claude.ai, Manage marketplaces).
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots or logs help. Remove keys, tokens and private paths first.
