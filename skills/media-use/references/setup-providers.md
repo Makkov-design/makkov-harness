@@ -42,7 +42,7 @@ in `references/operations.md`).
 | Type      | Provider / path                                                                                                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | bgm       | heygen catalog HyperFrames-authenticated path; a host app's own music tools come first                                                                                                       |
-| sfx       | Openverse (CC0 / CC BY, no account), bundled library offline; a host app's own sound tools come first                                                                                        |
+| sfx       | Openverse (CC0 / CC BY, no account; optional `OPENVERSE_CLIENT_ID` / `OPENVERSE_CLIENT_SECRET` for higher limits), bundled library offline; a host app's own sound tools come first                                                                                        |
 | image     | heygen search HyperFrames-authenticated path; optional local mflux; codex `image_gen` upsell                                                                                                 |
 | voice     | heygen tts HyperFrames-authenticated path; optional local **Kokoro** (free, on-device)                                                                                                       |
 | icon      | heygen asset search HyperFrames-authenticated path                                                                                                                                           |

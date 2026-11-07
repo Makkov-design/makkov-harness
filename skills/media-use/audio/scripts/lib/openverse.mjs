@@ -1,11 +1,14 @@
-// Sound effects from Openverse (https://api.openverse.org): free, no key.
-// Anonymous use is rate limited (20 requests a minute, 200 a day); callers fall
-// back to the bundled library when it is unavailable.
+// Sound effects from Openverse (https://api.openverse.org): free, no key needed.
+// Anonymous use is rate limited (20 requests a minute, 200 a day). With a free registered
+// app (OPENVERSE_CLIENT_ID + OPENVERSE_CLIENT_SECRET in the environment) searches carry a
+// Bearer token and get the higher registered limits. Callers fall back to the bundled
+// library when Openverse is unavailable.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 const OPENVERSE_AUDIO_URL = "https://api.openverse.org/v1/audio/";
+const OPENVERSE_TOKEN_URL = "https://api.openverse.org/v1/auth_tokens/token/";
 // The only licences media-use accepts: no NonCommercial, ShareAlike or NoDerivatives.
 export const OPENVERSE_SFX_LICENSES = new Set(["cc0", "by"]);
 const PLAYABLE_FILETYPES = new Set(["mp3", "wav", "ogg", "flac"]);
@@ -83,21 +86,84 @@ export function pickOpenverseSfx(results) {
   };
 }
 
+// Access token for a registered Openverse app, cached until a minute before it expires.
+// The credentials only ever come from the environment and are never written anywhere.
+// A refused pair is remembered for a few minutes too, so a wrong key costs one extra
+// request per run instead of one per search.
+let cachedToken = null;
+const REFUSED_RETRY_MS = 5 * 60 * 1000;
+const refuse = (clientId, now) => {
+  cachedToken = { clientId, value: null, expiresAt: now() + REFUSED_RETRY_MS };
+  return null;
+};
+
+/** Forget the cached token (tests, or after Openverse rejected it). */
+export function resetOpenverseToken() {
+  cachedToken = null;
+}
+
+/** Bearer token when OPENVERSE_CLIENT_ID and OPENVERSE_CLIENT_SECRET are set, else null (anonymous). */
+export async function openverseToken({ fetchImpl = fetch, env = process.env, now = Date.now } = {}) {
+  const clientId = env.OPENVERSE_CLIENT_ID?.trim();
+  const clientSecret = env.OPENVERSE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+  if (cachedToken && cachedToken.clientId === clientId && cachedToken.expiresAt > now())
+    return cachedToken.value;
+  try {
+    const response = await fetchImpl(OPENVERSE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }).toString(),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return refuse(clientId, now);
+    const body = await response.json();
+    if (typeof body?.access_token !== "string" || !body.access_token) return refuse(clientId, now);
+    const lifetimeS = Number.isFinite(body.expires_in) ? body.expires_in : 3600;
+    cachedToken = {
+      clientId,
+      value: body.access_token,
+      expiresAt: now() + Math.max(0, lifetimeS - 60) * 1000,
+    };
+    return cachedToken.value;
+  } catch {
+    // An unverified email, a typo or a network blip: search anonymously instead of failing.
+    return refuse(clientId, now);
+  }
+}
+
 /** Best licensed sound effect for `query`, null on no match; throws OpenverseUnavailableError. */
-export async function searchOpenverseSfx(query, { fetchImpl = fetch } = {}) {
+export async function searchOpenverseSfx(
+  query,
+  { fetchImpl = fetch, env = process.env, now = Date.now } = {},
+) {
   const params = new URLSearchParams({
     q: query,
     page_size: "20",
     license: [...OPENVERSE_SFX_LICENSES].join(","),
   });
-  let response;
-  try {
-    response = await fetchImpl(`${OPENVERSE_AUDIO_URL}?${params}`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
-    });
-  } catch (error) {
-    throw new OpenverseUnavailableError(`Openverse unreachable (${error.message})`);
+  const search = async (token) => {
+    const headers = { Accept: "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    try {
+      return await fetchImpl(`${OPENVERSE_AUDIO_URL}?${params}`, {
+        headers,
+        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      });
+    } catch (error) {
+      throw new OpenverseUnavailableError(`Openverse unreachable (${error.message})`);
+    }
+  };
+  const token = await openverseToken({ fetchImpl, env, now });
+  let response = await search(token);
+  if (token && response.status === 401) {
+    // Revoked or expired early: stay anonymous for a while and ask once more without a token.
+    refuse(env.OPENVERSE_CLIENT_ID.trim(), now);
+    response = await search(null);
   }
   if (response.status === 429)
     throw new OpenverseUnavailableError("Openverse rate limit reached (HTTP 429)");
