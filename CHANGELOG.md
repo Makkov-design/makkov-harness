@@ -2,6 +2,14 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.2] - 2026-11-07
+
+Video study works from a real transcript.
+
+### Changed
+
+- Studying, summarizing or transcribing a video now means a text transcript made on the user's own computer: the video's human subtitles through `yt-dlp`, else local Whisper (`faster-whisper`) on its audio, with YouTube auto-captions as the last resort. ytlens is no longer the default for this; it stays for watching a video's visuals when the user names it. Cloud sessions cannot fetch YouTube (bot checks on datacenter addresses), and Gemini quota outages left ytlens with nothing to show. Stated in [`ROUTING.md`](ROUTING.md) and the situations page.
+
 ## [0.3.1] - 2026-11-07
 
 An end-to-end test of a plain video request found that the 0.3.0 sound code was not on the path agents take.

@@ -27,12 +27,13 @@ Pick the skill by the situation. A skill named here can be invoked by name even 
 | New landing page, promo page, personal site | Hallmark (`/hallmark`, `/hallmark redesign <path>`, `/hallmark audit <path>`) | github.com/Nutlope/hallmark |
 | Whole-project security review before a launch | security-audit | github.com/cloudflare/security-audit-skill |
 | Figma: design to code, code to Figma | Figma plugin and connector | Figma's official plugin |
-| Analyze, summarize or transcribe a YouTube video | ytlens | github.com/Makkov-design/ytlens (needs the user's own Gemini key) |
+| Watch a YouTube video's visuals through Gemini (frames, slides, on-screen UI), only when the user names ytlens | ytlens | github.com/Makkov-design/ytlens (needs the user's own Gemini key) |
 
 ## Rules of thumb
 
 - Never run two audits of the same screen: interfaces covers correctness, Impeccable covers creative direction.
 - Hallmark builds new pages; it touches an existing design only when the user names `/hallmark redesign` or `/hallmark audit`.
 - Keys, tokens and passwords never go into files, chats or commits.
+- Studying, summarizing or transcribing a video (YouTube or any site `yt-dlp` supports): work from a text transcript, never from ytlens. Take the video's own human subtitles through `yt-dlp`; if there are none, transcribe its audio locally with Whisper (`faster-whisper`, `large-v3` on a GPU when there is one), using YouTube auto-captions only as a last resort. Run it on the user's own computer: YouTube answers cloud and datacenter addresses with bot checks, so a cloud session cannot fetch videos. If no local machine is reachable, say so in one line and ask the user for the transcript (YouTube's "Show transcript" panel) instead of guessing the content.
 - Sound for any edited or generated video: real recordings from Openverse first (through `media-use`, CC0 / CC BY, credits kept), generated sound only for gaps. Optional `OPENVERSE_CLIENT_ID` / `OPENVERSE_CLIENT_SECRET` in the environment raise the limits.
 - Claude cloud session (`CLAUDE_CODE_REMOTE=true`) and a task needs a Hyperframes MP4 render or a Hallmark browser check, but `ffmpeg`, `hyperframes` or a global `puppeteer-core` is missing: tell the user in one line that the tools are missing and installing them takes 1–2 minutes, then ask. On yes, run `bash <plugin path>/cloud/setup-design-tools.sh` (the plugin path is given at session start) and report its `[design-tools]` lines. Install nothing else and change no versions. If the script is not available, say that pasting it into the environment's Setup script makes it permanent. Suggest that too once it ran, for people who render often.

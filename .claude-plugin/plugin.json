@@ -1,7 +1,7 @@
 {
   "name": "makkov-harness",
   "description": "A designer's harness for AI agents: curated skills, situation-to-skill routing, a 0-100 Design Score for any page and security-checked companion plugins.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": { "name": "Makkov", "url": "https://github.com/Makkov-design" },
   "homepage": "https://github.com/Makkov-design/makkov-harness",
   "repository": "https://github.com/Makkov-design/makkov-harness",
