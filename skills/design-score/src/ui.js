@@ -476,6 +476,7 @@
     // footer
     '.foot{position:relative;flex:none;padding:12px 16px 12px;border-top:1px solid var(--mh-rule);background:var(--mh-bg)}',
     '.actions{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}',
+    '.actions .btn{padding-left:12px;padding-right:12px}',
     '.fine{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-top:10px;font-size:11.5px;color:var(--mh-muted)}',
     '.fine a{color:var(--mh-ink-2);text-decoration:underline;text-decoration-color:rgba(255,255,255,.28);text-underline-offset:2px;border-radius:4px}',
     '.fine a:hover{color:var(--mh-ink);text-decoration-color:currentColor}',
@@ -977,7 +978,7 @@
       r.title ? h('div', { class: 'ptitle', title: str(r.title) }, r.title) : null,
       h('p', { class: 'meta' }, 'Measured on ' + plural(sc.elements || 0, 'element'),
         h('br'), 'in ' + fmt(sc.ms || 0) + ' ms at ' + (vp.width || '?') + '×' + (vp.height || '?'),
-        sc.decorative ? h('br') : null, sc.decorative ? plural(sc.decorative, 'illustration') + ' measured as pictures' : null));
+        sc.decorative ? h('br') : null, sc.decorative ? plural(sc.decorative, 'mock-up') + ' read as ' + (sc.decorative === 1 ? 'a picture' : 'pictures') : null));
     var hero = h('div', { class: 'hero', css: { '--band': color, '--band-a': alpha(color, 0.15), '--band-b': alpha(color, 0.42) } }, ringEl, side);
     if (animate) frame(function () { countUp(num, rg); }); else rg.set(rg.target);
     return hero;
@@ -2367,7 +2368,7 @@
       (url ? '<p class="url"><a href="' + url + '" target="_blank" rel="noopener noreferrer">' + esc(r.url) + '</a></p>' : (r.url ? '<p class="url">' + esc(r.url) + '</p>' : '')) +
       '<p class="meta">' + (failed ? esc(r.error) : 'Measured on ' + esc(plural(sc.elements || 0, 'element')) + ' (' + esc(plural(sc.textBlocks || 0, 'text block')) + ') in ' + esc(fmt(sc.ms || 0)) + ' ms at ' + esc((vp.width || '?') + ' × ' + (vp.height || '?')) + (vp.dpr && vp.dpr !== 1 ? ' @' + esc(vp.dpr) + 'x' : '') +
         (sc.truncated ? '.<br>' + esc(partialNote(r, false)) : '.') +
-        (sc.decorative ? '<br>' + esc(plural(sc.decorative, 'HTML illustration')) + ' (aria-hidden, role="img" or data-design-score="ignore") measured as pictures, not as the page’s own interface.' : '')) + '</p>' +
+        (sc.decorative ? '<br>' + esc(plural(sc.decorative, 'HTML illustration')) + ' (aria-hidden, role="img" or data-design-score="ignore") measured as ' + (sc.decorative === 1 ? 'a picture' : 'pictures') + ', not as the page’s own interface.' : '')) + '</p>' +
       insightHtml + '</div></section>');
 
     // categories

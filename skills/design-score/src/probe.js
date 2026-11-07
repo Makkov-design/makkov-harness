@@ -2605,6 +2605,9 @@
     var texts = clusters.filter(function (c) { return c.chars > 0; }).sort(function (a, b) { return b.chars - a.chars; });
     var textCl = texts[0] || null;
     var muted = textCl ? texts.filter(function (c) { return c !== textCl && deltaE(c.c, textCl.c) > 0.05 && !isChromatic(c.c); })[0] : null;
+    // Pages whose running text is set in a softer grey than their headings: the stronger of the two is the
+    // text colour, the softer one is muted, whichever carries more characters.
+    if (textCl && muted && !isChromatic(textCl.c) && contrastRatio(muted.c, base) > contrastRatio(textCl.c, base)) { var tmp = textCl; textCl = muted; muted = tmp; }
     var borders = clusters.filter(function (c) { return c.roleCounts.border > 0; }).sort(function (a, b) { return b.roleCounts.border - a.roleCounts.border; });
     var roles = {
       background: bgHex,
