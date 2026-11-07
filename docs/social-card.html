@@ -4,44 +4,121 @@
 <meta charset="utf-8">
 <title>makkov-harness share card</title>
 <meta name="robots" content="noindex">
-<!-- The 1280 x 640 picture shown when the site or the repository is shared. Rendered by .github/assets/src/capture.mjs (scene: social). -->
+<!-- The 1280 x 640 picture shown when the site or the repository is shared. Rendered by .github/assets/src/capture.mjs (scene: social).
+     The launch kit keeps an identical copy (launch-kit/src/templates/share/og.html, built on its kit.css): change both together. -->
 <link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=20261106w">
 <style>
+  /* Grid: margins 64; copy x 64-624, the Design Score card x 688-1216, gap 64. Brand and card share the top y 64,
+     the agent chips and the card share the bottom y 576. The headline and the card title share their cap tops at y 167
+     (optical, not box: 0.15 em above the caps at 72 and at 48 px, so the 72 px headline box starts 4 px higher than the title box).
+     Agents are named as text chips, never logos; the licence lives in "free, open-source", not in the agent row. */
+  *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; background: var(--color-paper); }
-  .card { position: relative; width: 1280px; height: 640px; overflow: hidden; display: grid; grid-template-columns: 1fr 470px; gap: 56px; align-items: center; padding: 0 72px; box-sizing: border-box; color: var(--color-ink); font-family: var(--font-body);
-    background: radial-gradient(circle, oklch(100% 0 0 / 0.1) 1px, transparent 1.4px) 0 0 / 26px 26px, radial-gradient(60% 80% at 100% 50%, oklch(80% 0.055 300 / 0.12), transparent 70%), var(--color-paper); }
-  .brand { display: flex; align-items: center; gap: 14px; }
-  .brand img.mark { width: 40px; height: 40px; }
-  .brand img.word { height: 22px; }
-  h1 { margin: 40px 0 0; font: 600 76px/0.98 var(--font-display); letter-spacing: -0.035em; }
-  h1 em { font-style: normal; color: var(--opal-2); }
-  p { margin: 26px 0 0; font-size: 24px; line-height: 1.4; color: var(--color-ink-2); max-width: 30ch; }
-  .meta { margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .meta span { padding: 8px 14px; border-radius: 99px; background: oklch(100% 0 0 / 0.06); color: var(--color-ink-2); font-size: 17px; display: inline-flex; align-items: center; gap: 8px; }
-  .meta svg { width: 18px; height: 18px; color: oklch(100% 0 0); flex: none; }
-  .routes { display: grid; gap: 14px; }
-  .route { display: grid; gap: 10px; padding: 20px 22px; border-radius: 20px; background: var(--color-paper-2); }
-  .route span { color: var(--color-muted); font-size: 18px; }
-  .route b { font: 500 26px/1 var(--font-code); letter-spacing: -0.01em; color: var(--color-ink); }
-  .route:nth-child(1) b { color: var(--opal-2); }
+  h1, h2, p { margin: 0; }
+  img, svg { display: block; }
+  .share { --band-a: oklch(80% 0.09 165); --band-d: oklch(78% 0.12 55); --dot: oklch(100% 0 0 / 0.09);
+    --edge: inset 0 0 0 1px oklch(100% 0 0 / 0.08), inset 0 1px 0 oklch(100% 0 0 / 0.16);
+    --shadow-float: 0 0 0 1px oklch(0% 0 0 / 0.4), 0 4px 8px oklch(0% 0 0 / 0.3), 0 24px 56px -12px oklch(0% 0 0 / 0.65);
+    position: relative; isolation: isolate; width: 1280px; height: 640px; overflow: hidden; background: var(--color-paper); color: var(--color-ink);
+    font-family: var(--font-body); -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; font-synthesis: none; }
+  .share > * { position: absolute; }
+  .nowrap { white-space: nowrap; }
+
+  /* light: two opal glows behind the card (never behind the headline), the 32 px dot grid around it, grain last */
+  .glow, .dots, .grain { z-index: -1; pointer-events: none; }
+  .glow { left: var(--x); top: var(--y); width: var(--s); height: var(--s); translate: -50% -50%; border-radius: 50%;
+    background: radial-gradient(closest-side, var(--gc), color-mix(in oklab, var(--gc) 42%, transparent) 50%, transparent); }
+  .glow--lilac { --gc: oklch(70% 0.09 300 / 0.28); --x: 1056px; --y: 200px; --s: 960px; }
+  .glow--mint { --gc: oklch(78% 0.08 165 / 0.18); --x: 1152px; --y: 600px; --s: 640px; }
+  .dots { inset: 0; background: radial-gradient(circle, var(--dot) 0 1.25px, transparent 1.75px) -16px -16px / 32px 32px;
+    -webkit-mask-image: radial-gradient(400px 400px at 952px 320px, #000 20%, transparent 100%); mask-image: radial-gradient(400px 400px at 952px 320px, #000 20%, transparent 100%); }   /* gone by x 552: never behind the copy */
+  .grain { inset: 0; opacity: 0.12; mix-blend-mode: overlay;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 180px 180px; }
+
+  /* the harness: brand, headline, line, agents */
+  .brand { left: 64px; top: 64px; height: 40px; display: flex; align-items: center; gap: 16px; }
+  .brand .mark { width: auto; height: 40px; }
+  .brand .word { width: auto; height: 22px; }
+  .brand .ver { display: inline-grid; place-items: center; height: 32px; padding: 0 13px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--color-rule-2);
+    font: 500 18px/1 "Geist Mono", "JetBrains Mono", ui-monospace, monospace; color: var(--color-ink-2); }
+  h1 { left: 64px; top: 156px; width: 560px; font: 600 72px/72px var(--font-display); letter-spacing: -0.04em; }   /* 3 lines: 156-372, caps from 167 */
+  .opal { background: linear-gradient(125deg, var(--opal-1), var(--opal-3) 50%, var(--opal-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { left: 64px; top: 408px; width: 480px; font-size: 28px; line-height: 36px; letter-spacing: -0.01em; color: var(--color-ink-2); }   /* 2 lines: 408-480 */
+  .agents { left: 64px; top: 536px; height: 40px; display: flex; align-items: center; gap: 8px; }   /* 536-576, ends near x 530 */
+  .agents .in { margin-right: 4px; color: var(--color-ink-2); font: 500 18px/1 var(--font-body); white-space: nowrap; }
+  .agents span { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px;
+    background: var(--tint-1); box-shadow: inset 0 0 0 1px var(--color-rule-2); color: var(--color-ink-2); font: 500 18px/1 var(--font-body); white-space: nowrap; }
+
+  /* Design Score: chip 104-144, title 160-256 (72 : 48 = 1.5), caption 312-344, rings 368-520, grade pills 492-532.
+     Nothing in the column may shrink (an overflow used to squeeze the chip to 38 px). */
+  .ds { left: 688px; top: 64px; width: 528px; height: 512px; padding: 40px; display: flex; flex-direction: column; align-items: flex-start; border-radius: 24px;
+    background: linear-gradient(150deg, oklch(25% 0.02 300 / 0.94), oklch(19% 0.012 200 / 0.94)); -webkit-backdrop-filter: blur(20px) saturate(1.2); backdrop-filter: blur(20px) saturate(1.2); box-shadow: var(--shadow-float); }
+  .ds::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--edge); pointer-events: none; }
+  .ds > * { flex-shrink: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; height: 40px; padding: 0 18px; border-radius: 999px;
+    background: var(--opal-2a); box-shadow: inset 0 0 0 1px oklch(86% 0.045 165 / 0.28); color: var(--opal-2); font: 500 20px/1 var(--font-body); white-space: nowrap; }
+  .chip b { display: inline-grid; place-items: center; height: 28px; margin-left: -12px; padding: 0 12px; border-radius: 999px; background: var(--opal-2); color: var(--opal-ink); font-weight: 600; }
+  .ds h2 { margin-top: 16px; font: 600 48px/48px var(--font-display); letter-spacing: -0.03em; }
+  .ds .cap { margin-top: 56px; font-size: 24px; line-height: 32px; color: var(--color-ink-2); white-space: nowrap; }   /* about 420 of the 448 inner width */
+  .ds .row { margin-top: 24px; display: flex; align-items: flex-start; gap: 24px; }
+
+  .band-a { --band: var(--band-a); } .band-d { --band: var(--band-d); }
+  .score { position: relative; display: flex; flex-direction: column; align-items: center; }
+  .ring { --size: 152px; position: relative; isolation: isolate; flex: none; display: grid; place-items: center; width: var(--size); height: var(--size); }
+  .ring::before { content: ""; position: absolute; z-index: -1; inset: 18%; border-radius: 50%; background: var(--band); opacity: 0.18; filter: blur(calc(var(--size) * 0.12)); }
+  .ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .ring-track { fill: none; stroke: var(--tint-2); stroke-width: 8px; }
+  .ring-val { fill: none; stroke-width: 8px; stroke-linecap: round; stroke-dasharray: var(--v) 100; transform: rotate(-90deg); transform-origin: 60px 60px; }
+  .ring-s1 { stop-color: var(--opal-1); } .ring-s2 { stop-color: var(--band); }
+  .ring b { position: relative; font: 600 calc(var(--size) * 0.36)/0.9 var(--font-display); letter-spacing: -0.045em; font-variant-numeric: tabular-nums; color: var(--color-ink); }
+  /* the pill rides 8 px above a half-height hang (-28, not -20), so the 59 arc's round cap (it ends at about 769, 500) tucks under it */
+  .grade { --grade-h: 40px; position: relative; display: inline-flex; align-items: center; gap: calc(var(--grade-h) * 0.25); height: var(--grade-h); margin-top: -28px;
+    padding: 0 calc(var(--grade-h) * 0.4); border-radius: 999px; background: color-mix(in oklab, var(--band) 16%, var(--color-paper));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--band) 45%, transparent), 0 8px 20px -6px oklch(0% 0 0 / 0.6);
+    color: var(--band); font: 600 calc(var(--grade-h) * 0.34)/1 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .grade b { font: 600 calc(var(--grade-h) * 0.6)/1 var(--font-display); letter-spacing: 0; }
+  .arrow { position: relative; flex: none; width: 96px; height: 3px; margin-top: 74.5px; border-radius: 2px; color: var(--opal-2);
+    background: linear-gradient(90deg, transparent, var(--opal-1) 35%, var(--opal-2)); }
+  .arrow::after { content: ""; position: absolute; right: 1px; top: 50%; width: 18px; height: 18px; border-top: 3px solid currentColor; border-right: 3px solid currentColor;
+    border-top-right-radius: 2px; transform: translateY(-50%) rotate(45deg); }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="l-claude" viewBox="0 0 24 24"><path fill="currentColor" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></symbol><symbol id="l-openai" viewBox="0 0 24 24"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></symbol><symbol id="l-cursor" viewBox="0 0 24 24"><g fill="currentColor" fill-rule="evenodd"><path d="M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z"></path></g></symbol></svg>
-  <div class="card">
-    <div>
-      <div class="brand"><img class="mark" src="img/brand/symbol.svg" alt=""><img class="word" src="img/brand/wordmark.svg" alt="makkov harness"></div>
-      <h1>The right <em>design skill</em> for every request.</h1>
-      <p>A free, open-source harness for designers who build with AI agents.</p>
-      <div class="meta"><span><svg aria-hidden="true"><use href="#l-claude"/></svg>Claude</span><span><svg aria-hidden="true"><use href="#l-openai"/></svg>Codex</span><span><svg aria-hidden="true"><use href="#l-cursor"/></svg>Cursor</span><span>+6 agents</span><span>MIT</span></div>
-    </div>
-    <div class="routes">
-      <div class="route"><span>“Review this screen”</span><b>→ interfaces</b></div>
-      <div class="route"><span>“Make it feel like Linear”</span><b>→ design-md-library</b></div>
-      <div class="route"><span>“Animate this card”</span><b>→ animate</b></div>
-    </div>
+  <div class="share">
+    <i class="glow glow--lilac"></i>
+    <i class="glow glow--mint"></i>
+    <i class="dots"></i>
+    <i class="grain"></i>
+
+    <div class="brand"><img class="mark" src="img/brand/symbol.svg" alt=""><img class="word" src="img/brand/wordmark.svg" alt="makkov harness"><span class="ver">0.2.0</span></div>
+    <h1><span class="nowrap">The right <span class="opal">design</span></span><br><span class="nowrap"><span class="opal">skill</span> for every</span><br>request.</h1>
+    <p class="sub"><span class="nowrap">A free, open-source harness for</span><br><span class="nowrap">designers who build with AI agents.</span></p>
+    <div class="agents"><p class="in">Runs in</p><span>Claude</span><span>Codex</span><span>Cursor</span><span>+6 agents</span></div>
+
+    <section class="ds">
+      <span class="chip"><b>New</b>Design Score</span>
+      <h2><span class="nowrap">Lighthouse</span><br><span class="nowrap">for design.</span></h2>
+      <p class="cap">A demo page, before and after the fixes</p>
+      <div class="row">
+        <div class="score band-d">
+          <div class="ring" style="--v: 59">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="rg-59" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="ring-s1"/><stop offset="1" class="ring-s2"/></linearGradient></defs><circle class="ring-track" cx="60" cy="60" r="52"/><circle class="ring-val" cx="60" cy="60" r="52" pathLength="100" stroke="url(#rg-59)"/></svg>
+            <b>59</b>
+          </div>
+          <span class="grade">Grade <b>D</b></span>
+        </div>
+        <i class="arrow"></i>
+        <div class="score band-a">
+          <div class="ring" style="--v: 100">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="rg-100" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="ring-s1"/><stop offset="1" class="ring-s2"/></linearGradient></defs><circle class="ring-track" cx="60" cy="60" r="52"/><circle class="ring-val" cx="60" cy="60" r="52" pathLength="100" stroke="url(#rg-100)"/></svg>
+            <b>100</b>
+          </div>
+          <span class="grade">Grade <b>A+</b></span>
+        </div>
+      </div>
+    </section>
   </div>
 </body>
 </html>
