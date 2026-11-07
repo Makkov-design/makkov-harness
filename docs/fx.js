@@ -112,7 +112,7 @@
   });
   // every block below the hero arrives the same way: its parts blur in one after another
   const REVEAL = 'h2, .lead, .find-all, .find-nav, .find-panel, .windows > .win, .gate-shield, .gate-steps, .gate-sum, .gate-note, .checks, .steps > .step, .stops-foot, .agents > div, .close-card, .fix-head > *, .fix-body, .switch, .board-foot, .foot-top > *, .foot-legal, .foot-mark, .habits > li, .cat-hero h1, .sit-block-head';
-  document.querySelectorAll('main > section:not(.hero), footer').forEach((sec) => {
+  document.querySelectorAll('main > section:not(.hero), .sit-block, footer').forEach((sec) => {
     sec.querySelectorAll(REVEAL).forEach((el, i) => { if (el.closest('.hero')) return; el.setAttribute('data-reveal', ''); el.style.setProperty('--d', `${Math.min(i, 9) * 80}ms`); });
   });
   document.documentElement.classList.add('fx');

@@ -72,9 +72,9 @@
 .ds-drop.is-on { opacity: 1; translate: 0 0; }
 
 /* ---------- the panel, drawn in the page's own type and tokens ---------- */
-.ds-shot { position: relative; margin: 0; display: grid; justify-items: center; gap: var(--space-md); }
+.ds-shot { position: relative; margin: 0; display: grid; justify-items: end; gap: var(--space-md); }
 .ds-shot::before { content: ""; position: absolute; z-index: -1; inset: 8% 0 16%; border-radius: 50%; background: radial-gradient(closest-side, var(--opal-1a), var(--opal-2a) 60%, transparent); filter: blur(var(--space-xl)); pointer-events: none; }
-.ds-shot figcaption { font-size: var(--text-xs); color: var(--ink-quiet); text-align: center; }
+.ds-shot figcaption { width: min(100%, 400px); font-size: var(--text-xs); color: var(--ink-quiet); text-align: center; }
 .ds-panel { position: relative; isolation: isolate; display: flex; flex-direction: column; width: 100%; max-width: 400px; height: 744px; overflow: hidden; border: 1px solid var(--glass-edge); border-radius: var(--r-card); background: var(--color-paper); box-shadow: 0 40px 96px -24px oklch(0% 0 0 / 0.72), 0 12px 32px oklch(0% 0 0 / 0.4), inset 0 1px 0 oklch(100% 0 0 / 0.05); text-align: left; }
 /* a narrow panel (a phone, or a mid-size window) tightens like the real one: smaller ring, icon-only side buttons */
 .ds-panel { container: dspanel / inline-size; }
@@ -198,7 +198,7 @@
 .ds-bub--you { justify-self: end; border-bottom-right-radius: 4px; background: var(--color-paper-3); color: var(--color-ink-2); }
 .ds-bub--you b { display: block; color: var(--color-ink); font-weight: 600; }
 .ds-bub--agent { justify-self: start; border-bottom-left-radius: 4px; background: var(--tint-2); color: var(--color-ink-2); }
-.ds-bub--agent code { font-size: 12px; color: var(--ds-a); }
+.ds-bub--agent code { font-size: 12px; color: var(--ds-a); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) {
   .js.fx .ds-step.is-in .ds-bub { animation: ds-rise 600ms var(--ease-out) both; }
   .js.fx .ds-step.is-in .ds-bub--agent { animation-delay: 700ms; }
@@ -267,7 +267,7 @@
 /* highlight boxes: an outline and a number, set by the issue you pick */
 .ds-site [data-hl] { position: relative; }
 .ds-site [data-hl]::before { content: ""; position: absolute; z-index: 2; inset: -6px; border-radius: 8px; border: 2px solid var(--ds-violet); background: var(--ds-violet-a); box-shadow: 0 0 0 4px var(--ds-violet-a), 0 0 24px var(--ds-violet-a); pointer-events: none; }
-.ds-site [data-hl]::after { content: attr(data-hl); position: absolute; z-index: 3; left: -16px; top: -16px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ds-violet-l); color: var(--opal-ink); font: 600 12px/1 var(--font-outlier); box-shadow: 0 4px 12px oklch(0% 0 0 / 0.35); pointer-events: none; }
+.ds-site [data-hl]::after { content: attr(data-hl); position: absolute; z-index: 3; left: -16px; top: -18px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ds-violet-l); color: var(--opal-ink); font: 600 12px/1 var(--font-outlier); box-shadow: 0 4px 12px oklch(0% 0 0 / 0.35); pointer-events: none; }
 .ds-site .fs-foot [data-hl]::before { inset: -4px -6px; }
 @media (prefers-reduced-motion: no-preference) {
   .ds-site [data-hl]::before, .ds-site [data-hl]::after { animation: ds-pop 420ms var(--ease-out) both; }
@@ -343,7 +343,7 @@
 /* ---------- fix it with your agent ---------- */
 .ds-loop { position: relative; margin: var(--space-2xl) 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap-cards); }
 .ds-loop::before { content: ""; position: absolute; left: 16%; right: 16%; top: 48px; height: 2px; background: linear-gradient(90deg, var(--opal-1), var(--opal-2) 50%, var(--opal-1)); opacity: 0.6; }
-.ds-loop li { position: relative; display: grid; justify-items: center; gap: var(--space-xs); text-align: center; }
+.ds-loop li { position: relative; display: grid; justify-items: center; align-content: start; gap: var(--space-xs); text-align: center; }
 .ds-node { position: relative; display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; border: 1px solid var(--glass-edge); background: var(--color-paper-2); box-shadow: 0 0 0 8px var(--color-paper); }
 .ds-node svg { width: 28px; height: 28px; color: var(--opal-2); }
 .ds-node svg.ds-node-ring { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); }
@@ -353,10 +353,10 @@
 .ds-loop h3 { margin-top: var(--space-sm); font-size: var(--text-lg); }
 .ds-loop p { max-width: 30ch; font-size: var(--text-sm); color: var(--color-muted); }
 .ds-loop code { font-size: 12px; color: var(--opal-2); }
-.ds-again { display: inline-flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-xl); padding: var(--space-xs) var(--space-md); border: 1px solid var(--glass-edge); border-radius: var(--radius-pill); background: var(--color-paper-2); font: 500 var(--text-sm)/1.4 var(--font-outlier); color: var(--color-ink-2); }
+.ds-again { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border: 1px solid var(--glass-edge); border-radius: var(--radius-pill); background: var(--color-paper-2); font: 500 var(--text-sm)/1.4 var(--font-outlier); color: var(--color-ink-2); }
 .ds-again b { font-weight: 600; color: var(--ds-a); }
 .ds-again s { text-decoration: none; color: var(--color-ink); }
-.ds-again-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-xs) var(--space-md); }
+.ds-again-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-xs) var(--space-md); margin-top: var(--space-xl); }
 .ds-again-row small { font-size: var(--text-xs); color: var(--ink-quiet); }
 .ds-fix-grid { margin-top: var(--space-2xl); display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--gap-cards); align-items: start; }
 .ds-agent { display: flex; flex-direction: column; gap: var(--space-md); padding: var(--pad-card); border: 1px solid var(--glass-edge); border-radius: var(--r-card); background: radial-gradient(120% 70% at 100% 0%, var(--opal-1a), transparent 62%), linear-gradient(160deg, var(--tint-2), var(--tint-1) 60%), var(--color-paper-2); }
@@ -368,7 +368,7 @@
 .ds-flow { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-sm); counter-reset: dsf; }
 .ds-flow li { counter-increment: dsf; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-sm); font-size: var(--text-sm); color: var(--color-ink-2); }
 .ds-flow li::before { content: counter(dsf); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--tint-2); font: 600 12px/1 var(--font-outlier); color: var(--opal-2); }
-.ds-flow code { font-size: 12px; color: var(--opal-2); }
+.ds-flow code { font-size: 12px; color: var(--opal-2); white-space: nowrap; }
 .ds-judged { padding: var(--space-md); border-radius: var(--r-tile); background: var(--color-paper); border: 1px solid var(--color-rule); font-size: var(--text-sm); color: var(--color-muted); }
 .ds-judged b { color: var(--color-ink); font-weight: 500; }
 .ds-expand { display: flex; justify-content: center; padding: var(--space-xs); border-top: 1px solid var(--glass-edge); }
@@ -436,10 +436,10 @@ html:not(.js) .ds-pre.is-clamped { max-height: 480px; overflow: auto; -webkit-ma
 .ds-proof svg { width: 20px; height: 20px; flex: none; color: var(--ds-a); }
 .ds-qa { display: grid; border-top: 1px solid var(--color-rule); }
 .ds-qa details { border-bottom: 1px solid var(--color-rule); }
-.ds-qa summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: 64px; padding: var(--space-md) 0; cursor: pointer; list-style: none; font: 500 var(--text-lg)/1.3 var(--font-display); letter-spacing: -0.01em; }
+.ds-qa summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: 64px; padding: var(--space-md) 0; cursor: pointer; list-style: none; font: 500 var(--text-lg)/1.3 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; }
 .ds-qa summary::-webkit-details-marker { display: none; }
 .ds-qa summary::after { content: ""; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--tint-2) linear-gradient(var(--color-ink-2), var(--color-ink-2)) center / 10px 2px no-repeat; transition: rotate var(--dur-short) var(--ease-out); }
-.ds-qa details:not([open]) summary::after { background: var(--tint-2) linear-gradient(var(--color-ink-2), var(--color-ink-2)) center / 10px 2px no-repeat, linear-gradient(var(--color-ink-2), var(--color-ink-2)) center / 2px 10px no-repeat; }
+.ds-qa details:not([open]) summary::after { background-image: linear-gradient(var(--color-ink-2), var(--color-ink-2)), linear-gradient(var(--color-ink-2), var(--color-ink-2)); background-size: 10px 2px, 2px 10px; }
 .ds-qa summary:hover::after { background-color: var(--tint-3); }
 .ds-qa summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 4px; }
 .ds-qa details > div { display: grid; gap: var(--space-sm); padding: 0 var(--space-2xl) var(--space-lg) 0; color: var(--color-muted); }
@@ -486,7 +486,8 @@ html:not(.js) .ds-pre.is-clamped { max-height: 480px; overflow: auto; -webkit-ma
   .ds-faq-side { position: static; text-align: center; justify-items: center; }
   .ds-faq-side h2, .ds-faq-side .lead { margin-inline: auto; }
   .ds-loop::before { left: 22%; right: 22%; }
-  .ds-again-row { flex-direction: column; }
+  .ds-again-row { flex-direction: column; text-align: center; }
+  .ds-shot { justify-items: center; }
 }
 @media (max-width: 40rem) {
   .ds-tag { margin-bottom: var(--space-md); }
@@ -501,18 +502,19 @@ html:not(.js) .ds-pre.is-clamped { max-height: 480px; overflow: auto; -webkit-ma
   .ds-loop li + li::before { content: ""; position: absolute; left: 50%; top: calc(-1 * var(--space-xl) + var(--space-xs)); width: 2px; height: calc(var(--space-xl) - var(--space-xs) * 2); translate: -1px 0; border-radius: 1px; background: linear-gradient(180deg, var(--opal-1), var(--opal-2)); opacity: 0.6; }
   .ds-swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ds-pre { padding: var(--space-md); font-size: 12px; }
+  .ds-tablist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
   .ds-site { gap: var(--space-md); padding: var(--space-md) var(--space-md) 0; }
   .fs-links, .fs-signin { display: none; }
   .fs-hero { grid-template-columns: minmax(0, 1fr) 72px; gap: var(--space-md); }
   .fs-art { height: 64px; }
   .fs-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); }
-  .fs-card:last-child { display: none; }
+  .fs-card:last-child { grid-column: 1 / -1; }
   .fs-foot { margin-inline: calc(-1 * var(--space-md)); padding-inline: var(--space-md); }
   .ds-qa summary { font-size: var(--text-md); }
   .ds-qa details > div { padding-right: 0; }
   .ds-grades { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ds-way-top { flex-wrap: wrap; }
-  .ds-way-for { margin-left: 0; }
+  .ds-way-top { display: grid; grid-template-columns: 40px minmax(0, 1fr); }
+  .ds-way-for { grid-column: 1 / -1; justify-self: start; margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ds-pill, .ds-pill:hover, .ds-pill:active { transform: none; transition: none; }

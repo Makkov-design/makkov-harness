@@ -205,6 +205,7 @@
 .st-tabs button:not([aria-pressed="true"]) > span { display: none; }
 .st-tabs button[aria-pressed="true"] { padding: 0 var(--space-sm) 0 var(--space-xs); }
 .st-more { flex: none; white-space: nowrap; }
+@media (max-width: 40rem) { .st-tabs { flex-wrap: wrap; } }
 .report { gap: var(--space-xs); }
 .rp-chartbox, .rp-table { padding: var(--space-xs) var(--space-sm); }
 .rp-chart { height: 56px; }

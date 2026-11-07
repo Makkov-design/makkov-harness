@@ -54,7 +54,8 @@
 .sit-more .sit-prompt { margin-top: var(--space-xs); }
 
 /* ===== the catalog page: no sticky bar, a quiet rail on the side ===== */
-.catalog { padding-block: var(--space-xl) var(--section-gap); }
+.catalog { padding-block: 0 var(--section-gap); }
+.cat-list { margin-top: 0; }
 .sit-block { padding-top: var(--space-2xl); scroll-margin-top: 96px; }
 .sit-block-head { display: grid; gap: var(--space-xs); margin-bottom: var(--space-lg); }
 .sit-block-head h2 { font-size: var(--text-section); }

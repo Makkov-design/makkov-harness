@@ -100,7 +100,7 @@ window.SITUATIONS = {
       ['A new task in the same session', 'Start with a clean slate', 'clear', '/clear', '/clear'],
       ['How much context is used', 'Shows what fills the context, skills included', 'context', '/context', '/context'],
       ['Repeat a task on a schedule', 'A cloud agent on cron, or once at a set time', 'schedule', '/schedule', '/schedule every Monday 9:00: check our site for broken links'],
-      ['Repeat something every N minutes', 'A loop in the current session', 'loop', '/loop 10m …', '/loop 10m check whether the deploy finished'],
+      ['Repeat something every N minutes', 'A loop in the current session', 'loop', '/loop 10m check whether the deploy finished', '/loop 10m check whether the deploy finished'],
       ['Tired of permission prompts', 'Adds frequent safe commands to the allow list', 'fewer-permission-prompts', '/fewer-permission-prompts', '/fewer-permission-prompts'],
       ['Where did the tokens go?', 'A simple chart of session usage', 'explain-usage', 'Say “explain my usage”', 'Explain my usage in this session.'],
       ['Make your own skill', 'Helps write and test a skill', 'skill-creator', 'Say “make a skill”', 'Make a skill that writes release notes in our voice.']

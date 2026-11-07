@@ -42,7 +42,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 /* ===== footer: link columns, then the wordmark as a dot matrix that lights under the pointer ===== */
 .foot { padding-block: var(--space-3xl) 0; border-top: 1px solid var(--color-rule); overflow: hidden; }
 .foot-top { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: var(--space-2xl); align-items: start; }
-.foot .statement { max-width: 16ch; }
+/* 8.5em holds "Describe the work." (about 7.9em) but not "... work. The" (about 9.6em), so the second sentence always starts a line */
+.foot .statement { max-width: 8.5em; }
+.foot .statement > span { display: block; text-wrap: balance; }
 .foot-free { margin-top: var(--space-md); color: var(--color-muted); }
 .foot-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-lg); }
 .foot-cols h3 { font: 500 12px/1 var(--font-code); color: var(--ink-quiet, var(--color-muted)); letter-spacing: 0; margin-bottom: var(--space-md); }

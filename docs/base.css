@@ -8,6 +8,7 @@ a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16e
 h1, h2, h3 { margin: 0; font-family: var(--font-display); font-synthesis: none; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
 p:not([class]) { max-width: 65ch; }
+.then-bar p { max-width: none; }
 img, video { max-width: 100%; height: auto; display: block; }
 svg { display: block; }
 [hidden] { display: none !important; }

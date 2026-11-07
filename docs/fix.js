@@ -53,7 +53,7 @@
       h += `<span class="gl" style="left:${edge}px"></span>`;
       ['title', 's1', 'r1', 'r3'].forEach((id) => { const r = rel(g(id)), d = Math.round(r.x - edge); const y = r.y + Math.min(r.h / 2, 14); if (Math.abs(d) >= 1) h += `<span class="gd" style="left:${Math.min(edge, r.x)}px;top:${y}px;width:${Math.abs(d)}px"></span>`; h += `<span class="gt gt-side ${Math.abs(d) < 1 ? 'gt-ok' : ''}" style="left:${edge - 8}px;top:${y}px">${Math.abs(d) < 1 ? '0' : (d > 0 ? '+' : '') + d}</span>`; });
     } else if (k === 3) { // type: the live size, weight and face of two roles
-      [['title', 'heading', 'r'], ['num', 'figure', 'b']].forEach(([id, role, at]) => { const el = g(id), cs = getComputedStyle(el), r = rel(el); h += `<span class="gt gt-type" style="left:${r.r + 12}px;top:${r.y + r.h / 2}px">${role} ${Math.round(parseFloat(cs.fontSize))}/${cs.fontWeight} ${cs.fontFamily.split(',')[0].replace(/"/g, '')}</span>`; });
+      [['title', 'heading', 'r'], ['num', 'figure', 'b']].forEach(([id, role, at]) => { const el = g(id), cs = getComputedStyle(el), r = rel(el); h += `<span class="gt gt-type" style="left:${r.r + 12}px;top:${r.y + r.h / 2}px">${role} ${Math.round(parseFloat(cs.fontSize))}/${Math.round(parseFloat(cs.fontWeight))} ${cs.fontFamily.split(',')[0].replace(/"/g, '')}</span>`; });
     } else if (k === 4) { // colour: the button fill and the live contrast of muted text
       const btn = g('btn'), r = rel(btn), date = ui.querySelector('.ui-date'), rd = rel(date);
       const ratio = contrast(toRGB(getComputedStyle(date).color), toRGB(bgOf(date)));

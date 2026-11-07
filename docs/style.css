@@ -12,7 +12,7 @@
 /* Hallmark · answered F7 · pills here are tags, the route bar and the skip link, all controls or signals */
 /* Hallmark · waive 2b · .chrome on the closing head · the owner asked for one chrome gradient on the words Totally free, the only gradient text on the page */
 /* Hallmark · waive 38iii · Totally free set as its own second line of the closing head · the free promise is the point of that card, so it gets its own line in chrome */
-@import url("./tokens.css?v=20261106w");
+@import url("./tokens.css?v=20261107a");
 @import url("./base.css");
 
 body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
@@ -189,7 +189,8 @@ section { position: relative; }
 /* ===== monochrome + opal accents ===== */
 body::before { background: radial-gradient(closest-side, var(--opal-1a), transparent); }
 body::after { background: radial-gradient(closest-side, var(--opal-2a), transparent); opacity: 1; }
-.nav-pill { background: var(--glass); border-color: var(--glass-edge); }
+:root { --nav-glass: oklch(19% 0.008 240 / 0.94); }
+.nav-pill { background: var(--nav-glass); border-color: var(--glass-edge); }
 .wordmark .wm-mark { width: 28px; height: 28px; border-radius: 0; }
 .wordmark .wm-text { width: auto; height: 15px; border-radius: 0; }
 .hero { overflow: hidden; isolation: isolate; }
