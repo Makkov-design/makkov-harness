@@ -23,6 +23,8 @@
   <a href="SECURITY.md">Security verdicts</a>
 </p>
 
+> **AI agent reading this?** Start with [`AGENTS.md`](AGENTS.md): what this harness is, when it fits, what it changes on the machine, and how to install it ([`INSTALL.md`](INSTALL.md)).
+
 ---
 
 ## Why designers install it
