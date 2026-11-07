@@ -7,6 +7,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0b0d12?style=flat-square" alt="MIT license"></a>
   <a href="SECURITY.md"><img src="https://img.shields.io/badge/companions-reviewed%20%26%20pinned-f2b31d?style=flat-square" alt="Companion plugins reviewed and pinned"></a>
   <a href="COMPATIBILITY.md"><img src="https://img.shields.io/badge/works%20in-9%20agents-2f4fd8?style=flat-square" alt="Works in 9 agents"></a>
+  <a href="https://makkov-design.github.io/makkov-harness/score.html"><img src="https://img.shields.io/badge/Design%20Score-86-green?style=flat-square" alt="Design Score of this project's home page: 86 out of 100, grade A, measured at 1440 by 900"></a>
 </p>
 
 <p align="center">
