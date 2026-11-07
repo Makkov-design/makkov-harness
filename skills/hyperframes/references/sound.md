@@ -25,7 +25,7 @@ With no music source (no `heygen` sign-in and no local model), deliver silent an
 
 Few and exact: every effect has a cause on screen, and too many read as a template.
 
-Take real recordings first: `/media-use` (`sfx`) searches [Openverse](https://openverse.org) for each cue (CC0 and CC BY only, mostly Freesound), then falls back to the bundled library. Name each cue by what makes the sound (`paper sheet slide`, `mechanical keyboard tap`), not by its mood. Generate a sound only for a cue that has no real recording, or when the person asks; keep `assets/sfx/CREDITS.md` with the project and put CC BY credits wherever the video is published.
+Take real recordings first: the `/media-use` audio engine (`audio.mjs --only sfx`, see its Sound effects section) searches [Openverse](https://openverse.org) for each cue (CC0 and CC BY only, mostly Freesound), then falls back to the bundled library. Name each cue by what makes the sound (`paper sheet slide`, `mechanical keyboard tap`), not by its mood. Generate a sound only for a cue that has no real recording, or when the person asks; keep `assets/sfx/CREDITS.md` with the project (it lists the CC BY sounds; CC0 ones need no credit and leave it unwritten) and put those credits wherever the video is published.
 
 | Sound             | Only on                                        |
 | ----------------- | ---------------------------------------------- |

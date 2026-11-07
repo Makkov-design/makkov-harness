@@ -2,6 +2,16 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.1] - 2026-11-07
+
+An end-to-end test of a plain video request found that the 0.3.0 sound code was not on the path agents take.
+
+### Fixed
+
+- Sound effects now go through the harness's own audio engine (`media-use/audio/scripts/audio.mjs --only sfx`), so the Openverse search from 0.3.0, with its optional keys, is what runs. Before, the skills sent agents to `hyperframes media-use resolve --type sfx`, which uses the CLI's own older copy: it ignores the keys and, when signed in, tries HeyGen first. `media-use` and its sound guides now say so.
+- The HyperFrames launcher (`skills/hyperframes/scripts/plugin-cli.mjs`) failed inside this plugin: it expected a plugin named `hyperframes` and would have asked npm for `hyperframes@<harness version>`. It now reads the reviewed CLI release, 0.9.9, from `skills/hyperframes/scripts/cli-version.json`.
+- The sound guides said `assets/sfx/CREDITS.md` is always there; it lists CC BY sounds only, so a video with only CC0 sounds has none.
+
 ## [0.3.0] - 2026-11-07
 
 Real sounds for every video.
@@ -61,6 +71,7 @@ The first public release.
 - A weekly upstream watch that flags new versions of the pinned companions in one issue.
 - The website on GitHub Pages, the brand mark and wordmark, an MIT license, issue and pull request templates and a code of conduct.
 
+[0.3.1]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Makkov-design/makkov-harness/releases/tag/v0.1.0

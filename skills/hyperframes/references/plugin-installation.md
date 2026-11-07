@@ -3,6 +3,9 @@
 Check the directory two levels above the loaded `SKILL.md` for `plugin.json`,
 `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, or
 `.cursor-plugin/plugin.json` identifying `hyperframes`, or a Gemini extension manifest.
+A plugin that bundles these skills under its own name (makkov-harness does) counts too
+when `skills/hyperframes/scripts/cli-version.json` exists: that file names the
+HyperFrames CLI release the bundle was reviewed with.
 That directory is `<PLUGIN_ROOT>`. If none exists, this is a standalone skill;
 follow the normal installation and freshness instructions.
 
@@ -22,7 +25,7 @@ in every skill and reference:
   ```
 
   Run in the user's project directory, never in the plugin directory. The launcher
-  selects the manifest's CLI version and disables automatic standalone skill
+  selects the CLI version from `cli-version.json`, else from the manifest, and disables automatic standalone skill
   installation, including during `init`. The first call may download that exact
   CLI version through npm. A download failure is an error, not permission to use
   latest. Existing project dependency files and lockfiles must not be overwritten

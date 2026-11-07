@@ -119,3 +119,26 @@ test("installed helper keeps cwd, arguments, release environment and exit code",
   });
   assert.equal(readFileSync(join(root, "plugin.json"), "utf8"), before);
 });
+
+test("a bundling plugin pins the CLI with cli-version.json, not its own manifest", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "hf-bundled-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, ".claude-plugin"), { recursive: true });
+  mkdirSync(join(root, "skills/hyperframes/scripts"), { recursive: true });
+  writeFileSync(
+    join(root, ".claude-plugin/plugin.json"),
+    JSON.stringify({ name: "makkov-harness", version: "0.3.1" }),
+  );
+  assert.throws(() => pluginVersion(root), /Invalid HyperFrames plugin release/);
+  writeFileSync(
+    join(root, "skills/hyperframes/scripts/cli-version.json"),
+    JSON.stringify({ name: "hyperframes", version: "0.9.9" }),
+  );
+  assert.equal(pluginVersion(root), "0.9.9");
+});
+
+test("the CLI version this repository pins is an exact release", () => {
+  const pinned = JSON.parse(readFileSync(new URL("./cli-version.json", import.meta.url), "utf8"));
+  assert.equal(pinned.name, "hyperframes");
+  assert.match(pinned.version, /^\d+\.\d+\.\d+$/);
+});

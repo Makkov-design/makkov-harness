@@ -7,7 +7,11 @@ import { fileURLToPath } from "node:url";
 import { isMainModule } from "./lib/main-module.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
+// makkov-harness bundles these skills inside its own plugin, so its manifest names the harness
+// and its version, not HyperFrames. This file pins the HyperFrames CLI release the harness
+// reviewed (see SECURITY.md); it is read before any plugin manifest.
 const manifests = [
+  "skills/hyperframes/scripts/cli-version.json",
   "plugin.json",
   ".claude-plugin/plugin.json",
   ".codex-plugin/plugin.json",
