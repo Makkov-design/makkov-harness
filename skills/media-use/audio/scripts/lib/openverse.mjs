@@ -88,7 +88,14 @@ export function pickOpenverseSfx(results) {
 
 // Access token for a registered Openverse app, cached until a minute before it expires.
 // The credentials only ever come from the environment and are never written anywhere.
+// A refused pair is remembered for a few minutes too, so a wrong key costs one extra
+// request per run instead of one per search.
 let cachedToken = null;
+const REFUSED_RETRY_MS = 5 * 60 * 1000;
+const refuse = (clientId, now) => {
+  cachedToken = { clientId, value: null, expiresAt: now() + REFUSED_RETRY_MS };
+  return null;
+};
 
 /** Forget the cached token (tests, or after Openverse rejected it). */
 export function resetOpenverseToken() {
@@ -113,9 +120,9 @@ export async function openverseToken({ fetchImpl = fetch, env = process.env, now
       }).toString(),
       signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
-    if (!response.ok) return null;
+    if (!response.ok) return refuse(clientId, now);
     const body = await response.json();
-    if (typeof body?.access_token !== "string" || !body.access_token) return null;
+    if (typeof body?.access_token !== "string" || !body.access_token) return refuse(clientId, now);
     const lifetimeS = Number.isFinite(body.expires_in) ? body.expires_in : 3600;
     cachedToken = {
       clientId,
@@ -125,12 +132,15 @@ export async function openverseToken({ fetchImpl = fetch, env = process.env, now
     return cachedToken.value;
   } catch {
     // An unverified email, a typo or a network blip: search anonymously instead of failing.
-    return null;
+    return refuse(clientId, now);
   }
 }
 
 /** Best licensed sound effect for `query`, null on no match; throws OpenverseUnavailableError. */
-export async function searchOpenverseSfx(query, { fetchImpl = fetch, env = process.env } = {}) {
+export async function searchOpenverseSfx(
+  query,
+  { fetchImpl = fetch, env = process.env, now = Date.now } = {},
+) {
   const params = new URLSearchParams({
     q: query,
     page_size: "20",
@@ -148,11 +158,11 @@ export async function searchOpenverseSfx(query, { fetchImpl = fetch, env = proce
       throw new OpenverseUnavailableError(`Openverse unreachable (${error.message})`);
     }
   };
-  const token = await openverseToken({ fetchImpl, env });
+  const token = await openverseToken({ fetchImpl, env, now });
   let response = await search(token);
   if (token && response.status === 401) {
-    // Revoked or expired early: drop it and ask once more without a token.
-    resetOpenverseToken();
+    // Revoked or expired early: stay anonymous for a while and ask once more without a token.
+    refuse(env.OPENVERSE_CLIENT_ID.trim(), now);
     response = await search(null);
   }
   if (response.status === 429)

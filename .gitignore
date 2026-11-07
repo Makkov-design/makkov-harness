@@ -9,3 +9,5 @@ docs/.hallmark/
 .impeccable/
 .claude/
 launch-kit/
+__pycache__/
+*.pyc

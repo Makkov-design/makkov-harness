@@ -79,3 +79,23 @@ test("a search that rejects the token is retried once without it", async () => {
   assert.equal(sound.id, "a1");
   assert.deepEqual(searches(calls).map(auth), ["Bearer tok-1", undefined]);
 });
+
+test("a refused key pair is not retried on every search", async () => {
+  const { calls, fetchImpl } = stub({ tokenStatus: 401 });
+  await searchOpenverseSfx("pop", { fetchImpl, env: CREDS });
+  await searchOpenverseSfx("click", { fetchImpl, env: CREDS });
+  assert.equal(calls.filter((c) => c.url.includes("/auth_tokens/token/")).length, 1);
+  assert.deepEqual(searches(calls).map(auth), [undefined, undefined]);
+});
+
+test("a token rejected by search is not reused on the next search", async () => {
+  const { calls, fetchImpl } = stub({
+    search: (init) =>
+      init.headers?.Authorization
+        ? new Response("bad token", { status: 401 })
+        : Response.json({ results: [result] }),
+  });
+  await searchOpenverseSfx("pop", { fetchImpl, env: CREDS });
+  await searchOpenverseSfx("click", { fetchImpl, env: CREDS });
+  assert.deepEqual(searches(calls).map(auth), ["Bearer tok-1", undefined, undefined]);
+});
