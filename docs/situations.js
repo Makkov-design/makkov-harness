@@ -9,8 +9,8 @@
   const copyBtn = (text, label) => `<button type="button" class="copy" data-copy-text="${esc(text)}" data-label="${label}" aria-label="${label}: ${esc(text)}">${ICON_COPY}<span>${label}</span></button>`;
 
   const cmd = (call) => call.startsWith('/')
-    ? `<div class="sit-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>${esc(call)}</code>${copyBtn(call, 'Copy')}</div>`
-    : `<div class="sit-cmd sit-cmd--say"><span class="sit-sign" aria-hidden="true">›</span><code>${esc(call)}</code></div>`;
+    ? `<div class="sit-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>${esc(call).replace(/([:-])/g, '$1<wbr>')}</code>${copyBtn(call, 'Copy')}</div>`
+    : `<div class="sit-cmd sit-cmd--say"><span class="sit-sign" aria-hidden="true">›</span><code>${esc(call).replace(/([:-])/g, '$1<wbr>')}</code></div>`;
   const prompt = (r) => `<div class="sit-prompt"><p>${esc(r[4])}</p>${copyBtn(r[4], 'Copy prompt')}</div>`;
   const card = (r, full) => `
     <article class="sit">

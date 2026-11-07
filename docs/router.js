@@ -591,8 +591,8 @@
     return html + esc(t.slice(at));
   };
   const cmd = (call) => !call ? '' : String(call).startsWith('/')
-    ? `<div class="sit-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>${esc(call)}</code>${copyBtn(call, 'Copy')}</div>`
-    : `<div class="sit-cmd sit-cmd--say"><span class="sit-sign" aria-hidden="true">›</span><code>${esc(call)}</code></div>`;
+    ? `<div class="sit-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>${esc(call).replace(/([:-])/g, '$1<wbr>')}</code>${copyBtn(call, 'Copy')}</div>`
+    : `<div class="sit-cmd sit-cmd--say"><span class="sit-sign" aria-hidden="true">›</span><code>${esc(call).replace(/([:-])/g, '$1<wbr>')}</code></div>`;
   // the catalog's full-audit row, offered when a query only says that something looks wrong
   const AUDIT = (docs.find((d) => /better-interface$/.test(d.row[2]) && String(d.row[3]).startsWith('/')) || { row: [] }).row[3] || '';
   const linkFor = (q) => `${location.href.split('#')[0]}#ask=${encodeURIComponent(q.trim())}`;

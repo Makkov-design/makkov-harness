@@ -335,6 +335,7 @@
 .ds-pre { margin: 0; max-height: 480px; overflow: auto; padding: var(--space-md) var(--space-lg) var(--space-lg); font: 400 13px/1.6 var(--font-code); color: var(--color-ink-2); white-space: pre; tab-size: 2; scrollbar-width: thin; scrollbar-color: var(--color-rule-2) transparent; }
 .ds-pre:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .ds-pre--wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ds-pre code { font-size: inherit; }
 .ds-code-cap { padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--glass-edge); font-size: var(--text-xs); color: var(--ink-quiet); }
 .t-h { color: var(--color-ink); font-weight: 500; } .t-p { color: var(--ink-quiet); } .t-m { color: var(--color-muted); } .t-q { color: var(--color-muted); }
 .t-k { color: var(--opal-1); } .t-s { color: var(--opal-2); } .t-n { color: var(--opal-3); } .t-c { color: var(--opal-2); } .t-b { color: var(--color-ink); font-weight: 500; }

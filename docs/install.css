@@ -19,7 +19,7 @@
 .ways button[aria-selected="true"] .way-ico { background: var(--way-a); }
 .way-txt { display: grid; gap: 4px; min-width: 0; }
 .way-txt b { color: inherit; font: 500 var(--text-md)/1.2 var(--font-body); }
-.way-txt small { overflow: hidden; color: var(--ink-dim); font-size: var(--text-xs); white-space: nowrap; text-overflow: ellipsis; }
+.way-txt small { overflow: hidden; color: var(--ink-quiet); font-size: var(--text-xs); white-space: nowrap; text-overflow: ellipsis; }
 
 /* switching paths: the old one dissolves, the new one comes into focus card by card */
 .path { margin-top: var(--space-xl); }

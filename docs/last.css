@@ -47,7 +47,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .foot-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-lg); }
 .foot-cols h3 { font: 500 12px/1 var(--font-code); color: var(--ink-quiet, var(--color-muted)); letter-spacing: 0; margin-bottom: var(--space-md); }
 .foot-cols ul { margin: 0; padding: 0; border: 0; list-style: none; display: grid; gap: var(--space-sm); }
-.foot .foot-cols a { color: var(--ink-low); text-decoration: none; transition: color var(--dur-short) var(--ease-out); }
+.foot .foot-cols a { color: var(--ink-quiet); text-decoration: none; transition: color var(--dur-short) var(--ease-out); }
 .foot .foot-cols a:hover { color: var(--color-ink); }
 .foot .foot-legal { margin-top: var(--space-2xl); padding-top: var(--space-lg); border-top: 1px solid var(--color-rule); font-size: 12px; color: var(--ink-quiet, var(--color-muted)); max-width: none; }
 .foot-mark { --gx: 50%; --gy: 50%; position: relative; margin: var(--space-2xl) auto var(--space-xl); width: min(100% - 2 * var(--gutter), var(--container) - 2 * var(--gutter)); aspect-ratio: 3312 / 244; -webkit-mask: url("img/brand/wordmark.svg") center / 100% 100% no-repeat; mask: url("img/brand/wordmark.svg") center / 100% 100% no-repeat; background: radial-gradient(circle at 50% 50%, var(--color-rule-2) 0 1.2px, transparent 1.7px) 0 0 / 6px 6px; }
@@ -60,7 +60,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 @media (max-width: 60rem) { .foot-top { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 40rem) { .foot-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* header links share the footer's quieter rest state */
-.nav .nav-pill li > a:not(.btn) { color: var(--ink-low); }
+.nav .nav-pill li > a:not(.btn) { color: var(--ink-quiet); }
 .nav .nav-pill li > a:not(.btn):hover, .nav .nav-pill li > a[aria-current="page"] { color: var(--color-ink); }
 
 /* accent buttons: no outer ring; on hover two soft waves ripple through the fill from the pointer */

@@ -119,8 +119,8 @@
   .sit-rail { display: grid; left: auto; right: 0; top: 50%; translate: 0 -50%; gap: 0; width: 26px; padding: var(--space-xs) max(0px, env(safe-area-inset-right, 0px)) var(--space-xs) 0; border-radius: 0; background: none; box-shadow: none; touch-action: none; opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease-out); }
   .sit-rail.is-on { opacity: 1; pointer-events: auto; }
   .sit-rail:hover, .sit-rail:focus-within { background: none; box-shadow: none; }
-  .sit-rail a { justify-content: flex-end; min-height: 22px; padding: 0 5px 0 0; gap: 0; -webkit-tap-highlight-color: transparent; }
-  .sit-rail span { display: none; }
+  .sit-rail a { justify-content: flex-end; min-height: 24px; padding: 0 4px 0 0; gap: 0; -webkit-tap-highlight-color: transparent; }
+  .sit-rail span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; opacity: 1; translate: none; }
   .sit-rail i { width: 10px; height: 2px; transform-origin: 100% 50%; scale: 0.6 1; background: var(--ink-low); opacity: 0.75; }
   .sit-rail a[aria-current] i, .sit-rail.is-scrub i { opacity: 1; }
   .sit-rail a[aria-current] i { scale: 1.3 1; background: var(--color-ink); }
