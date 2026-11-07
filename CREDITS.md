@@ -32,4 +32,8 @@ Each of these folders carries the original `LICENSE`. They are copied because th
 
 `rich-report`, `html-report`, `third-party-install-guard`, `design-md-library`, `harness-onboarding`, `ROUTING.md`, the hooks and the adapters are by Makkov, MIT.
 
+## Agent logos on the site
+
+The agent and product logos on the website show where the harness runs. The SVGs come from [Simple Icons](https://simpleicons.org) (CC0), [Lobe Icons](https://github.com/lobehub/lobe-icons) (MIT; Cursor, Cline, OpenCode, DeepSeek) and Aider's own repository (Apache-2.0). The names and marks belong to their owners.
+
 Not affiliated with or endorsed by Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.
