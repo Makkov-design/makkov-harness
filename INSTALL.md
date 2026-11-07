@@ -66,11 +66,13 @@ What it does, per tool (from each tool's documentation, checked 2026-11-04):
 
 `rich-report` is skipped outside Claude: it needs Claude Artifacts. `html-report` does the same job as a local HTML file.
 
+`design-score` is copied like any other skill and ships prebuilt (`mh-score.js`): there is nothing to build or install. It measures pages through a browser tool the agent already has. Its optional Node runner needs puppeteer-core and Chrome; the installer does not install them, and neither should you without a `third-party-install-guard` review and the user's yes.
+
 ## Step 5. Check and report
 
 1. List the skill folders now present in the target folder.
 2. Show the marked block in the instructions file (between `<!-- makkov-harness:start -->` and `<!-- makkov-harness:end -->`).
-3. Tell the user in 3-4 lines: what was installed and where, that the tool may need a restart, and that `harness-onboarding` will personalize it ("run the harness-onboarding skill").
+3. Tell the user in 3-4 lines: what was installed and where, that the tool may need a restart, and that `harness-onboarding` will personalize it ("run the harness-onboarding skill"). If they design for the web, mention they can now say "score localhost:3000" (or any URL) for a Design Score.
 4. Mention companion plugins from README.md that exist for their tool, without installing them.
 
 ## Step 6. Ask about a star (once, optional)

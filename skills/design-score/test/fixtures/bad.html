@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Design Score fixture: a deliberately broken page</title>
+<style>
+  /* Design Score test fixture: the "bad" page. Every problem here is on purpose. Self-contained: nothing is fetched.
+     No lang, no viewport meta, low contrast, 15 font sizes, 8 families, 9 weights, random spacing, missing alt text
+     and labels, unnamed icon controls, tiny crowded targets, overflow, endless animations, slow transitions,
+     focus outlines removed, 9 corner radii (1, 3, 5, 7, 10, 13, 18, 22px and a circle), 7 shadows, 8 button styles and dozens of one-off colours. */
+  body { margin: 7px; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.1; color: #aaaaaa; background: #ffffff; }
+  a:focus, button:focus, input:focus { outline: none; }
+  h1 { font-family: Impact, sans-serif; font-size: 47px; font-weight: 400; color: #ffcc00; margin: 9px 0 5px 11px; }
+  .h1b { font-family: Georgia, serif; font-size: 34px; font-weight: 300; color: #bbbbbb; margin: 13px 0 3px 3px; }
+  h4 { font-family: Verdana, sans-serif; font-size: 21px; font-weight: 800; color: #c0c0c0; margin: 19px 0 7px 22px; }
+  h6 { font-size: 29px; font-weight: 900; color: #e0e0e0; margin: 5px 0 11px 6px; }
+  h3 { font-family: "Trebuchet MS", sans-serif; font-size: 26px; font-weight: 200; color: #d4d4d4; margin: 27px 0 9px 17px; }
+  .p1 { color: #a9a9a9; margin: 11px 0 0 5px; }
+  .p2 { color: #ababab; margin: 7px 0 0 13px; font-size: 12px; line-height: 1; }
+  .p3 { color: #adadad; margin: 17px 0 0 2px; font-size: 14px; text-transform: uppercase; }
+  .p4 { color: #b0b0b0; margin: 3px 0 0 27px; font-size: 15px; font-weight: 500; }
+  .p5 { color: #9e9e9e; margin: 21px 0 0 9px; font-size: 16px; line-height: 1.05; font-family: "Times New Roman", serif; }
+  .p6 { color: #a3a3a3; margin: 5px 0 0 19px; font-size: 17px; font-weight: 600; }
+  .p7 { color: #a6a6a6; margin: 13px 0 0 31px; font-size: 11px; }
+  .p8 { color: #a1a1a1; margin: 9px 0 0 14px; font-size: 19px; font-family: "Comic Sans MS", cursive; }
+  .p9 { color: #afafaf; margin: 15px 0 0 7px; font-size: 23px; font-weight: 700; }
+  .tiny { font-size: 9px; color: #cccccc; margin: 6px 0 0 3px; }
+  .banner { width: 1700px; height: 60px; margin: 13px 0 0 0; background: #f0f0f0; color: #f9f9f9; font-size: 23px; padding: 5px 9px;
+    border-radius: 3px; box-shadow: 2px 2px 3px #999999; animation: pulse 1.2s infinite; }
+  .narrow { width: 120px; background: #f2f2f2; margin: 11px 0 0 5px; padding: 3px; border-radius: 5px; font-family: "Courier New", monospace; color: #b3b3b3; }
+  .imgbox { width: 300px; margin: 7px 0 0 13px; }
+  .imgbox img { width: 900px; height: 120px; }
+  .icons { margin: 9px 0 0 3px; }
+  .icons a { display: inline-block; width: 14px; height: 14px; margin-right: 2px; background: #eeeeee; border-radius: 1px; }
+  .icons a svg { width: 14px; height: 14px; }
+  .form { margin: 5px 0 0 11px; }
+  .form input, .form select { height: 18px; font-size: 11px; margin: 2px 3px; border: 1px solid #eeeeee; color: #c8c8c8; }
+  .b1 { background: #ff5500; color: #ffffff; border: 0; padding: 3px 7px; border-radius: 5px; font-size: 11px; box-shadow: 0 1px 1px #000000; transition: all 1.5s; }
+  .b2 { background: #00aaff; color: #ffffff; border: 2px solid #0088cc; padding: 5px 13px; border-radius: 7px; font-size: 14px; box-shadow: 0 2px 5px #444444; transition: all 1.2s; }
+  .b3 { background: #33cc33; color: #ffffff; border: 0; padding: 9px 21px; border-radius: 10px; font-size: 17px; font-family: "Trebuchet MS", sans-serif; box-shadow: 1px 3px 7px #00aa00; transition: all 2s; }
+  .b4 { background: #cc33cc; color: #f5f5f5; border: 3px dashed #990099; padding: 2px 5px; border-radius: 13px; font-size: 12px; transition: all 1.5s; }
+  .b5 { background: #ffcc00; color: #ffffff; border: 0; padding: 11px 27px; border-radius: 18px; font-size: 19px; font-weight: 900; box-shadow: 3px 3px 0 #cc9900; transition: transform 1.8s; }
+  .b6 { background: #ff0066; color: #ffe0ee; border: 1px solid #aa0044; padding: 6px 9px; border-radius: 22px; font-size: 15px; box-shadow: 0 0 9px #ff0066; transition: all 1.5s; }
+  .b7 { background: #6600ff; color: #ddccff; border: 0; padding: 4px 4px; border-radius: 1px; font-size: 13px; transition: all 1.5s; }
+  .b8 { background: #00ffcc; color: #ffffff; border: 4px double #00ccaa; padding: 7px 17px; border-radius: 10px; font-size: 21px; box-shadow: inset 0 2px 3px #008877; transition: all 3s; }
+  .badge { display: inline-block; width: 120px; height: 120px; line-height: 120px; text-align: center; margin: 19px 0 0 23px; background: #ff3399; color: #ffaacc;
+    font-size: 16px; font-weight: 100; border-radius: 50%; animation: spin 4s linear infinite; }
+  .marquee { width: 600px; margin: 7px 0 0 2px; color: #00ccff; font-size: 14px; font-weight: 800; letter-spacing: 3px; animation: slide 6s linear infinite; }
+  .boxes div { display: inline-block; width: 90px; height: 50px; margin: 3px 5px 0 0; padding: 5px; }
+  .x1 { background: #fafafa; border-radius: 3px; }
+  .x2 { background: #fbfbfb; border-radius: 5px; }
+  .x3 { background: #fcfcfc; border-radius: 7px; }
+  .x4 { background: #f8f8f8; border-radius: 13px; }
+  .x5 { background: #343434; color: #383838; border-radius: 18px; }
+  .x6 { background: #353535; color: #3a3a3a; border-radius: 22px; }
+  .x7 { background: #363636; color: #3c3c3c; border-radius: 1px; }
+  .x8 { background: #8844bb; color: #9955cc; border-radius: 10px; }
+  .x9 { background: #bb8844; color: #cc9955; border-radius: 5px; }
+  .x10 { background: #44bb88; color: #55cc99; border-radius: 10px; }
+  .x11 { background: #88bb44; color: #99cc55; border-radius: 3px; }
+  .x12 { background: #4488bb; color: #5599cc; border-radius: 7px; }
+  .x13 { background: #ff8800; color: #ffbb66; }
+  .x14 { background: #00ff88; color: #aaffcc; }
+  .x15 { background: #8800ff; color: #cc99ff; }
+  .x16 { background: #ff0000; color: #ff7777; }
+  .foot { margin: 31px 0 0 9px; font-size: 9px; color: #dddddd; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(400px); } }
+</style>
+</head>
+<body>
+  <h1>WELCOME TO THE MEGA DEALS PAGE</h1>
+  <h1 class="h1b">Our Products</h1>
+  <h4>Latest news</h4>
+  <div class="banner">BIG SALE TODAY ONLY ON EVERYTHING YOU CAN SEE ON THIS PAGE</div>
+  <p class="p1">This paragraph runs the whole width of the window with no maximum width, so each line holds far too many characters to read comfortably. It is also set in a pale grey on white, which fails the contrast minimum, and it uses a line height of 1.1, which squeezes the lines together. Readers lose their place when they jump back to the start of the next line, and the low contrast makes every word a little harder to see than it should be. We keep adding words here so that the paragraph wraps onto several lines at desktop width and the line length check has real lines to measure, which it will find to be far longer than the comfortable range.</p>
+  <p class="p2">Another paragraph in a slightly different grey and a different size, with a different left margin, so it lines up with nothing above or below it. The spacing values around it are random as well: seven, thirteen, three. None of them sit on a four pixel grid, and none of them repeat anywhere else on the page, which is exactly the kind of drift a spacing scale is meant to stop before it starts. It also keeps going for a while so that the measure check sees several long lines here too.</p>
+  <p class="p3">This whole paragraph is set in capital letters with text transform, which makes a long run of text slow to read because the shapes of the words disappear and every line looks like a solid block.</p>
+  <h6>Small print heading</h6>
+  <p class="p4">Fifteen pixels, medium weight, yet another grey, yet another margin.</p>
+  <p class="p5">Sixteen pixels in a serif face with almost no line height, so the descenders of one line touch the ascenders of the next one whenever the text wraps.</p>
+  <p class="p6">Seventeen pixels and semibold in a slightly darker grey than the paragraph before it.</p>
+  <p class="p7">Eleven pixels and a thirty one pixel indent for no reason at all.</p>
+  <p class="p8">Nineteen pixels in a novelty face, because why not add one more family.</p>
+  <p class="p9">Twenty three pixels and bold, still in pale grey.</p>
+  <div class="narrow">https://example.com/a-very-long-unbroken-address-that-never-wraps-anywhere/and-keeps-going</div>
+  <div class="imgbox"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 120'%3E%3Crect width='900' height='120' fill='%23ffdd88'/%3E%3C/svg%3E"></div>
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Crect width='200' height='80' fill='%2388ddff'/%3E%3C/svg%3E" width="200" height="80" style="margin: 5px 0 0 7px">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Crect width='200' height='80' fill='%23ddff88'/%3E%3C/svg%3E" width="200" height="80" alt="IMG_2041.jpg" style="margin: 3px 0 0 13px">
+  <h3>Follow us</h3>
+  <div class="icons">
+    <a href="#a"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#ff5500"/></svg></a><a href="#b"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#00aaff"/></svg></a><a href="#c"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#33cc33"/></svg></a><a href="#d"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#cc33cc"/></svg></a><a href="#e"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#ffcc00"/></svg></a><a href="#f"><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#ff0066"/></svg></a>
+  </div>
+  <div class="form">
+    <input type="text" placeholder="name"><input type="email" placeholder="email"><input type="text"><select><option>Pick one</option><option>Another</option></select>
+  </div>
+  <div style="margin: 13px 0 0 6px">
+    <button class="b1">Buy</button>
+    <button class="b2">Add to cart</button>
+    <button class="b3">Checkout now</button>
+    <button class="b4">Maybe later</button>
+    <button class="b5">DEAL</button>
+    <button class="b6">Save</button>
+    <button class="b7"><svg viewBox="0 0 10 10" width="10" height="10"><path d="M1 5h8" stroke="#ffffff"/></svg></button>
+    <button class="b8">Go</button>
+  </div>
+  <div class="badge">NEW</div>
+  <div class="marquee">LIMITED TIME OFFER ENDS SOON DO NOT MISS IT</div>
+  <div class="boxes">
+    <div class="x1">One</div><div class="x2">Two</div><div class="x3">Three</div><div class="x4">Four</div><div class="x5">Five</div><div class="x6">Six</div><div class="x7">Seven</div><div class="x8">Eight</div>
+    <div class="x9">Nine</div><div class="x10">Ten</div><div class="x11">Eleven</div><div class="x12">Twelve</div><div class="x13">Thirteen</div><div class="x14">Fourteen</div><div class="x15">Fifteen</div><div class="x16">Sixteen</div>
+  </div>
+  <p class="tiny">Nine pixel small print that nobody can read without zooming in.</p>
+  <p class="foot">Design Score test fixture. Every problem on this page is deliberate.</p>
+</body>
+</html>

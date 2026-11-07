@@ -26,7 +26,11 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 - `install/` scripts: copy files from this repository into the agent's folders. No downloads.
 - `cloud/setup-design-tools.sh` (optional, Claude cloud environments only): installs ffmpeg from Ubuntu and two pinned npm packages with `--ignore-scripts`. Runs only if you paste it into your environment's Setup script, or when you say yes to the agent's offer in a cloud session.
 - `.github/workflows/upstream-watch.yml` (GitHub only, weekly): reads the upstream repositories of the pinned companions through the GitHub API and updates one issue in this repository. It cannot change a pin or any file.
+- `skills/design-score/` (the Design Score bundle, `mh-score.js`): runs in the page you score, inside your browser. It measures the page and shows the result in a panel of its own (one element, removed when you close it). The bundle itself makes no network requests, keeps no storage and never changes the page's own content. Its optional Node runner (`scripts/score.mjs`) drives a Chrome you already have through a puppeteer-core you already have, and installs nothing.
+- The Design Score bookmarklets ([score.html](https://makkov-design.github.io/makkov-harness/score.html)): the loader makes one request, to this repository's GitHub Pages, for `score/mh-score.js` as it is published there at that moment, loads nothing else and removes its script tag once the bundle has loaded. It is not pinned to a version: the `?v=` in its address only refreshes caches. The request is sent with no referrer, so GitHub sees it like any visit (your IP address) but not the address of the page you score. Nothing the page contains and nothing Design Score measures is sent. The offline bookmarklet and the console snippet carry the whole bundle, make no request and run exactly the code you saved.
 - No skill here sends data anywhere unless the user asks for a task that needs it.
+
+The website is not part of what you install. It counts page views with GoatCounter (no cookies, no personal data, a pinned script checked with Subresource Integrity); the Design Score bundle and the bookmarklets never load it. The same verdicts, searchable and with what each piece runs, sends and needs, are on the [security index](https://makkov-design.github.io/makkov-harness/security.html).
 
 ## Reporting a problem
 

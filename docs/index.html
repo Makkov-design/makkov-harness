@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>makkov-harness: the right skill for every request</title>
-<meta name="description" content="A free, open-source designer's harness for AI agents: a routing map that picks the right skill, results as designed pages, and companion plugins reviewed before you install them.">
+<meta name="description" content="A free, open-source designer's harness for AI agents: a routing map that picks the right skill, Design Score to grade any page from 0 to 100, results as designed pages, and companion plugins reviewed before you install them.">
 <meta property="og:title" content="makkov-harness">
-<meta property="og:description" content="The right design skill for every request. A free, open-source harness for designers who build with AI agents.">
+<meta property="og:description" content="The right design skill for every request, and a 0–100 Design Score for any page. A free, open-source harness for designers who build with AI agents.">
 <meta property="og:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
 <meta property="og:type" content="website">
+<link rel="canonical" href="https://makkov-design.github.io/makkov-harness/">
 <link rel="icon" href="img/mark-64.png">
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
@@ -27,6 +28,7 @@
 <link rel="stylesheet" href="last.css?v=20261107c">
 <link rel="stylesheet" href="install.css?v=20261107h">
 <link rel="stylesheet" href="mobile.css?v=20261107j">
+<link rel="stylesheet" href="home-score.css?v=20261107a">
 <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('intro');setTimeout(function(){document.documentElement.classList.add('intro-go','intro-copy','intro-done')},5000);}</script>
 <!-- Page views: GoatCounter, no cookies, no personal data. Pinned v5 with SRI (reviewed 2026-11-07). Skip your own views: open the site once with #toggle-goatcounter. -->
 <script data-goatcounter="https://makkov-harness.goatcounter.com/count" async src="https://gc.zgo.at/count.v5.js" crossorigin="anonymous" integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
@@ -91,6 +93,7 @@ fill="currentColor" stroke="none">
 <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.8c1.8.6 3 2.4 3.5 5.2"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></symbol>
 <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.5 5.5 5h13l2.5 8.5V19H3Z"/><path d="M3 13.5h5l1.5 2.5h5l1.5-2.5h5"/></symbol>
 </svg>
 <div class="preload" aria-hidden="true"><div class="pl-mark"></div><i class="pl-bar"></i></div>
@@ -102,7 +105,8 @@ fill="currentColor" stroke="none">
     <ul>
       <li class="hide-s"><a href="#switch">Routing</a></li>
       <li class="hide-s"><a href="situations.html">Situations</a></li>
-      <li class="hide-s"><a href="#gate">Security</a></li>
+      <li class="hide-s"><a href="score.html">Score</a></li>
+      <li class="hide-s"><a href="security.html">Security</a></li>
       <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness" aria-label="GitHub"><svg class="ico" aria-hidden="true"><use href="#l-github"/></svg></a></li>
       <li><a class="btn btn--primary btn--sm" href="#install">Install</a></li>
     </ul>
@@ -113,7 +117,7 @@ fill="currentColor" stroke="none">
   <section class="hero" aria-labelledby="hero-title" data-loop data-hud="00 · harness">
     <div class="container">
       <div class="hero-copy">
-        <p class="free-tag">Free and open source, MIT</p>
+        <div class="hero-tags"><a class="new-tag" href="score.html"><b>New<span class="visually-hidden">:</span></b><span>Design Score: grade any page 0–100</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a><p class="free-tag">Free and open source, MIT</p></div>
         <h1 id="hero-title">Your agent, switched to the right skill.</h1>
         <p class="lead">A designer’s harness: routing, reviewed plugins and reports that ship. <b class="free">Totally free.</b></p>
         <div class="actions">
@@ -192,7 +196,49 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="board" id="switch" aria-labelledby="switch-title" data-hud="02 · routing">
+  <section class="dsc" id="design-score" aria-labelledby="dsc-title" data-hud="02 · design score">
+    <div class="container">
+      <div class="dsc-card">
+        <div class="dsc-copy">
+          <p class="dsc-tag" data-reveal style="--d:0ms"><b>New in 0.2</b><span>Design Score</span></p>
+          <h2 id="dsc-title">Score any page’s design in one click.</h2>
+          <p class="lead">Lighthouse for design. It measures a live page from 0 to 100, explains every point it takes off and writes the fix prompt for your agent. It runs in your browser, and none of the page’s data leaves it.</p>
+          <ul class="dsc-points">
+            <li data-reveal style="--d:200ms"><span class="dsc-ico" aria-hidden="true"><svg><use href="#i-target"/></svg></span><div><h3>Score in one click</h3><p>Drag the bookmarklet to your bookmarks bar, then click it on any site, localhost included. 37 checks in seven categories, each issue pointed out on the page.</p></div></li>
+            <li data-reveal style="--d:280ms"><span class="dsc-ico" aria-hidden="true"><svg><use href="#i-swatch"/></svg></span><div><h3>Steal the style</h3><p>Take a page’s palette, fonts, type scale, spacing and radii as DESIGN.md, CSS variables, a Tailwind theme or design tokens.</p></div></li>
+            <li data-reveal style="--d:360ms"><span class="dsc-ico" aria-hidden="true"><svg><use href="#i-chat"/></svg></span><div><h3>Fix it with your agent</h3><p>Paste the fix prompt into any agent, or say <code>score localhost:3000 and fix the top issues</code>. Then score again.</p></div></li>
+          </ul>
+          <div class="actions" data-reveal style="--d:440ms">
+            <a class="btn btn--primary" href="score.html">Get the bookmarklet</a>
+            <a class="btn" href="https://github.com/Makkov-design/makkov-harness/blob/main/skills/design-score/SKILL.md">Use the skill<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          </div>
+        </div>
+        <figure class="dsc-shot" data-reveal style="--d:120ms">
+          <div class="dsc-panel" role="img" aria-label="A sample Design Score panel for localhost:3000: 82 out of 100, grade B. Accessibility 80, Typography 86, Color 84, Layout and spacing 77, Responsive 100, Motion 51, Consistency 83.">
+            <div class="dsc-ph" aria-hidden="true"><span class="dsc-brand"><img src="img/brand/symbol.svg" width="18" height="18" alt="">Design Score</span><span class="dsc-ver">v1.0.0</span><span class="dsc-dots"><i></i><i></i><i></i></span></div>
+            <div class="dsc-tabs" aria-hidden="true"><span class="is-on">Score</span><span>Steal the style</span></div>
+            <div class="dsc-sum" aria-hidden="true">
+              <span class="dsc-ring"><svg viewBox="0 0 120 120"><defs><linearGradient id="dsc-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="dsc-stop-a"/><stop offset="1" class="dsc-stop-b"/></linearGradient></defs><circle class="dsc-ring-t" cx="60" cy="60" r="52"/><circle class="dsc-ring-v" cx="60" cy="60" r="52" pathLength="100" transform="rotate(-90 60 60)"/></svg><span class="dsc-n"><b><span>82</span></b><small>of 100</small></span></span>
+              <span class="dsc-meta"><span class="dsc-grade">Grade B</span><b>localhost:3000</b><small>1,284 elements · 412 ms</small></span>
+            </div>
+            <ul class="dsc-cats" aria-hidden="true">
+              <li style="--s:80;--c:var(--dsc-b);--k:0"><span>Accessibility</span><i></i><b>80</b></li>
+              <li style="--s:86;--c:var(--dsc-a);--k:1"><span>Typography</span><i></i><b>86</b></li>
+              <li style="--s:84;--c:var(--dsc-b);--k:2"><span>Color</span><i></i><b>84</b></li>
+              <li style="--s:77;--c:var(--dsc-b);--k:3"><span>Layout and spacing</span><i></i><b>77</b></li>
+              <li style="--s:100;--c:var(--dsc-a);--k:4"><span>Responsive</span><i></i><b>100</b></li>
+              <li style="--s:51;--c:var(--dsc-d);--k:5"><span>Motion</span><i></i><b>51</b></li>
+              <li style="--s:83;--c:var(--dsc-b);--k:6"><span>Consistency</span><i></i><b>83</b></li>
+            </ul>
+            <div class="dsc-pf" aria-hidden="true"><span class="dsc-fb"><svg><use href="#i-clip"/></svg>Copy fix prompt</span><small>Runs locally. Nothing leaves this page.</small></div>
+          </div>
+          <figcaption>A sample result, drawn the way the panel shows it.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="board" id="switch" aria-labelledby="switch-title" data-hud="03 · routing">
     <div class="board-track">
       <div class="board-sticky">
         <div class="container">
@@ -228,24 +274,24 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="find" id="find" aria-labelledby="find-title" data-hud="03 · situations">
+  <section class="find" id="find" aria-labelledby="find-title" data-hud="04 · situations">
     <div class="container" data-sit-home>
       <div class="find-head">
         <div>
           <h2 id="find-title">Find your situation.</h2>
           <p class="lead">Pick what you are doing. Get the skill, the command and a prompt to paste.</p>
         </div>
-        <a class="btn find-all" href="situations.html">All 69 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="btn find-all" href="situations.html">All 72 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
       <div class="find-body">
         <div class="find-nav" role="tablist" aria-label="Situation groups" aria-orientation="vertical" data-sit-nav></div>
         <div class="find-panel" id="sit-panel" role="tabpanel" data-sit-panel></div>
       </div>
-      <p class="find-end"><a class="btn" href="situations.html">All 69 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a></p>
+      <p class="find-end"><a class="btn" href="situations.html">All 72 situations<svg aria-hidden="true"><use href="#i-arrow"/></svg></a></p>
     </div>
   </section>
 
-  <section class="output" aria-labelledby="output-title" data-hud="04 · output">
+  <section class="output" aria-labelledby="output-title" data-hud="05 · output">
     <div class="container">
       <div class="output-head">
         <h2 id="output-title">You ask in plain words. You get the finished thing.</h2>
@@ -309,7 +355,7 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="gate" id="gate" aria-labelledby="gate-title" data-hud="05 · security">
+  <section class="gate" id="gate" aria-labelledby="gate-title" data-hud="06 · security">
     <div class="container">
       <div class="gate-side">
         <div class="gate-shield" aria-hidden="true">
@@ -331,6 +377,7 @@ fill="currentColor" stroke="none">
         </ol>
         <p class="gate-sum"><span><b>10</b> reviewed</span><span><b class="c-ok">9</b> green</span><span><b class="c-warn">1</b> yellow</span><span><b>0</b> red</span></p>
         <p class="gate-note">Last review November 6, 2026. A weekly check flags new upstream versions in <a href="https://github.com/Makkov-design/makkov-harness/issues">an issue</a>. Every verdict in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+        <a class="btn gate-cta" href="security.html" data-reveal>Open the security index<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
       <div class="checks" role="table" aria-label="Reviewed components" data-reveal>
         <div class="ck-row ck-head" role="row"><span role="columnheader">Component</span><span role="columnheader">Reviewed version</span><span role="columnheader" class="ck-live" title="A weekly check watches every upstream for new versions"><i></i>Watching</span></div>
@@ -348,7 +395,7 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="board-on" id="install" aria-labelledby="install-title" data-hud="06 · install">
+  <section class="board-on" id="install" aria-labelledby="install-title" data-hud="07 · install">
     <div class="container">
       <div class="steps-head">
         <h2 id="install-title">Four stops to board.</h2>
@@ -488,7 +535,7 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="runs" aria-labelledby="runs-title" data-hud="07 · agents">
+  <section class="runs" aria-labelledby="runs-title" data-hud="08 · agents">
     <div class="container">
       <h2 id="runs-title">Runs where you already work.</h2>
       <div class="agents">
@@ -499,7 +546,7 @@ fill="currentColor" stroke="none">
     </div>
   </section>
 
-  <section class="close" aria-labelledby="close-title" data-hud="08 · star">
+  <section class="close" aria-labelledby="close-title" data-hud="09 · star">
     <div class="container">
       <div class="close-card" data-reveal>
         <div class="close-copy">
@@ -533,7 +580,7 @@ fill="currentColor" stroke="none">
         <p class="foot-free">Free and open source under MIT. Made by a designer, for designers.</p>
       </div>
       <nav class="foot-cols" aria-label="Footer">
-        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="index.html#gate">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
+        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="score.html">Score</a></li><li><a href="security.html">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
         <div><h3>Project</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/releases">Releases</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li></ul></div>
         <div><h3>Community</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness/discussions">Discussions</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/issues">Issues</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CONTRIBUTING.md">Contributing</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/stargazers">Star it</a></li></ul></div>
       </nav>
@@ -542,7 +589,7 @@ fill="currentColor" stroke="none">
   </div>
   <div class="foot-mark" data-glow role="img" aria-label="makkov harness"></div>
 </footer>
-<script src="situations-data.js?v=20261106c"></script>
+<script src="situations-data.js?v=20261107a"></script>
 <script src="situations.js?v=20261107e"></script>
 <script src="fx.js?v=20261107b"></script>
 <script src="pixtype.js?v=20261107g"></script>

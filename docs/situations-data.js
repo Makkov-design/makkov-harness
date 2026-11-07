@@ -7,7 +7,8 @@ window.SITUATIONS = {
     ['Screen is ready? Audit it', '/interfaces:better-interface', 'every dimension in one pass'],
     ['Figma link? Just paste it', 'figma-design-to-code', 'the Figma skills start on their own'],
     ['Before a PR? Review', '/code-review', 'plus /interfaces:interface-review'],
-    ['Installing something? Check it', 'install-guard', 'runs on its own, keep it on']
+    ['Installing something? Check it', 'install-guard', 'runs on its own, keep it on'],
+    ['Want a number? Score it', 'design-score', '0–100, every point explained']
   ],
   groups: [
     { id: 'start', title: 'Starting a task', note: 'No code yet: figure out what you are building and plan it.', rows: [
@@ -22,11 +23,14 @@ window.SITUATIONS = {
     ]},
     { id: 'review', title: 'Audit and polish', note: 'The screen exists: find the problems and finish it properly.', rows: [
       ['Full audit of a screen or flow', 'Accessibility, layout, copy, type, colour and details in one prioritised report', 'interfaces:better-interface', '/interfaces:better-interface', 'Audit the onboarding screens in src/onboarding and fix the top issues.'],
+      ['Score a page or screen 0–100', 'Measures the live page in seven categories, explains every point it takes off and writes a fix prompt', 'design-score', 'Say “score …”', 'Score localhost:3000 at desktop and phone width and list the top five fixes.'],
+      ['Score it, fix it, score again', 'Fixes one category at a time with interfaces and animate, then scores again: before → after', 'design-score', 'Say “score and fix …”', 'Score localhost:3000 and fix the top issues, then show me the before → after.'],
       ['Check my changes before a PR', 'Finds the interface problems this branch introduced', 'interfaces:interface-review', '/interfaces:interface-review', '/interfaces:interface-review on this branch'],
       ['Accessibility: keyboard, focus, ARIA', 'Checks and fixes against WCAG 2.2', 'interfaces:better-accessibility', '/interfaces:better-accessibility', 'Make the modal and the dropdown fully keyboard accessible.'],
       ['Spacing, alignment, responsive', 'Grouping, reading order, mobile, RTL', 'interfaces:better-layout', '/interfaces:better-layout', 'The pricing cards break at 768px. Fix the layout and the spacing rhythm.'],
       ['Fonts and typography', 'Type scale, spacing, wrapping, truncation', 'interfaces:better-typography', '/interfaces:better-typography', 'Set a proper type scale for the blog and fix the orphans in headings.'],
       ['Colour, palette, contrast', 'Palettes, tokens, format conversion, contrast checks', 'interfaces:better-colors', '/interfaces:better-colors', 'Turn our five hex colours into an OKLCH token scale that passes AA.'],
+      ['Steal a site’s design tokens', 'Its palette, fonts, type scale, spacing, radii and shadows as DESIGN.md, CSS variables, a Tailwind theme or tokens JSON', 'design-score', 'Say “steal the style of …”', 'Steal the design tokens of the page I have open and save them as DESIGN.md and CSS variables.'],
       ['Small details: shadows, radii, icons', 'Exact values for polishing surfaces', 'interfaces:better-ui', '/interfaces:better-ui', 'The cards look flat and cheap. Give me exact shadow, radius and border values.'],
       ['Heuristic UX review', 'A design review scored against heuristics', 'impeccable critique', '/impeccable critique', 'Critique the signup flow against usability heuristics and score it.'],
       ['Final polish before release', 'One last quality pass', 'impeccable polish', '/impeccable polish', 'Polish the release page: alignment, states, the last 5%.'],
@@ -106,7 +110,7 @@ window.SITUATIONS = {
 window.SITUATIONS.source = (skill) => {
   const s = skill.toLowerCase();
   if (/^(superpowers|interfaces|impeccable|hallmark|security-audit|ytlens)/.test(s)) return 'companion';
-  if (/^(animate|animation-performance|improve-animations|find-animation|rich-report|design-md-library|third-party-install-guard|hyperframes)/.test(s)) return 'harness';
+  if (/^(animate|animation-performance|improve-animations|find-animation|rich-report|design-md-library|design-score|third-party-install-guard|hyperframes)/.test(s)) return 'harness';
   if (/^(figma|product-management)/.test(s)) return 'plugin';
   return 'claude';
 };

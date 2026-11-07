@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Find your situation: makkov-harness</title>
-<meta name="description" content="69 design and build situations, each with the skill that handles it, the command to call it and an example prompt to paste.">
+<meta name="description" content="Describe a design or build task in your own words and the router finds the skill. 72 situations, each with the skill that handles it, the command to call it and an example prompt to paste.">
 <meta property="og:title" content="Find your situation · makkov-harness">
-<meta property="og:description" content="69 situations, the skill for each, the command and a prompt to paste.">
+<meta property="og:description" content="Describe the task in your own words and get the skill, the command and a prompt to paste. 72 situations.">
 <meta property="og:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="sit.css?v=20261106c">
 <link rel="stylesheet" href="last.css?v=20261107c">
 <link rel="stylesheet" href="mobile.css?v=20261107j">
+<link rel="stylesheet" href="router.css?v=20261107b">
 <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('intro');setTimeout(function(){document.documentElement.classList.add('intro-go','intro-copy','intro-done')},5000);}</script>
 <!-- Page views: GoatCounter, no cookies, no personal data. Pinned v5 with SRI (reviewed 2026-11-07). Skip your own views: open the site once with #toggle-goatcounter. -->
 <script data-goatcounter="https://makkov-harness.goatcounter.com/count" async src="https://gc.zgo.at/count.v5.js" crossorigin="anonymous" integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
@@ -38,6 +39,8 @@
     <ul>
       <li class="hide-s"><a href="index.html#switch">Routing</a></li>
       <li class="hide-s"><a href="situations.html" aria-current="page">Situations</a></li>
+      <li class="hide-s"><a href="score.html">Score</a></li>
+      <li class="hide-s"><a href="security.html">Security</a></li>
       <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
       <li><a class="btn btn--primary btn--sm" href="index.html#install">Install</a></li>
     </ul>
@@ -48,18 +51,46 @@
   <section class="cat-hero" aria-labelledby="cat-title" data-hud="00 · situations">
     <div class="container">
       <h1 id="cat-title">Find your situation.</h1>
-      <p class="lead">Pick what you are doing right now. Each card gives the command and a prompt you can paste as it is. A few come with Claude itself or an official plugin rather than the harness.</p>
-      <ol class="habits" aria-label="Five habits worth keeping">
+      <p class="lead">Describe the task in your own words and the router finds the skill. Or browse all <span data-ask-count>72</span> situations below, each with the command and a prompt you can paste as it is. A few belong to Claude itself or an official plugin rather than the harness.</p>
+
+      <div class="ask" data-ask data-reveal>
+        <form class="ask-form" role="search" aria-label="Ask the router" data-ask-form>
+          <span class="eyebrow">Ask the router</span>
+          <label class="ask-label" for="ask-q">Describe the task in your own words</label>
+          <div class="ask-bar">
+            <svg class="ask-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.9-4.9"/></svg>
+            <input class="ask-input" id="ask-q" type="search" name="q" data-ask-input autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" maxlength="200" placeholder="e.g. the cards feel cramped" data-ph-short="e.g. the cards feel cramped" data-ph-long="For example: the pricing cards look cramped on mobile" aria-describedby="ask-note" aria-controls="ask-out" aria-keyshortcuts="/">
+            <kbd class="kbd ask-kbd" aria-hidden="true">/</kbd>
+            <button type="button" class="ask-clear" data-ask-clear aria-label="Clear the box" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+          </div>
+          <div class="ask-try">
+            <span class="ask-try-l" id="ask-try-l">Try</span>
+            <ul class="ask-chips" aria-labelledby="ask-try-l">
+              <li><button type="button" class="chip" data-ask-try="make the onboarding friendlier">make the onboarding friendlier</button></li>
+              <li><button type="button" class="chip" data-ask-try="is this font too small?">is this font too small?</button></li>
+              <li><button type="button" class="chip" data-ask-try="score my landing page">score my landing page</button></li>
+              <li><button type="button" class="chip" data-ask-try="install this MCP server">install this MCP server</button></li>
+              <li><button type="button" class="chip" data-ask-try="animate the toast">animate the toast</button></li>
+            </ul>
+          </div>
+        </form>
+        <div class="ask-out" id="ask-out" data-ask-out hidden></div>
+        <p class="ask-note" id="ask-note">Matched in your browser against the situations below. Nothing you type leaves this page.</p>
+        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-ask-status></p>
+      </div>
+
+      <ol class="habits" aria-label="Six habits worth keeping">
         <li class="spot" data-reveal><b>New feature? Talk it through first</b><code>/superpowers:brainstorming</code><span>before the first line of code</span></li>
         <li class="spot" data-reveal><b>Screen is ready? Audit it</b><code>/interfaces:better-interface</code><span>every dimension in one pass</span></li>
         <li class="spot" data-reveal><b>Figma link? Just paste it</b><code>figma-design-to-code</code><span>the Figma skills start on their own</span></li>
         <li class="spot" data-reveal><b>Before a PR? Review</b><code>/code-review</code><span>plus /interfaces:interface-review</span></li>
         <li class="spot" data-reveal><b>Installing something? Check it</b><code>install-guard</code><span>runs on its own, keep it on</span></li>
+        <li class="spot" data-reveal><b>Want a number? Score it</b><code>design-score</code><span>0–100, every point explained</span></li>
       </ol>
     </div>
   </section>
 
-  <section class="catalog" aria-label="All situations" data-hud="01 · catalog">
+  <section class="catalog" id="catalog" aria-label="All situations" data-hud="01 · catalog">
     <nav class="sit-rail" aria-label="Groups" data-sit-rail></nav>
     <div class="container" data-sit-catalog>
       <div class="cat-list" data-sit-list></div>
@@ -90,7 +121,7 @@
         <p class="foot-free">Free and open source under MIT. Made by a designer, for designers.</p>
       </div>
       <nav class="foot-cols" aria-label="Footer">
-        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="index.html#gate">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
+        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="score.html">Score</a></li><li><a href="security.html">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
         <div><h3>Project</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/releases">Releases</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li></ul></div>
         <div><h3>Community</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness/discussions">Discussions</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/issues">Issues</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CONTRIBUTING.md">Contributing</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/stargazers">Star it</a></li></ul></div>
       </nav>
@@ -99,8 +130,9 @@
   </div>
   <div class="foot-mark" data-glow role="img" aria-label="makkov harness"></div>
 </footer>
-<script src="situations-data.js?v=20261106c"></script>
+<script src="situations-data.js?v=20261107a"></script>
 <script src="situations.js?v=20261107e"></script>
+<script src="router.js?v=20261107b"></script>
 <script src="fx.js?v=20261107b"></script>
 </body>
 </html>

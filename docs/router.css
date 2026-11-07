@@ -1,0 +1,145 @@
+/* ===== Ask the router: describe the task in your own words, get the skill =====
+   One glass card at the top of the situations page: a big search field, a few suggestions, then the
+   best match drawn like a route (situation, a wire, the skill) with two alternates beside it.
+   Surfaces follow the site's nesting: card (the box) > tile (each result) > nest (command, prompt). */
+html:not(.js) .ask { display: none; }
+
+.ask { position: relative; isolation: isolate; margin-top: var(--space-xl); padding: var(--pad-card); border: 1px solid var(--glass-edge); border-radius: var(--r-card); background: linear-gradient(160deg, var(--tint-2), var(--tint-1) 60%), var(--color-paper-2); transition: border-color var(--dur-short) var(--ease-out); }
+/* a soft opal wash in the corner, the same air as the page behind it */
+.ask::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; background: radial-gradient(70% 90% at 0% 0%, var(--opal-1a), transparent 70%), radial-gradient(50% 70% at 100% 100%, var(--opal-2a), transparent 70%); }
+.ask:focus-within { border-color: var(--color-rule-2); }
+
+.ask-label { display: block; margin-top: var(--space-sm); font-family: var(--font-display); font-weight: 500; font-size: var(--text-title); line-height: 1.15; letter-spacing: -0.02em; color: var(--color-ink); }
+
+/* the field */
+.ask-bar { position: relative; margin-top: var(--space-md); }
+.ask-ico { position: absolute; left: 20px; top: 50%; translate: 0 -50%; width: 22px; height: 22px; fill: none; stroke: var(--opal-1); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ask-input { display: block; width: 100%; min-height: 68px; margin: 0; padding: 0 64px 0 56px; border: 1px solid var(--color-rule-2); border-radius: 16px; background: var(--color-paper); color: var(--color-ink); font: 500 clamp(1.0625rem, 0.45vw + 0.95rem, 1.375rem)/1.3 var(--font-body); letter-spacing: -0.005em; text-overflow: ellipsis; caret-color: var(--opal-2); -webkit-appearance: none; appearance: none; transition: border-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out); }
+.ask-input::placeholder { color: var(--ink-dim); opacity: 1; }
+.ask-input:hover { border-color: var(--color-line); }
+.ask-input:focus { outline: none; border-color: var(--opal-1); box-shadow: 0 0 0 4px var(--opal-1a); }
+.ask-input::-webkit-search-cancel-button, .ask-input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+.ask-kbd { position: absolute; right: 20px; top: 50%; translate: 0 -50%; pointer-events: none; transition: opacity var(--dur-short) var(--ease-out); }
+.ask-input:focus ~ .ask-kbd, .ask.has-q .ask-kbd { opacity: 0; }
+@media (hover: none), (pointer: coarse) { .ask-kbd { display: none; } }
+.ask-clear { position: absolute; right: 12px; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--color-muted); cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out); }
+.ask-clear svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.ask-clear:hover { background: var(--tint-2); color: var(--color-ink); }
+.ask-clear:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 0; }
+
+/* suggestions */
+.ask-try { display: flex; align-items: flex-start; gap: var(--space-sm); margin-top: var(--space-md); }
+.ask-try-l { flex: none; font: 500 12px/36px var(--font-outlier); color: var(--ink-quiet); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin: 0; padding: 0; list-style: none; min-width: 0; }
+.ask-chips .chip { white-space: normal; text-align: left; line-height: 1.2; padding-block: 6px; }
+
+/* results: the best match on the left, two alternates on the right */
+.ask-out { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-md); align-items: start; margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--glass-edge); }
+.ask-out--solo, .ask-out--none { grid-template-columns: minmax(0, 1fr); }
+.ask-best, .ask-alt { position: relative; display: flex; flex-direction: column; min-width: 0; padding: var(--pad-tile); border: 1px solid var(--glass-edge); border-radius: var(--r-tile); }
+.ask-best { gap: var(--space-md); background: linear-gradient(150deg, var(--opal-1a), transparent 46%), var(--color-paper); }
+.ask-out--solo .ask-best { max-width: 880px; }
+
+.ask-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); min-height: 24px; }
+.ask-meta .src { margin-left: auto; }
+.ask-flag { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 0 10px; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--opal-1a), var(--opal-2a)); box-shadow: inset 0 0 0 1px var(--glass-edge); color: var(--color-ink); font: 500 12px/1 var(--font-outlier); white-space: nowrap; }
+.ask-flag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--opal-2); }
+.ask-flag--loose { background: var(--tint-2); color: var(--color-ink-2); }
+.ask-flag--loose::before { background: transparent; box-shadow: inset 0 0 0 1px var(--color-ink-2); }
+.ask-group { font: 500 12px/1.2 var(--font-outlier); color: var(--ink-quiet); }
+
+.ask-for { display: grid; gap: 6px; font-size: var(--text-lg); line-height: 1.3; color: var(--color-ink-2); }
+.ask-for > span { font: 500 12px/1 var(--font-outlier); color: var(--ink-quiet); }
+
+/* the wire from the situation to the skill: the same signature as the home page's routing */
+.ask-wire { position: relative; height: 12px; }
+.ask-wire::before { content: ""; position: absolute; left: 0; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border: 1px solid var(--color-line-2); border-radius: 50%; background: var(--color-paper); }
+.ask-wire::after { content: ""; position: absolute; right: 0; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: var(--opal-2); box-shadow: 0 0 0 4px var(--opal-2a); }
+.ask-wire b { position: absolute; left: 9px; right: 9px; top: 50%; height: 1px; margin-top: -0.5px; background: var(--color-rule-2); overflow: hidden; }
+.ask-wire b::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--opal-1), var(--opal-2)); transform-origin: 0 50%; }
+
+.ask-name { margin: 0; max-width: none; font-family: var(--font-display); font-weight: 500; font-size: clamp(1.875rem, 2vw + 1.1rem, 3rem); line-height: 1.02; letter-spacing: -0.035em; color: var(--color-ink); overflow-wrap: anywhere; text-wrap: balance; }
+.ask-get { color: var(--color-ink-2); max-width: 56ch; }
+.ask .sit-cmd { margin-top: 0; }
+.ask .ask-prompt { margin-top: 0; }
+.ask-why { font-size: var(--text-sm); color: var(--color-muted); max-width: 68ch; }
+.ask-why b { margin-right: 6px; font: 500 12px/1 var(--font-outlier); color: var(--opal-2); }
+.ask-loose { font-size: var(--text-sm); color: var(--ink-quiet); }
+.ask-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--glass-edge); }
+
+.ask-go { display: inline-flex; align-items: center; gap: var(--space-xs); min-height: 44px; padding: 0; border: 0; background: none; color: var(--color-ink-2); font: 500 var(--text-sm)/1.2 var(--font-body); text-align: left; text-decoration: none; cursor: pointer; transition: color var(--dur-short) var(--ease-out); }
+.ask-go svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; transition: translate var(--dur-short) var(--ease-out); }
+.ask-go:hover { color: var(--color-ink); }
+.ask-go:hover svg { translate: 0 2px; }
+.ask-go:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 6px; }
+
+.ask-alts { display: grid; gap: var(--space-sm); min-width: 0; }
+.ask-alts-h { padding-top: var(--space-2xs); font: 500 12px/1 var(--font-outlier); color: var(--ink-quiet); }
+.ask-alt { gap: var(--space-xs); background: var(--color-paper); }
+.ask-alt h3 { font-size: var(--text-lg); line-height: 1.2; letter-spacing: -0.015em; }
+.ask-alt-skill code { font: 500 13px/1.35 var(--font-code); color: var(--opal-2); overflow-wrap: anywhere; letter-spacing: 0; }
+.ask-alt-what { font-size: var(--text-sm); color: var(--ink-quiet); }
+.ask-alt .sit-cmd { margin-top: var(--space-2xs); }
+.ask-alt .ask-go { align-self: flex-start; }
+
+/* row text can hold long unbroken bits (paths, links); they wrap instead of pushing the card wide */
+.ask p, .ask h3, .ask code { overflow-wrap: anywhere; }
+
+/* the words that matched, lit in opal */
+.ask mark { color: var(--color-ink); background: var(--opal-1a); border-radius: 4px; padding: 0 2px; margin: 0 -2px; box-shadow: inset 0 -1px 0 var(--opal-1); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+/* nothing matched, or not enough words yet */
+.ask-none { display: grid; justify-items: start; gap: var(--space-xs); }
+.ask-none-h { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); letter-spacing: -0.015em; color: var(--color-ink); }
+.ask-none p:not(.ask-none-h) { max-width: 62ch; color: var(--color-muted); }
+.ask-none .ask-go { margin-top: var(--space-2xs); }
+/* the full-audit command offered when a query only says that something looks wrong */
+.ask-none .sit-cmd { justify-self: stretch; max-width: 30rem; margin-top: 0; }
+
+.ask-note { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-md); font-size: var(--text-xs); color: var(--ink-quiet); }
+.ask-note::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--opal-2); }
+
+/* a fresh answer arrives the way a route is thrown: parts rise in, the wire fills, the name settles */
+@media (prefers-reduced-motion: no-preference) {
+  .ask-out.is-fresh .ask-best > * { animation: ask-in 520ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 45ms); }
+  .ask-out.is-fresh .ask-wire b::after { animation: ask-throw 640ms var(--ease-out) 60ms both; }
+  .ask-out.is-fresh .ask-wire::after { animation: ask-node 460ms var(--ease-out) 560ms both; }
+  .ask-out.is-fresh .ask-name { animation: ask-name 760ms var(--ease-out) 140ms both; }
+  .ask-out.is-fresh .ask-alts-h { animation: ask-in 420ms var(--ease-out) 160ms both; }
+  .ask-out.is-fresh .ask-alt { animation: ask-in 520ms var(--ease-out) both; animation-delay: calc(200ms + var(--i, 0) * 80ms); }
+  .ask-out.is-fresh .ask-none { animation: ask-in 420ms var(--ease-out) both; }
+}
+@keyframes ask-in { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@keyframes ask-name { from { opacity: 0; translate: 0 0.18em; filter: blur(10px); } to { opacity: 1; translate: 0 0; filter: blur(0); } }
+@keyframes ask-throw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ask-node { 0% { opacity: 0.2; scale: 0.4; } 60% { opacity: 1; scale: 1.35; } 100% { opacity: 1; scale: 1; } }
+
+/* "Show it in the list": the card in the catalog lights up for a moment */
+.sit.ask-flash { border-color: var(--opal-1); box-shadow: 0 0 0 1px var(--opal-1), 0 0 0 8px var(--opal-1a); }
+@media (prefers-reduced-motion: no-preference) { .sit.ask-flash { animation: ask-flash 2400ms var(--ease-out) both; } }
+@keyframes ask-flash { 0%, 55% { box-shadow: 0 0 0 1px var(--opal-1), 0 0 0 10px var(--opal-1a), 0 0 48px var(--opal-1a); } 100% { box-shadow: 0 0 0 1px transparent, 0 0 0 0 transparent, 0 0 0 transparent; } }
+
+/* six habits sit as two rows of three on wide screens; six across would break their commands mid-word */
+@media (min-width: 60.01rem) { .cat-hero .habits { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+@media (max-width: 60rem) {
+  .ask-out { grid-template-columns: minmax(0, 1fr); }
+  .ask-out--solo .ask-best { max-width: none; }
+}
+@media (max-width: 40rem) {
+  .ask { margin-top: var(--space-lg); padding: var(--pad-tile); }
+  .ask-label { font-size: var(--text-lg); }
+  .ask-ico { left: 16px; width: 20px; height: 20px; }
+  .ask-input { min-height: 60px; padding: 0 56px 0 46px; border-radius: 14px; font-size: 1.0625rem; }
+  .ask-clear { right: 8px; }
+  .ask-try { flex-direction: column; gap: var(--space-2xs); }
+  .ask-try-l { line-height: 1.2; }
+  .ask-chips .chip { min-height: 40px; }
+  .ask-best, .ask-alt { padding: var(--space-md); }
+  .ask-for { font-size: var(--text-md); }
+  .ask-acts { justify-content: flex-start; }
+}
+@media (forced-colors: active) {
+  .ask mark { box-shadow: none; }
+  .ask-wire b::after, .ask-wire::after { background: CanvasText; }
+}

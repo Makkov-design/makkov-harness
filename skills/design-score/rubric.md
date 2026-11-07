@@ -1,0 +1,161 @@
+# Design Score rubric
+
+This is the method behind Design Score: what the probe (`src/probe.js`) measures, how each measurement turns into points, and how an agent scores the parts that code cannot measure. Every threshold below is the one the code uses. If you change a number in `probe.js`, change it here in the same commit.
+
+A score is a guide, not a verdict. It measures what code can measure on one page, at one viewport, at one moment. It cannot tell whether a design is right for its audience.
+
+## Two passes, never blended
+
+| Pass | Who scores it | Input | Output |
+|---|---|---|---|
+| **Measured** | The probe, inside a real page | Computed styles, layout boxes and readable stylesheets of the live DOM | 0–100 score, grade, seven category scores, every check with its value |
+| **Judged** | The agent, by eye | A screenshot, a Figma frame, or the page itself | Five criteria scored 0–10 each, with one line of evidence per criterion |
+
+Report the two side by side ("Measured 82/100 (B) · Judged 36/50"). Never fold the judged points into the measured score, and never present a judged number as measured. When only a screenshot or a design file is available, run the judged pass alone and say plainly that nothing could be measured.
+
+## How points add up
+
+0. **Enough to measure.** Before any check runs, the page must have rendered something to score: 5 or more text blocks with a letter or digit, or 100 or more characters of such text, or 3 or more visible controls. Below that (a canvas app built with WebGL or Flutter web, a shell whose content sits in a cross-origin iframe, a single-page app scored before it rendered) the result carries an `error` that says so and counts what was found, every category has `score: null`, and no score is reported. `score: 0` and grade `F` on an error result only keep the shape of the object; never show them as a measurement.
+1. **Checks.** Each check produces a score from 0 to 100 using the piecewise-linear curve listed with it: between two listed points the score is interpolated in a straight line, beyond the ends it stays flat. Status: `pass` at 90 or more, `warn` from 50 to 89, `fail` below 50. A check that finds at least one real offender (one failing contrast pair, one unnamed button) is capped at 89 so it never shows as a pass.
+2. **Skips.** A check that cannot measure (no images on the page, cross-origin stylesheets, viewport too wide for the phone check, an error) gets `status: "skip"`, `score: 0` and a reason in `display`. Skipped checks are left out of every average. Checks that score the *absence* of a problem (palette, near duplicates, accents, overflow, fixed widths, endless animations) also skip when they found no offender on a page with fewer than 8 visible elements (html and body not counted), and the radii and shadow checks skip below 5 boxes with a visible surface, so a near-empty page cannot fill categories with free 100s. When every check skips, the result is an `error`, not a score.
+3. **Categories.** Category score = weighted mean of its measured checks, using the check weights below. A category with no measured check has `score: null` and `measured: false`.
+4. **Overall.** Weighted mean of the measured categories, with the category weights renormalised to the ones that were measured. Rounded to an integer.
+5. **Grades.** A+ 95 and up, A 85, B 75, C 65, D 50, F below 50.
+6. **Issues.** Every `warn` or `fail` check becomes one issue. Its `impact` is the number of overall points it costs: (category weight ÷ sum of measured category weights) × (check weight ÷ sum of measured check weights in the category) × (100 − check score). Severity is `high` when impact is 3 or more, or when the check fails and impact is 1.5 or more; `medium` when impact is 1 or more, or the check fails; otherwise `low`. Issues are sorted by impact and capped at 40, examples at 12 per check.
+
+| Category | Weight | Checks (weight) |
+|---|---|---|
+| Accessibility | 25 | contrast (3), alt text (2), form labels (2), button and link names (2), language (1), headings (1.5), tap targets (1.5), focus styles (1), pinch zoom (1) |
+| Typography | 20 | families (1.5), sizes (2), body size (2), line height (1.5), line length (1.5), scale rhythm (1), all caps (0.75), weights (0.75) |
+| Color | 15 | palette size (1.5), near duplicates (1.5), text colour discipline (1), accent discipline (1) |
+| Layout and spacing | 20 | 4px grid (2), spacing scale size (1.5), alignment edges (1.5), overflow (1.5), text column width (1) |
+| Responsive | 10 | viewport meta (2), horizontal scroll (2), media fit (1.5), fixed widths (1.5), small text on phones (1.5) |
+| Motion | 5 | reduced motion (2), endless animations (1.5), transition length (1.5) |
+| Consistency | 5 | corner radii (1), shadows (1), button styles (1.5) |
+
+### Calibration
+
+The curves were set so that a carefully designed modern marketing site lands around 80–95, an average site around 60–80, and the deliberately broken fixture (`test/fixtures/bad.html`) under 45. The careful fixture (`test/fixtures/good.html`) should score 85 or more. `test/expect.md` lists what each fixture should yield per category.
+
+## Sampling
+
+- The probe walks the DOM from `options.root` (default `document.documentElement`) in document order, including open shadow roots. It skips `script`, `style`, `template`, `head` and similar, the Design Score overlay (`#mh-score-root`) and every `display: none` subtree. It measures `svg`, `img`, `video`, `canvas`, `iframe`, `select` and `textarea` as single boxes without walking inside them.
+- Illustrations built from HTML are treated like pictures. A subtree marked `aria-hidden="true"` (decorative by the page's own word; WCAG exempts decorative text from contrast) or `data-design-score="ignore"` is skipped, and a `role="img"` box is measured as one picture without walking inside it. This keeps a product mock-up drawn in HTML from counting as the page's own fonts, colours, radii and buttons, the way a screenshot would not. The page itself, `body`, and any subtree that holds `main`, `h1` or `role="main"` are never set aside. Subtrees with 8 or more elements inside are counted as `scanned.decorative`; small decorative icons are skipped without being counted.
+- Ancestry follows the flat tree, the tree the browser paints: a light-DOM node assigned to a `<slot>` has that slot as its parent, and a shadow root's top elements have the host. Backgrounds behind text, clipping by ancestors and parent boxes are all read this way, and `display: contents` elements are skipped as parents because they draw no box. Text that a shadow host renders through a slot (`<sl-button>Save</sl-button>`) takes its colour, size and weight from the slot, as the browser does.
+- It reads `getComputedStyle` and `getBoundingClientRect` once per element and caches them. It never changes the page: the only element it creates is a detached 1×1 canvas used to parse colours the parser does not know.
+- Limits: `maxElements` (default 4000) elements, and collection stops at 60% of `timeBudgetMs` (default 2500 ms). The budget covers the whole run: the contrast scan stops when it is used up, and checks that would start after it are skipped with "the time budget ran out". If that leaves less than half of the category weight measured, the result is an `error` asking for a re-run or a larger `timeBudgetMs`. Any limit sets `scanned.truncated: true` and `scanned.stoppedBy` (`"elements"` or `"time"`); the page is then judged on its first elements in document order.
+- An element is *visible* when its `visibility` is `visible` and its box is larger than zero. Opacity is ignored on purpose, because reveal-on-scroll pages keep content at opacity 0 until it scrolls into view.
+- A *text block* is a visible element with its own text node (not only text inside children). A *paragraph* is a block-level text block (block, list-item, flex, grid, flow-root, table cell or caption) with at least 40 characters of text, not a button, link, label, input, summary, option, table header, `code`, `pre`, `kbd` or `samp`, and not mostly CJK text.
+
+### Colour
+
+Computed colours are parsed in every syntax modern browsers return: `#hex` (3, 4, 6, 8 digits), `rgb()`/`rgba()` with commas or spaces and percentages, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()` (numbers, percentages, angle units, `none`), `color()` in `srgb`, `srgb-linear`, `display-p3`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`, `transparent`, common named colours, and anything else through a canvas fallback. Wide-gamut colours are converted through CIE XYZ with the CSS Color 4 matrices and clipped to sRGB, an approximation for out-of-gamut colours. Alpha is kept everywhere. Colour distance is ΔE OK: Euclidean distance in OKLab (0–1 scale; 0.02 is about one just-noticeable difference).
+
+## Measured checks
+
+### Accessibility (25)
+
+| Check | What is measured | Curve (x → score) |
+|---|---|---|
+| **Text contrast** `a11y-contrast` · 3 | Every text block with a letter or digit, at least 2 characters and a box of 2px or more, not inside `aria-hidden` and not disabled. The text colour (or `-webkit-text-fill-color`) is composited over the background, which is built by compositing translucent `background-color` layers up the flat-tree ancestor chain until the first opaque one, over white (or the dark canvas `#121212` when the page opts into dark through `color-scheme` on `<html>` or `<meta name="color-scheme">`; `light dark` follows the viewer's preference). Text over a `background-image` or gradient on an ancestor and gradient-clipped text are skipped. Media or imagery painted under the text by a sibling is found at the text's centre-left point: in the viewport with `elementsFromPoint` (up to 300 blocks); elsewhere, and when the hit test cannot find the text, by geometry: an `img`, `svg`, `video`, `canvas`, `iframe`, `picture` or background-image box of at least 40 × 20px that covers the point, lies inside the text's nearest opaque ancestor (or anywhere, when nothing behind the text is opaque), and is neither inside the text nor one of its ancestors. A fixed box that fills the viewport counts at every scroll position. Skipped blocks are counted and reported. Large text is 24px or more, or 18.5px and weight 700 or more. Required: 4.5:1, or 3:1 for large text (WCAG 2.2 AA, 1.4.3). | share of blocks failing: 0 → 100, 2% → 90, 5% → 75, 10% → 55, 20% → 30, 35% → 0; capped at 89 with any failure |
+| **Image alt text** `a11y-alt` · 2 | Visible `img`, `input[type=image]` and `role="img"` elements of 2px or more, excluding `role="presentation"`/`none` and `aria-hidden`. Fails when there is no `alt` and no `aria-label`/`aria-labelledby`, when the alt looks like a file name (`IMG_2041.jpg`) or a placeholder word (`image`, `photo`, `untitled`), or when a `role="img"` element has no name and no `<title>`. `alt=""` passes (decorative). | share failing: 0 → 100, 10% → 70, 25% → 45, 50% → 15, 75% → 0; capped at 89 |
+| **Form labels** `a11y-labels` · 2 | `input` (except hidden, submit, button, reset, image), `select`, `textarea` and `role` textbox, combobox, searchbox, spinbutton, listbox. A field is labelled by `aria-labelledby`, `aria-label`, `title` or a `<label>` (for or wrapping) with text. A placeholder alone counts as half a miss. | share missing: 0 → 100, 15% → 65, 34% → 35, 60% → 0; capped at 89 |
+| **Button and link names** `a11y-names` · 2 | `a[href]`, `button`, `summary`, `role` button, link, menuitem, tab, and button-type inputs. The name follows a simplified accessible-name computation: `aria-labelledby`, `aria-label`, input `value`/`alt`, then text content including descendants' `alt`, `aria-label` and SVG `<title>` (skipping `aria-hidden` and `display: none`), then `title`. | share unnamed: 0 → 100, 5% → 75, 15% → 45, 30% → 15, 50% → 0; capped at 89 |
+| **Page language** `a11y-lang` · 1 | `lang` (or `xml:lang`) on `<html>`, checked against the shape of a BCP 47 tag. | valid 100, present but invalid 40, missing 0 |
+| **Heading structure** `a11y-headings` · 1.5 | `h1`–`h6` and `role="heading"` (with `aria-level`, default 2) that have text and are not `aria-hidden`; visually hidden headings count. | 100, minus 35 with no h1, minus 10 for two h1s and 5 more per extra h1 (at most 30), minus 15 per skipped level (at most 60). No headings at all: 30 when the page has 8 or more text blocks, otherwise skipped |
+| **Tap target size** `a11y-targets` · 1.5 | Visible interactive elements: links, buttons, inputs, selects, textareas, summaries, interactive ARIA roles, and `tabindex` elements with a pointer cursor. Excluded: targets parked off-screen, opacity 0 or 2px inputs behind custom controls, native checkboxes and radios (user-agent controls), and inline links inside a sentence. A target under 24 × 24 CSS px fails only when it is crowded, per the WCAG 2.2 2.5.8 spacing exception: a 24px circle centred on it overlaps another small target's circle (centres closer than 24px) or comes within 12px of a full-size target. Up to 1500 small targets are judged. | share failing: 0 → 100, 5% → 80, 15% → 50, 30% → 20, 50% → 0; capped at 89 |
+| **Focus styles** `a11y-focus` · 1 | Readable stylesheets (including `@media`, `@supports`, `@layer`, nested rules and `@import`s, up to 15,000 rules) and inline `style` on interactive elements. A *removal* is `outline: none`/`0`, `outline-style: none`/`hidden`, `outline-width: 0` or `outline-color: transparent` on a `:focus` or `:focus-visible` selector, or on a base selector that matches interactive elements (`*`, `a`, `button`, `input`, `.btn`…). `:focus:not(:focus-visible)` is fine. A removal is replaced when the same rule draws a box-shadow, border, background or underline (focus selectors only), or when any `:focus-visible` or `:focus` rule draws an outline or box-shadow. Removals of `:focus-visible` itself must be replaced in the same rule. All inline removals together count as one. | unreplaced removals: 0 → 100, 1 → 40, 3 → 15, 6 → 0; skipped when no stylesheet is readable and no inline removal exists, and when the page has no removal and no visible interactive element |
+| **Pinch zoom** `a11y-zoom` · 1 | The viewport meta tag. `user-scalable=no` (or `0`) or `maximum-scale` below 2 blocks the 200% zoom WCAG 1.4.4 asks for. | blocked 0, allowed 100 (no tag counts as allowed) |
+
+### Typography (20)
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Font families** `type-families` · 1.5 | The first family of each text block's `font-family` (split at top-level commas, so quoted names stay whole), with system aliases merged (`-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `ui-sans-serif` → system-ui; `SF Mono`, `Menlo`, `Consolas` → ui-monospace) and icon fonts ignored. Hashed next/font names are read as the family they serve (`__Inter_aaf875` → Inter) and their generated `__Inter_Fallback_aaf875` entries are dropped. The first family is what was asked for; the probe cannot tell whether it loaded. Names in issue text are quoted and capped at 40 characters, six at most. | count: 3 or fewer → 100, 4 → 75, 5 → 50, 6 → 25, 7 → 0 |
+| **Distinct font sizes** `type-sizes` · 2 | Font sizes of text blocks, rounded to whole pixels. | 8 or fewer → 100, 10 → 80, 12 → 55, 14 → 30, 16 → 10, 18 → 0 |
+| **Body text size** `type-body` · 2 | The size (to 0.5px) that carries the most characters across paragraphs outside `footer`, `nav` and their ARIA roles (small print there is by design; they count only when the rest holds under 200 characters); all text when paragraphs hold under 200 characters; skipped under 200 characters in total. | 11 → 0, 12 → 10, 13 → 30, 14 → 60, 15 → 85, 16 and up → 100 |
+| **Body line height** `type-leading` · 1.5 | Paragraphs under 24px that run at least two lines (box height ≥ 1.8 line heights). Ratio = line height ÷ font size; `normal` is taken as 1.2. Each paragraph is scored, then averaged by character count. | 1.0 → 0, 1.15 → 20, 1.3 → 70, 1.4 to 1.75 → 100, 1.9 → 80, 2.1 → 40, 2.5 → 0 |
+| **Line length** `type-measure` · 1.5 | Paragraphs under 24px with 120+ characters and 3+ lines. Characters per line = characters ÷ (lines − 0.35), the 0.35 allowing for a short last line. Averaged by character count. | 15 → 0, 25 → 40, 35 → 85, 40 to 85 → 100, 95 → 80, 110 → 40, 130 → 10, 150 → 0 |
+| **Type scale rhythm** `type-scale` · 1 | Sizes used at least twice or by a heading (every size when fewer than three qualify), sorted. For each pair of neighbours, a ratio under 1.06 is a fully crowded step and 1.06–1.10 a half-crowded one. Regularity is the standard deviation of ln(ratio) over steps between 1.06 and 1.6 (bigger jumps, such as display to body, are a choice, not noise). | crowded weight ÷ steps: 0 → 100, 0.2 → 75, 0.4 → 40, 0.6 → 15, 0.8 → 0; spread: 0.1 or less → 100, 0.2 → 65, 0.3 → 35, 0.45 → 0; score = 0.7 × crowding + 0.3 × regularity; skipped with fewer than three sizes |
+| **Long all-caps text** `type-caps` · 0.75 | Text blocks with 25 or more letters set in capitals (`text-transform: uppercase` or literal). Share of all text characters; skipped under 100 characters. | 0 → 100, 2% → 90, 5% → 65, 10% → 35, 20% → 0 |
+| **Font weights** `type-weights` · 0.75 | Distinct weights of text blocks, rounded to 50. | 4 or fewer → 100, 5 → 80, 6 → 55, 7 → 30, 9 → 0 |
+
+### Color (15)
+
+Colour uses come from visible elements: the text colour of text blocks (weighted by characters), `background-color` (weighted by area) and the colour of every border side wider than 0 with a style other than none (once per colour per element). Translucent colours are composited over the page background (html, then body, over the canvas) so overlays count as the colour people see.
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Palette size** `color-palette` · 1.5 | Distinct colours after merging, most used first, every colour closer than ΔE 0.02 to an earlier one. | 16 or fewer → 100, 24 → 80, 32 → 50, 44 → 15, 56 → 0; skipped at 16 or fewer on a page under 8 visible elements |
+| **Near-duplicate colours** `color-near` · 1.5 | Among the 80 most used colours, each colour within ΔE 0.02 (but not the same hex) of a more used one: almost, but not exactly, the same colour. Each look-alike counts once, so a run of three similar greys is two copies, not three pairs. | copies: 0 → 100, 2 → 90, 4 → 75, 8 → 45, 14 → 15, 20 → 0; none on a page under 8 visible elements → skipped |
+| **Text colour discipline** `color-text` · 1 | Share of text characters in the three largest text colour groups (merged at ΔE 0.02). Skipped under 100 characters. | 50% → 10, 70% → 50, 80% → 75, 90% and up → 100 |
+| **Accent discipline** `color-accent` · 1 | Chromatic colours (OKLCH chroma 0.05 or more, lightness between 0.12 and 0.98) grouped into hue families: sorted by hue, a gap of 25° or more starts a new family, and the ends wrap around. A family used only once counts half. | 4 or fewer → 100, 5 → 80, 6 → 60, 7 → 40, 9 → 10, 10 → 0; no chromatic colour → 100; 4 or fewer (or none) on a page under 8 visible elements → skipped |
+
+### Layout and spacing (20)
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Spacing on a 4px grid** `layout-grid` · 2 | Margins (four sides), paddings and flex/grid row and column gaps of visible elements other than html and body; one entry per element per distinct value; absolute values from 0.25 to 400px. Auto margins are free space, not spacing, so they are skipped: equal left and right margins above 24px (auto-centring); any margin the Typed OM (`computedStyleMap`) reports as `auto`, checked for horizontal margins on block boxes and for vertical margins on flex and grid children and absolutely positioned boxes (the only places vertical auto margins take space); and, where the Typed OM is missing (Firefox), margins above 24px that are not whole pixels on flex and grid children. Equal top and bottom margins are not treated as auto, because authored `margin: 48px 0` is common. Vertical padding of inline elements is skipped. On grid = within 0.5px of a multiple of 4, or 2.5px or less (hairlines). | share on grid: 30% → 0, 50% → 30, 70% → 65, 80% → 85, 90% and up → 100; skipped with fewer than 8 values |
+| **Spacing scale size** `layout-steps` · 1.5 | Distinct spacing values from the same sample, rounded to whole pixels. | 12 or fewer → 100, 18 → 80, 26 → 45, 36 → 10, 44 → 0 |
+| **Shared alignment edges** `layout-align` · 1.5 | Block-level text blocks 20px or wider (not controls, links, labels, table cells or fixed elements). Each gets an anchor: the left edge of its content box, the centre for centred text, the right edge for right-aligned text (RTL aware). A block is aligned when another block of the same kind has an anchor within 0.75px. | share aligned: 30% → 0, 50% → 35, 65% → 60, 80% → 85, 90% and up → 100; skipped under 6 blocks |
+| **Content stays inside its box** `layout-overflow` · 1.5 | (a) Non-inline text blocks with `overflow-x: visible` whose `scrollWidth` exceeds `clientWidth` by more than 2px (long words, URLs). (b) In-flow children (not absolute, fixed or transformed, no negative side margins) that extend more than 4px past their parent's box, when the parent shows overflow and no ancestor clips it (carousels clip on purpose). html and body are left to the responsive checks. | elements: 0 → 100, 1 → 80, 3 → 55, 6 → 25, 10 → 0; capped at 89; none on a page under 8 visible elements → skipped |
+| **Text column width** `layout-width` · 1 | Paragraphs under 24px with 80+ characters that run at least two lines. Content-box width ÷ font size, in em. Averaged by character count. | 8em → 0, 14 → 50, 18 → 85, 20 to 42 → 100, 50 → 70, 62 → 25, 75 → 0 |
+
+### Responsive (10)
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Viewport meta tag** `resp-viewport` · 2 | `<meta name="viewport">` with `width=device-width`. | missing 0, present without device-width 50, correct 100 |
+| **No horizontal scroll** `resp-scroll` · 2 | Overflow = the larger of html and body `scrollWidth`, minus html `clientWidth`. When html or body has `overflow-x: hidden` or `clip`, there is no scroll; the check then looks for in-flow elements (not absolute, transformed or `aria-hidden`) that reach past the right edge and are cut off. | overflow: 1px → 100, 2 → 60, 16 → 40, 80 → 20, 300 → 0; no overflow 100; clipped in-flow content 75 |
+| **Media fits its container** `resp-media` · 1.5 | `img`, `svg`, `video`, `canvas`, `iframe`, `embed`, `object` of 8px or more, not absolute or fixed, that are more than 2px wider than the content box of their nearest non-inline container, or reach past the viewport, and are not clipped by an ancestor. | count: 0 → 100, 1 → 65, 3 → 35, 6 → 0; capped at 89 |
+| **No fixed widths wider than the screen** `resp-fixed` · 1.5 | In-flow elements whose box or `min-width` is wider than the viewport, outside any clipping or scrolling ancestor; only the outermost of nested offenders counts. | count: 0 → 100, 1 → 55, 3 → 25, 6 → 0; capped at 89; none on a page under 8 visible elements → skipped |
+| **Readable text on small screens** `resp-small-text` · 1.5 | Only when the viewport is under 600px wide: share of text characters under 12px. Re-run at 390px wide to measure it. | 0 → 100, 3% → 90, 8% → 65, 15% → 35, 30% → 0; skipped at 600px and wider |
+
+### Motion (5)
+
+Motion exists when a visible element has an animation with a name and a duration above 0, a transition with a duration above 0 on a property that moves things (`transform`, `translate`, `scale`, `rotate`, `top`, `left`, `right`, `bottom`, `inset`, `margin*`, `width`, `height`, `max-height`, `offset*` or `all`), or when html or body has `scroll-behavior: smooth`.
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Reduced motion respected** `motion-reduced` · 2 | A `prefers-reduced-motion` condition anywhere in readable CSS (`@media`, `@supports`, `@import` or `<link media>`), or an inline script that mentions it. | handled 100; motion and no rule in fully readable CSS 0; skipped when there is no motion, or when no rule was found but some stylesheets are cross-origin |
+| **Endless animations** `motion-infinite` · 1.5 | Running `infinite` animations on visible elements larger than 48 × 48px (smaller spinners, `role="progressbar"` and `aria-busy` are exempt). WCAG 2.2.2 asks for a way to pause motion that lasts more than five seconds. | count: 0 → 100, 1 → 70, 2 → 50, 4 → 20, 6 → 0; plus 15 (at most 89) when reduced motion is handled; none on a page under 8 visible elements → skipped |
+| **Transition length** `motion-duration` · 1.5 | Elements whose transition runs longer than 700ms, or whose one-off (non-infinite) animation runs longer than 1000ms, as a share of all elements with motion. | 0 → 100, 5% → 90, 15% → 65, 30% → 35, 50% → 0; skipped when nothing has a transition or animation (there is nothing to time) |
+
+### Consistency (5)
+
+| Check | What is measured | Curve |
+|---|---|---|
+| **Corner radii** `cons-radii` · 1 | Elements with a visible surface (background, border, visible shadow, background image, or an image, video, canvas, button or form field) and a radius above 0. The largest corner counts; a radius of at least half the short side, or 50% and more, is one "pill" value. | distinct: 6 or fewer → 100, 7 → 85, 8 → 70, 10 → 40, 12 → 15, 14 → 0; no radii 100; skipped with fewer than 5 surfaces (html and body not counted) |
+| **Shadows** `cons-shadows` · 1 | Distinct computed `box-shadow` values on visible elements, after dropping invisible layers: a fully transparent colour, or no offset, no blur and no positive spread (Tailwind's `shadow-none` and `ring-0`, and the filler layers in Tailwind v4 shadows). A value with no visible layer left counts as no shadow, also for the surface test and the exported tokens. | 5 or fewer → 100, 6 → 85, 8 → 60, 12 → 20, 16 → 0; no shadows 100; skipped with fewer than 5 surfaces |
+| **Button styles** `cons-buttons` · 1.5 | `button`, `role="button"`, button-type inputs, and links that look like buttons (not inline, left padding 6px or more, a background or border, 40 characters or less). Style signature: background, border width and colour, radius, top and left padding (to 2px), font size and weight; a button with no background and no border is a text button, and its radius and padding (invisible) are left out. | distinct: 5 or fewer → 100, 6 → 85, 8 → 60, 10 → 35, 14 → 0; skipped with fewer than 2 buttons |
+
+## Judged criteria (agent pass)
+
+Score each criterion from 0 to 10 by eye, at the viewport you were given, and write one line of evidence that points at something visible ("the hero has three buttons of equal weight"). Use the anchors; a 10 is rare. Total out of 50.
+
+| Criterion | 0–2 | 3–4 | 5–6 | 7–8 | 9–10 |
+|---|---|---|---|---|---|
+| **Hierarchy**: can you tell what matters, in what order, at a glance? | Everything shouts or everything whispers; no entry point | A title stands out, the rest is flat | Clear title and sections; secondary content competes in places | One obvious entry point, a clear second and third level | The eye moves exactly where the page intends, at every scroll position |
+| **Primary action clarity**: is the main thing to do obvious? | No identifiable action, or several of equal weight | An action exists but is hidden or worded vaguely | One main action, but competing buttons dilute it | One clear primary action with a specific label; secondary actions are visibly secondary | The next step is unmistakable and repeated at the right moments, nowhere more |
+| **Density**: is the amount of content right for the job? | Cramped walls of content, or a near-empty page that says nothing | Uneven: dense blocks next to empty stretches | Workable, with a few crowded or padded areas | Comfortable rhythm; space groups related things | Every area has exactly the room it needs; scanning feels effortless |
+| **Component consistency**: do the same things look and behave the same? | Every card, button and field is styled differently | Two or three competing styles for the same component | One system with visible exceptions | A clear system with rare, deliberate variants | Components read as one family down to icons, states and spacing |
+| **Polish**: alignment, details, states, finish | Broken layout, clipped text, misaligned edges everywhere | Several visible flaws (overflow, mismatched icons, uneven gaps) | Clean at a glance, flaws on close inspection | Careful details: aligned edges, consistent icons, considered empty and hover states | Nothing to fix at normal zoom; details feel intentional |
+
+How to run the judged pass:
+
+- Look at the whole page first, then each section. Judge the design, not the content's truth.
+- Use the measured results to inform the eye, not to replace it: a low contrast score does not automatically mean low polish.
+- With a Figma frame or a screenshot only, say "Judged only: no measurement was possible" and skip every measured number.
+- Report `Judged 36/50` with the five lines of evidence. If the person asks for one number, give both and explain why they stay separate.
+
+## Known limits
+
+- One viewport at a time. Run at 1440 × 900 and at 390 × 844 for the full picture; the phone-only check is skipped on wide viewports.
+- Cross-origin stylesheets cannot be read in the browser, so focus and reduced-motion checks may be skipped on sites that serve CSS from another domain.
+- Contrast ignores opacity, filters, blend modes and text shadows, and skips text over images and gradients. It checks text, not icons or focus rings (WCAG 1.4.11). Imagery painted by `::before`/`::after` pseudo-elements, CSS masks, or a box that the stacking order puts behind an opaque layer the geometry cannot see may still be judged against the colour underneath; closed shadow roots cannot be walked at all.
+- Auto margins are read exactly through the Typed OM in Chromium and Safari; in Firefox a heuristic stands in, so a whole-pixel auto margin in a flex row can still count as a spacing value there.
+- Every value read from the page (font names, attribute values, selectors) is quoted and capped in the result, and becomes a code span in the fix prompt, which tells the agent to treat such values as data, not instructions.
+- Hover, focus and active states are not measured; only the state on screen is.
+- Font families are read as requested, not as rendered; a missing web font still counts as its family.
+- Huge pages are judged on their first `maxElements` elements in document order (`scanned.truncated`).
+- The accessible-name computation is simplified; a full audit with assistive technology still matters.

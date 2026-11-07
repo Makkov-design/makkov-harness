@@ -19,6 +19,7 @@
 <p align="center">
   <a href="#install-in-two-minutes"><b>Install in two minutes</b></a> &nbsp;|&nbsp;
   <a href="https://makkov-design.github.io/makkov-harness/">Website</a> &nbsp;|&nbsp;
+  <a href="#design-score-lighthouse-for-design">Design Score</a> &nbsp;|&nbsp;
   <a href="ROUTING.md">The routing map</a> &nbsp;|&nbsp;
   <a href="SECURITY.md">Security verdicts</a>
 </p>
@@ -38,6 +39,26 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/#fix"><img src=".github/assets/before-after.gif" alt="Same screen, five skills later: a raw generated CRM screen gets its spacing, alignment, type, colour and motion fixed one skill at a time, the design score climbs from 41 to 96, then a demo cursor tours the finished screen." width="100%"></a></p>
 <p align="center"><sub>Same screen, five skills later: spacing, alignment, type, colour, motion. <a href="https://makkov-design.github.io/makkov-harness/#fix">Scroll through it live</a>.</sub></p>
+
+## Design Score: Lighthouse for design
+
+<p align="center"><a href="https://makkov-design.github.io/makkov-harness/score.html"><img src=".github/assets/score-panel.png" alt="The Design Score panel open beside a web page: the score ring with its grade, seven category bars from accessibility to consistency, and the top issues, each with a one-line fix." width="100%"></a></p>
+
+**New in 0.2.** Score any live page's design from 0 to 100 in one click. Design Score runs 37 checks in seven categories (accessibility, typography, colour, layout and spacing, responsive, motion, consistency), explains every point it takes off and writes a fix prompt for your agent. It runs inside the page, in your browser, and sends none of the page's data anywhere ([what it loads and from where](SECURITY.md#what-the-harness-itself-runs)).
+
+- **Every point lost, pointed at.** Pick an issue and its elements light up on the page, numbered, with the selector and the value that failed.
+- **Steal the style.** The palette with roles, fonts, type scale, spacing, radii and shadows the page renders, copied as `DESIGN.md`, CSS variables, a Tailwind theme or W3C design tokens.
+- **Fix it with your agent.** Paste the fix prompt into any agent, or say "score localhost:3000 and fix the top issues". The [`design-score`](skills/design-score/SKILL.md) skill measures, fixes one category at a time with interfaces and animate, scores again and reports before → after.
+
+Three ways to run it:
+
+| Way | Best for | How |
+|---|---|---|
+| Bookmarklet | Any site you open, localhost included | Drag it from [the Design Score page](https://makkov-design.github.io/makkov-harness/score.html) to your bookmarks bar, then click it on a page. Strict sites like GitHub or X get the offline version, which carries the whole bundle. On a phone, [add it by hand](https://makkov-design.github.io/makkov-harness/score.html#run) |
+| Console snippet | One-off runs, and browsers where you can't add bookmarks | Copy it from the same page and paste it into DevTools → Console |
+| The skill | Claude, Codex, Cursor and every other agent | Say "score localhost:3000". The skill runs the probe through your agent's browser tool, or [`scripts/score.mjs`](skills/design-score/scripts/score.mjs) in a terminal when puppeteer-core is already installed |
+
+Every check, weight and threshold is public in [`rubric.md`](skills/design-score/rubric.md). A score is a guide, not a verdict: it measures what code can measure, one page and one viewport at a time.
 
 ## How it works
 
@@ -59,10 +80,13 @@ No commands to memorise and no skill names to remember. The map does the matchin
 
 Design is the core, and the map covers the rest of a designer's day too: "compare these three tools" builds a report page, "install this package" runs the install guard first, "make a release video" renders an MP4 with Hyperframes. The full list is in [`ROUTING.md`](ROUTING.md).
 
+Not sure which one you need? [Ask the router](https://makkov-design.github.io/makkov-harness/situations.html): describe the task in your own words and it finds the skill, how to call it and a prompt to paste. It matches in your browser, against all 72 situations, and nothing you type leaves the page.
+
 ## What's inside
 
 | Skill | What it does for you |
 |---|---|
+| `design-score` | **New.** Scores any live page 0–100 on what code can measure, explains every point, pulls its style out as `DESIGN.md` or tokens, and hands the fixes to your agent |
 | `design-md-library` | "Make it in the style of Linear, Stripe or Notion": pulls that product's design-system write-up as a reference |
 | `animate`, `animate-expo`, `animation-performance`, `improve-animations`, `find-animation-opportunities` | Motion done right, by Emil Kowalski |
 | `rich-report` | Turns research, plans and audits into a designed, interactive report page (Claude Artifacts) |
@@ -167,6 +191,8 @@ A chat app cannot run installers or hooks, and rich-report needs Claude: you get
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/#gate"><img src=".github/assets/review.gif" alt="Checked at the gate: a scan line passes down ten reviewed components, each pinned to a version and marked green, with Impeccable yellow; 10 reviewed, 9 green, 1 yellow, 0 red." width="100%"></a></p>
 
 The best design plugins, in one list. Their code stays in their authors' repositories; the makkov-harness marketplace lists them, pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md)), so after adding the marketplace you enable each one with one switch. A newer version appears here only after it is reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills load twice. Figma's plugin is in Anthropic's official marketplace.
+
+Every verdict is also on [the security index](https://makkov-design.github.io/makkov-harness/security.html): searchable, with the reviewed commit and what each piece runs, sends and needs from you.
 
 | Plugin | Use it for | By |
 |---|---|---|

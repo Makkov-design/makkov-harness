@@ -9,6 +9,7 @@ Pick the skill by the situation. A skill named here can be invoked by name even 
 | Research, analysis, comparison, plan, roadmap, audit or any result with 3+ sections or a data table | `rich-report` (Claude with Artifacts) or `html-report` (any agent) | One page per topic; a follow-up on the same topic edits the same page or file |
 | Installing, adding, cloning-and-running or wiring in anything third-party: packages, CLIs, plugins, skills, MCP servers, extensions, Actions, Docker images, binaries | `third-party-install-guard` | Always before the install; the user does not have to ask |
 | "Make it in the style of Linear / Stripe / Notion…", comparing visual languages of known products | `design-md-library` | Style reference only; a project's own design system always wins |
+| A design score: "score / rate / grade this page", "how good is this UI", before → after a round of fixes, a README badge; "steal / extract this site's design tokens" | `design-score` | Only when a number or the tokens are wanted; a plain review is interfaces. Measured in a real page, judged only from a screenshot or Figma frame; fixes go to interfaces and animate, one category at a time |
 | Building an animation, adding motion, a transition | `animate` (web) or `animate-expo` (React Native / Expo) | |
 | Janky or dropped-frame animation, choosing which property to animate | `animation-performance` | |
 | Auditing all motion in a codebase, roadmap of animation fixes | `improve-animations` | Plans, does not edit |

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://makkov-design.github.io/makkov-harness/sitemap.xml

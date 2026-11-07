@@ -27,10 +27,11 @@ Each of these folders carries the original `LICENSE`. They are copied because th
 - `design-md-library` fetches design-system write-ups from [VoltAgent/awesome-design-md](https://github.com/VoltAgent/awesome-design-md) (MIT) at runtime; nothing from it is stored here.
 - The session-start routing hook follows the approach of Superpowers' own session-start hook (MIT).
 - The report house style is inspired by Linear's visual language; it is not affiliated with Linear.
+- Design Score converts colours with the matrices published in [CSS Color Module Level 4](https://www.w3.org/TR/css-color-4/) and measures colour distance in Björn Ottosson's [OKLab](https://bottosson.github.io/posts/oklab/). Its contrast, target-size and zoom checks follow [WCAG 2.2](https://www.w3.org/TR/WCAG22/). "Lighthouse for design" is a comparison; Design Score is not part of or affiliated with Google Lighthouse.
 
 ## Own work
 
-`rich-report`, `html-report`, `third-party-install-guard`, `design-md-library`, `harness-onboarding`, `ROUTING.md`, the hooks and the adapters are by Makkov, MIT.
+`design-score` (the probe, the panel, the rubric and the runner), `rich-report`, `html-report`, `third-party-install-guard`, `design-md-library`, `harness-onboarding`, `ROUTING.md`, the hooks, the adapters and the website are by Makkov, MIT.
 
 ## Agent logos on the site
 

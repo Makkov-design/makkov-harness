@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security index: makkov-harness</title>
+<meta name="description" content="Every third-party plugin and skill in makkov-harness with its security verdict, the exact commit or version that was reviewed, and what it runs, sends and needs. Searchable, sourced from SECURITY.md.">
+<meta property="og:title" content="Security index · makkov-harness">
+<meta property="og:description" content="Every plugin here was read before you install it. Verdicts, reviewed commits and versions, and what each one runs, sends and needs.">
+<meta property="og:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://makkov-design.github.io/makkov-harness/img/social.png?v=3">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://makkov-design.github.io/makkov-harness/security.html">
+<link rel="icon" href="img/mark-64.png">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600&f[]=switzer@400,500,600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261106w">
+<link rel="stylesheet" href="fx.css?v=20261106c">
+<link rel="stylesheet" href="blocks.css?v=20261106c">
+<link rel="stylesheet" href="sit.css?v=20261106c">
+<link rel="stylesheet" href="last.css?v=20261107c">
+<link rel="stylesheet" href="mobile.css?v=20261107j">
+<link rel="stylesheet" href="security.css?v=20261107a">
+<script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('intro');setTimeout(function(){document.documentElement.classList.add('intro-go','intro-copy','intro-done')},5000);}</script>
+<!-- Page views: GoatCounter, no cookies, no personal data. Pinned v5 with SRI (reviewed 2026-11-07). Skip your own views: open the site once with #toggle-goatcounter. -->
+<script data-goatcounter="https://makkov-harness.goatcounter.com/count" async src="https://gc.zgo.at/count.v5.js" crossorigin="anonymous" integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
+<link rel="alternate" type="text/plain" href="llms.txt" title="For AI agents">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+<symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z"/><path d="m8.8 12 2.2 2.2 4.4-4.4"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4M9 12h6M9 16h4"/></symbol>
+<symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="m7 9 3 3-3 3M12.5 15H17"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 5 3 3v2H7v-2l3-3Z"/><path d="M12 13v8"/></symbol>
+<symbol id="i-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v3M12 17.5v3M4.6 7.8l2.6 1.5M16.8 14.7l2.6 1.5M4.6 16.2l2.6-1.5M16.8 9.3l2.6-1.5"/><circle cx="12" cy="12" r="3.2"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.3 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.3-3.5-8.5s1.1-6.1 3.5-8.5Z"/></symbol>
+<symbol id="i-signal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V15M10 19V11M15 19V7M20 19V4"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M3 12h5.8M15.2 12H21"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</svg>
+<div class="preload" aria-hidden="true"><div class="pl-mark"></div><i class="pl-bar"></i></div>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="nav-pill">
+    <a class="wordmark" href="index.html" aria-label="makkov-harness home"><img class="wm-mark" src="img/brand/symbol.svg" width="28" height="28" alt=""><img class="wm-text" src="img/brand/wordmark.svg" width="230" height="17" alt="makkov harness"></a>
+    <ul>
+      <li class="hide-s"><a href="index.html#switch">Routing</a></li>
+      <li class="hide-s"><a href="situations.html">Situations</a></li>
+      <li class="hide-s"><a href="score.html">Score</a></li>
+      <li class="hide-s"><a href="security.html" aria-current="page">Security</a></li>
+      <li class="hide-s"><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li>
+      <li><a class="btn btn--primary btn--sm" href="index.html#install">Install</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="main">
+  <section class="cat-hero sx-hero" aria-labelledby="sx-title" data-hud="00 · security">
+    <div class="container sx-hero-grid">
+      <div class="sx-hero-copy">
+        <p class="sx-eyebrow"><span class="sx-ping" aria-hidden="true"><i></i></span>Security index</p>
+        <h1 id="sx-title">Every plugin here was read before you install it.</h1>
+        <p class="lead">Each third-party piece was fetched without running, scanned, read by hand and pinned to the exact commit or version that passed. Here is every verdict, with what it runs, what it sends and what it needs from you.</p>
+        <div class="sx-actions">
+          <a class="btn btn--primary" href="#index">Browse the index<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <a class="btn" href="#method">How a review works</a>
+        </div>
+      </div>
+
+      <aside class="sx-seal" aria-labelledby="seal-title" data-reveal>
+        <div class="sx-seal-head">
+          <div class="sx-crest" aria-hidden="true">
+            <svg viewBox="0 0 120 140">
+              <defs><clipPath id="sx-crest-clip"><path d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/></clipPath></defs>
+              <path class="sx-crest-fill" d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/>
+              <g clip-path="url(#sx-crest-clip)"><rect class="sx-crest-scan" x="0" y="0" width="120" height="26"/></g>
+              <path class="sx-crest-edge" d="M60 6 106 24v40c0 32-19 58-46 70C33 122 14 96 14 64V24Z"/>
+              <path class="sx-crest-check" d="m40 68 14 14 28-30"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="seal-title" class="sx-seal-title">Verdicts</h2>
+            <p class="sx-seal-sub">As of <time data-sx="last-long" datetime="2026-11-06">November 6, 2026</time></p>
+          </div>
+        </div>
+
+        <dl class="sx-counts">
+          <div class="sx-count"><dt>Reviewed</dt><dd data-sx-count="reviewed">10</dd></div>
+          <div class="sx-count sx-count--green"><dt><i aria-hidden="true"></i>Green</dt><dd data-sx-count="green">9</dd></div>
+          <div class="sx-count sx-count--yellow"><dt><i aria-hidden="true"></i>Yellow</dt><dd data-sx-count="yellow">1</dd></div>
+          <div class="sx-count sx-count--red"><dt><i aria-hidden="true"></i>Red</dt><dd data-sx-count="red">0</dd></div>
+        </dl>
+
+        <div class="sx-strip-wrap">
+          <ol class="sx-strip" data-sx-strip aria-label="Each review, by verdict. Select one to open it in the index."></ol>
+          <p class="sx-readout" data-sx-readout aria-hidden="true">One mark per review. Select one to open it.</p>
+        </div>
+
+        <dl class="sx-seal-facts">
+          <div><dt><svg aria-hidden="true"><use href="#i-pin"/></svg>Pinned to the reviewed commit</dt><dd data-sx="pinned">5 of 5 third-party companions</dd></div>
+          <div><dt><svg aria-hidden="true"><use href="#i-clock"/></svg>Upstream watch</dt><dd data-sx="watch">Mondays, 07:00 UTC</dd></div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <section class="sx-index" id="index" aria-labelledby="index-title" data-hud="01 · index">
+    <div class="container">
+      <div class="sx-head">
+        <h2 id="index-title">Every verdict, and what it covers.</h2>
+        <p class="lead">A verdict covers the version listed, on the date listed. Open a row for what it runs on its own, where it connects, what it needs and the exact commit that was read.</p>
+      </div>
+
+      <div class="sx-tools" data-reveal>
+        <div class="sx-search" role="search">
+          <svg aria-hidden="true"><use href="#i-search"/></svg>
+          <label class="visually-hidden" for="sx-q">Search the index</label>
+          <input id="sx-q" type="search" placeholder="Search: hook, telemetry, key, Cloudflare…" autocomplete="off" spellcheck="false" aria-describedby="sx-count" enterkeyhint="search">
+          <kbd class="kbd" aria-hidden="true">/</kbd>
+        </div>
+        <div class="sx-chips" role="group" aria-label="Filter by verdict" data-sx-chips></div>
+      </div>
+      <div class="sx-bar">
+        <p class="sx-count-line" id="sx-count" role="status" aria-live="polite" aria-atomic="true"></p>
+        <button class="sx-openall" type="button" data-sx-openall>Open all</button>
+      </div>
+
+      <div class="sx-list" data-sx-list></div>
+      <noscript><p class="sx-noscript">The searchable index needs JavaScript. Every verdict is also in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p></noscript>
+
+      <p class="sx-source">Transcribed from <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Makkov-design/makkov-harness/blob/main/.claude-plugin/marketplace.json">marketplace.json</a>. Last review <time data-sx="last-long" datetime="2026-11-06">November 6, 2026</time>. A dash means the review notes say nothing about it.</p>
+    </div>
+  </section>
+
+  <section class="sx-method" id="method" aria-labelledby="method-title" data-hud="02 · method">
+    <div class="container sx-method-grid">
+      <div class="sx-method-side">
+        <h2 id="method-title">How a review works.</h2>
+        <p class="lead">The same steps for every piece: the first seven are the third-party-install-guard skill, the last is a weekly check on GitHub. The scanner is a tripwire, not a verdict: reading the code by hand is what decides.</p>
+        <ul class="sx-side-links">
+          <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/skills/third-party-install-guard/SKILL.md"><svg aria-hidden="true"><use href="#i-doc"/></svg>Read the skill</a></li>
+          <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/skills/third-party-install-guard/scripts/scan.mjs"><svg aria-hidden="true"><use href="#i-eye"/></svg>Read the scanner</a></li>
+        </ul>
+      </div>
+
+      <ol class="sx-steps" data-sx-steps>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">01</span>
+          <div class="sx-step-body">
+            <h3>Pin down exactly what it is</h3>
+            <p>The exact name, version and source address. “Latest” is resolved to a real version number, and the name is checked against look-alikes: swapped letters, a changed scope, an added <code>-js</code>.</p>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">02</span>
+          <div class="sx-step-body">
+            <h3>Check provenance and advisories</h3>
+            <p>Who publishes it and since when, whether the repository is alive, and the known vulnerabilities and malware advisories on <a href="https://osv.dev">OSV</a>. An advisory with a <code>MAL-</code> id means red.</p>
+            <ul class="sx-flags" aria-label="Red flags at this step">
+              <li>Published days ago</li><li>New single maintainer</li><li>Version with no tag behind it</li><li>Repository link missing or unrelated</li>
+            </ul>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">03</span>
+          <div class="sx-step-body">
+            <h3>Fetch it without running it</h3>
+            <p>Into a fresh, empty folder. Repositories are cloned with git hooks, symlinks and submodules off; npm packages are downloaded as a file and unpacked, never installed; Python packages are never built.</p>
+            <div class="sit-cmd sx-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>git -c core.hooksPath=/dev/null -c core.symlinks=false clone --depth 1 --no-recurse-submodules &lt;url&gt; &lt;dir&gt;</code></div>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">04</span>
+          <div class="sx-step-body">
+            <h3>Scan it, then run an antivirus pass</h3>
+            <p>A bundled scanner (Node, no dependencies, reads files only) looks for the patterns below, lists every file that runs on its own or configures an agent, and every binary that cannot be read as text. Then an antivirus pass: Windows Defender, or ClamAV where it is installed.</p>
+            <div class="sx-scan">
+              <div class="sx-sev sx-sev--high">
+                <h4><i aria-hidden="true"></i>High</h4>
+                <ul><li>Install-time scripts</li><li>Remote code (curl | sh, iex)</li><li>Hidden shell payloads</li><li>Eval of decoded data</li><li>Credential and wallet paths</li><li>Environment dumps</li><li>Exfiltration endpoints</li><li>Persistence</li><li>Destructive commands</li><li>Security-tool tampering</li><li>Prompt injection</li><li>Hidden Unicode</li></ul>
+              </div>
+              <div class="sx-sev sx-sev--medium">
+                <h4><i aria-hidden="true"></i>Medium</h4>
+                <ul><li>Child processes</li><li>Network calls</li><li>Raw-IP addresses</li><li>Dynamic code</li><li>Obfuscation</li><li>Secret variables</li><li>Elevated privileges</li><li>Symlinks</li><li>Minified source</li><li>Git-only install scripts</li><li>Dependencies from outside the registry</li></ul>
+              </div>
+              <div class="sx-sev sx-sev--low">
+                <h4><i aria-hidden="true"></i>Low</h4>
+                <ul><li>Home-folder access</li><li>Commands added to PATH</li><li>Files too large to scan in full</li></ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">05</span>
+          <div class="sx-step-body">
+            <h3>Read every file that runs on its own</h3>
+            <p>Always, even with zero findings: install scripts, hooks, plugin manifests, MCP tool handlers, and every <code>SKILL.md</code>, <code>CLAUDE.md</code> and <code>AGENTS.md</code>, looking for instructions aimed at the agent.</p>
+            <ul class="sx-asks" aria-label="Questions asked of the code">
+              <li>What runs at install and at first start?</li>
+              <li>What does it read: home folder, environment, credentials, other projects?</li>
+              <li>Where does it send data, and is that its stated job?</li>
+              <li>Does it download more code later?</li>
+              <li>Does the published package match its repository?</li>
+            </ul>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">06</span>
+          <div class="sx-step-body">
+            <h3>Give a verdict</h3>
+            <div class="sx-verdicts">
+              <div class="sx-vcard sx-vcard--green"><span class="sx-vd sx-vd--green">Green</span><p>A reputable source, no high findings, nothing on install that was not read. Installed at the reviewed version.</p></div>
+              <div class="sx-vcard sx-vcard--yellow"><span class="sx-vd sx-vd--yellow">Yellow</span><p>Works, with a real risk: install scripts, broad access, a binary, a young project. The agent stops and asks you.</p></div>
+              <div class="sx-vcard sx-vcard--red"><span class="sx-vd sx-vd--red">Red</span><p>Malware signs, credential access, exfiltration, hidden agent instructions, a look-alike name. Nothing is installed.</p></div>
+            </div>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">07</span>
+          <div class="sx-step-body">
+            <h3>Pin exactly what passed</h3>
+            <p>A companion's marketplace entry points at the exact commit that was read, and each cloud tool is installed at the exact version that was read. A newer version is not covered until it is reviewed again.</p>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">08</span>
+          <div class="sx-step-body">
+            <h3>Watch upstream every week</h3>
+            <p>Every Monday a GitHub Action reads each pinned upstream, read-only, and keeps one issue up to date: what moved, how many files changed, and how many of them are code or hooks. It never changes a pin.</p>
+            <p class="sx-step-link"><a href="https://github.com/Makkov-design/makkov-harness/blob/main/.github/workflows/upstream-watch.yml">The workflow</a><span aria-hidden="true">·</span><a href="https://github.com/Makkov-design/makkov-harness/issues?q=is%3Aissue+%22Companion+plugins%3A+updates+to+review%22">The watch issue</a></p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="sx-own" id="harness" aria-labelledby="own-title" data-hud="03 · harness">
+    <div class="container">
+      <div class="sx-head">
+        <h2 id="own-title">What the harness itself runs.</h2>
+        <p class="lead">Our own code, held to the same rule: nothing runs that you cannot read. Each card links to its source.</p>
+      </div>
+      <ul class="sx-own-grid" data-sx-harness></ul>
+      <p class="sx-own-note" data-sx-harness-note></p>
+    </div>
+  </section>
+
+  <section class="sx-yourself" id="yourself" aria-labelledby="you-title" data-hud="04 · yourself">
+    <div class="container sx-you-grid">
+      <div class="sx-you-copy">
+        <h2 id="you-title">Review anything yourself.</h2>
+        <p class="lead">The guard ships with the harness. Once it is installed, it steps in before any install your agent does: packages, command-line tools, plugins, skills, MCP servers, extensions, scripts piped to a shell. You do not have to ask.</p>
+      </div>
+      <div class="sx-you-card spot" data-reveal>
+        <p class="sx-label">Or ask for it by name</p>
+        <div class="sit-prompt sx-prompt">
+          <p id="sx-prompt-text">Before installing anything from https://github.com/&lt;owner&gt;/&lt;repo&gt;, run third-party-install-guard and show me the verdict.</p>
+          <button type="button" class="copy" data-copy-text="Before installing anything from https://github.com/&lt;owner&gt;/&lt;repo&gt;, run third-party-install-guard and show me the verdict." data-label="Copy prompt" aria-label="Copy the example prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copy prompt</span></button>
+        </div>
+        <p class="sx-label">What you get back</p>
+        <ul class="sx-get">
+          <li><span class="sx-get-n" aria-hidden="true">1</span>A one-line verdict: green, yellow or red.</li>
+          <li><span class="sx-get-n" aria-hidden="true">2</span>Three to six points of evidence, with file and line for anything notable.</li>
+          <li><span class="sx-get-n" aria-hidden="true">3</span>What happens next: green installs the reviewed version, yellow waits for you, red installs nothing.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="close" id="request" aria-labelledby="close-title" data-hud="05 · request">
+    <div class="container">
+      <div class="close-card sx-close" data-reveal>
+        <div class="close-copy">
+          <h2 id="close-title">Want something added? Ask for a review.</h2>
+          <p>Open an idea with a link to its repository. It is reviewed the same way before it is added, and its verdict lands on this page. For anything sensitive, report it privately; please do not post working exploits in public issues.</p>
+          <div class="actions">
+            <a class="btn btn--dark" href="https://github.com/Makkov-design/makkov-harness/issues/new?template=idea.yml&amp;title=Review%20request%3A%20">Request a review</a>
+            <a class="btn" href="https://github.com/Makkov-design/makkov-harness/security/advisories/new">Report a problem privately</a>
+          </div>
+        </div>
+        <div class="sx-close-art" aria-hidden="true">
+          <svg viewBox="0 0 240 240">
+            <circle class="sx-ring" cx="120" cy="120" r="108"/>
+            <circle class="sx-ring sx-ring--2" cx="120" cy="120" r="78"/>
+            <path class="sx-close-shield" d="M120 52 162 68v36c0 30-17 53-42 64-25-11-42-34-42-64V68Z"/>
+            <path class="sx-close-check" d="m101 112 13 13 26-27"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="container">
+    <div class="foot-top">
+      <div class="foot-lead">
+        <p class="statement">Describe the work. The harness picks the tool.</p>
+        <p class="foot-free">Free and open source under MIT. Made by a designer, for designers.</p>
+      </div>
+      <nav class="foot-cols" aria-label="Footer">
+        <div><h3>Product</h3><ul><li><a href="index.html#switch">Routing</a></li><li><a href="situations.html">Situations</a></li><li><a href="score.html">Score</a></li><li><a href="security.html">Security</a></li><li><a href="index.html#install">Install</a></li></ul></div>
+        <div><h3>Project</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness">GitHub</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/releases">Releases</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CREDITS.md">Credits</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/LICENSE">MIT license</a></li></ul></div>
+        <div><h3>Community</h3><ul><li><a href="https://github.com/Makkov-design/makkov-harness/discussions">Discussions</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/issues">Issues</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/CONTRIBUTING.md">Contributing</a></li><li><a href="https://github.com/Makkov-design/makkov-harness/stargazers">Star it</a></li></ul></div>
+      </nav>
+    </div>
+    <p class="foot-legal">Third-party skills keep their own licenses. Product names and logos belong to their owners and only show where the harness runs. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</p>
+  </div>
+  <div class="foot-mark" data-glow role="img" aria-label="makkov harness"></div>
+</footer>
+<script src="security-data.js?v=20261107a"></script>
+<script>
+/* Security index: the summary seal, the searchable list with expandable rows, the harness cards,
+   the method timeline and copy buttons. Everything comes from window.MH_SECURITY (security-data.js). */
+(() => {
+  const D = window.MH_SECURITY;
+  const list = document.querySelector('[data-sx-list]');
+  if (!D || !list) return;
+  const root = document.documentElement;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const REPO = D.repo;
+  const gh = (p) => `https://github.com/${p}`;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const fmt = (iso, short) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); if (!m) return null; const n = MONTHS[+m[2] - 1]; return `${short ? n.slice(0, 3) : n} ${+m[3]}, ${m[1]}`; };
+  const LABEL = { green: 'Green', yellow: 'Yellow', red: 'Red', own: 'Own project' };
+  const REVIEWED = ['green', 'yellow', 'red'];
+  const ico = (id) => `<svg aria-hidden="true"><use href="#${id}"/></svg>`;
+  const ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg>';
+  const ICON_DONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  const copyBtn = (text, label, aria) => `<button type="button" class="copy" data-copy-text="${esc(text)}" data-label="${esc(label)}" aria-label="${esc(aria || label)}">${ICON_COPY}<span>${esc(label)}</span></button>`;
+
+  const entries = D.entries.slice();
+  const groupOf = Object.fromEntries(D.groups.map((g) => [g.id, g]));
+  const reviewed = entries.filter((e) => REVIEWED.includes(e.verdict));
+  const last = reviewed.map((e) => e.reviewed).filter(Boolean).sort().pop() || null;
+
+  /* ---------- the seal: counts, a mark per review, pins, dates ---------- */
+  const counts = { reviewed: reviewed.length };
+  REVIEWED.forEach((v) => { counts[v] = entries.filter((e) => e.verdict === v).length; });
+  document.querySelectorAll('[data-sx="last-long"]').forEach((t) => { if (last) { t.textContent = fmt(last); t.setAttribute('datetime', last); } });
+  const companions = entries.filter((e) => e.group === 'companion');
+  const pinned = companions.filter((e) => e.sha).length;
+  const pinEl = document.querySelector('[data-sx="pinned"]');
+  if (pinEl) pinEl.textContent = `${pinned} of ${companions.length} third-party companions`;
+  const watchEl = document.querySelector('[data-sx="watch"]');
+  if (watchEl && D.watch) watchEl.textContent = D.watch.schedule;
+
+  const countEls = [...document.querySelectorAll('[data-sx-count]')];
+  const valueOf = (el) => counts[el.dataset.sxCount] ?? 0;
+  countEls.forEach((el) => { el.textContent = String(reduce ? valueOf(el) : 0); el.closest('.sx-count')?.classList.toggle('is-zero', valueOf(el) === 0); });
+  // the numbers count up as the page arrives (as the intro lifts, when there is one)
+  const countUp = () => {
+    if (reduce) return;
+    const t0 = performance.now(), dur = 900;
+    const tick = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      countEls.forEach((el) => { el.textContent = String(Math.round(valueOf(el) * e)); });
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+  const whenArrived = (fn) => {
+    if (!root.classList.contains('intro') || root.classList.contains('intro-go')) { setTimeout(fn, 120); return; }
+    let done = false;
+    const go = () => { if (done) return; done = true; mo.disconnect(); setTimeout(fn, 260); };
+    const mo = new MutationObserver(() => { if (root.classList.contains('intro-go')) go(); });
+    mo.observe(root, { attributes: true, attributeFilter: ['class'] });
+    setTimeout(go, 5200);
+  };
+  whenArrived(() => { countUp(); document.querySelector('.sx-seal')?.classList.add('is-live'); });
+
+  const strip = document.querySelector('[data-sx-strip]'), readout = document.querySelector('[data-sx-readout]');
+  if (strip) {
+    const order = { green: 0, yellow: 1, red: 2 };
+    const marks = reviewed.slice().sort((a, b) => order[a.verdict] - order[b.verdict]);
+    const verLabel = (e) => [e.version, e.commit].filter(Boolean).join(' at ');
+    strip.innerHTML = marks.map((e, i) => `<li style="--i:${i}"><a class="sx-mark-seg sx-mark-seg--${e.verdict}" href="#e-${esc(e.id)}" data-id="${esc(e.id)}" aria-label="${esc(e.name)}: ${LABEL[e.verdict]}"><i></i></a></li>`).join('');
+    const rest = readout ? readout.textContent : '';
+    const say = (a) => {
+      if (!readout) return;
+      const e = a && entries.find((x) => x.id === a.dataset.id);
+      readout.innerHTML = e ? `<b>${esc(e.name)}</b><span class="sx-vd-word sx-vd-word--${e.verdict}">${LABEL[e.verdict]}</span><code>${esc(verLabel(e))}</code>` : esc(rest);
+      readout.classList.toggle('is-on', !!e);
+    };
+    strip.addEventListener('pointerover', (ev) => say(ev.target.closest('a')));
+    strip.addEventListener('pointerleave', () => say(null));
+    strip.addEventListener('focusin', (ev) => say(ev.target.closest('a')));
+    strip.addEventListener('focusout', () => say(null));
+  }
+
+  /* ---------- the index ---------- */
+  const input = document.getElementById('sx-q');
+  const chipsEl = document.querySelector('[data-sx-chips]');
+  const countLine = document.getElementById('sx-count');
+  const openAll = document.querySelector('[data-sx-openall]');
+  const state = { q: '', v: 'all' };
+  const open = new Set();
+  const FILTERS = ['all', ...['green', 'yellow', 'red', 'own'].filter((v) => entries.some((e) => e.verdict === v))];
+  // fields a search looks through, and how a match deep inside a row is named
+  const FIELDS = [['name', null], ['author', null], ['tagline', null], ['version', null], ['commit', null], ['sha', 'commit'], ['what', 'what it does'], ['notes', 'review notes'], ['runs', 'runs on its own'], ['network', 'network'], ['telemetry', 'telemetry'], ['keys', 'keys'], ['skills', 'skills'], ['pin', 'pinning'], ['license', 'license'], ['provenance', 'provenance']];
+  const textOf = (e, f) => (f === 'skills' ? (e.skills || []).join(' ') : e[f] == null ? '' : String(e[f])).replace(/`/g, '');
+  const termsOf = (q) => q.toLowerCase().split(/\s+/).filter(Boolean).map((t) => (t.length > 3 && /[^s]s$/.test(t) ? t.slice(0, -1) : t));
+  let terms = [];
+  const matchInfo = (e) => {
+    if (!terms.length) return { ok: true, deep: [] };
+    const hay = (FIELDS.map(([f]) => textOf(e, f)).join(' ') + ' ' + LABEL[e.verdict] + ' ' + (groupOf[e.group]?.title || '')).toLowerCase();
+    if (!terms.every((t) => hay.includes(t))) return { ok: false, deep: [] };
+    const top = ['name', 'author', 'tagline', 'version', 'commit'].some((f) => terms.some((t) => textOf(e, f).toLowerCase().includes(t)));
+    const deep = top ? [] : [...new Set(FIELDS.filter(([f, l]) => l && terms.some((t) => textOf(e, f).toLowerCase().includes(t))).map(([, l]) => l))];
+    return { ok: true, deep };
+  };
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const hl = (raw) => {
+    raw = String(raw);
+    if (!terms.length) return esc(raw);
+    const re = new RegExp(`(${terms.map(reEsc).join('|')})`, 'gi');
+    return raw.split(re).map((p, i) => (i % 2 ? `<mark class="sx-hl">${esc(p)}</mark>` : esc(p))).join('');
+  };
+  // `code` spans in the notes become code, the rest is plain text; both get search highlights
+  const rich = (raw) => String(raw).split('`').map((p, i) => (i % 2 ? `<code>${hl(p)}</code>` : hl(p))).join('');
+  const none = '<span class="sx-none" aria-hidden="true">—</span><span class="visually-hidden">Not stated in the review notes</span>';
+  const fact = (icon, label, val) => `<div class="sx-fact${val == null ? ' is-none' : ''}"><dt>${ico(icon)}${label}</dt><dd>${val == null ? none : rich(val)}</dd></div>`;
+  const link = (href, label) => `<li><a href="${esc(href)}">${esc(label)}${ico('i-out')}</a></li>`;
+
+  const versionHtml = (e) => {
+    const parts = [];
+    if (e.version) parts.push(`<code>${hl(e.version)}</code>`);
+    if (e.version && e.commit) parts.push('<span class="sx-at">at</span>');
+    if (e.commit) parts.push(`<code class="sx-sha">${hl(e.commit)}</code>`);
+    if (!parts.length) parts.push(e.verdict === 'own' ? '<span class="sx-own-tag">own project</span>' : none);
+    return parts.join('');
+  };
+
+  const body = (e) => {
+    const links = [];
+    if (e.repo) links.push(link(gh(e.repo), 'Repository'));
+    if (e.repo && e.sha) links.push(link(gh(`${e.repo}/commit/${e.sha}`), 'Reviewed commit'));
+    if (e.repo && e.sha) links.push(link(gh(`${e.repo}/tree/${e.sha}${e.path ? '/' + e.path : ''}`), 'Code at that commit'));
+    if (e.npm) links.push(link(`https://www.npmjs.com/package/${e.npm}/v/${e.version}`, `npm: ${e.npm}@${e.version}`));
+    if (e.homepage) links.push(link(e.homepage, 'Homepage'));
+    if (e.uses) links.push(link(`${REPO}/blob/main/${e.uses.href}`, e.uses.label));
+    const commitBlock = e.sha
+      ? `<div class="sx-hash"><code>${hl(e.sha)}</code>${copyBtn(e.sha, 'Copy', `Copy the full commit hash of ${e.name}`)}</div>`
+      : e.commit ? `<div class="sx-hash"><code>${hl(e.commit)}</code><span class="sx-hash-note">Short hash, as recorded in SECURITY.md</span></div>`
+      : '';
+    const skills = (e.skills || []).length ? `<div class="sx-skills"><p class="sx-label">Skills copied here</p><ul>${e.skills.map((s) => `<li><a href="${REPO}/tree/main/skills/${esc(s)}"><code>${hl(s)}</code></a></li>`).join('')}</ul></div>` : '';
+    const action = e.action ? `<div class="sx-action"><p>${esc(e.action.text)}</p><div class="sit-cmd"><span class="sit-sign" aria-hidden="true">$</span><code>${esc(e.action.code)}</code>${copyBtn(e.action.code, 'Copy', `Copy: ${e.action.code}`)}</div></div>` : '';
+    const prov = e.provenance ? `<p class="sx-prov">${ico('i-shield')}${rich(e.provenance)}</p>` : '';
+    return `<div class="sx-body">
+      <div class="sx-body-main">
+        <p class="sx-what">${hl(e.what)}</p>
+        <dl class="sx-facts">
+          ${fact('i-run', 'Runs on its own', e.runs)}
+          ${fact('i-globe', 'Network', e.network)}
+          ${fact('i-signal', 'Telemetry', e.telemetry)}
+          ${fact('i-key', 'Keys you need', e.keys)}
+        </dl>
+        ${action}
+        <blockquote class="sx-note"><p>${rich(e.notes)}</p><footer>${e.verdict === 'own' ? 'Note' : 'Review note'} in <a href="${REPO}/blob/main/SECURITY.md#verdicts">SECURITY.md</a>${e.reviewed ? `, <time datetime="${e.reviewed}">${fmt(e.reviewed)}</time>` : ''}</footer></blockquote>
+      </div>
+      <div class="sx-body-side">
+        <div class="sx-pin">
+          <p class="sx-label">${e.sha || e.commit ? 'Reviewed commit' : e.verdict === 'own' ? 'Source' : 'Reviewed version'}</p>
+          ${commitBlock || (e.version ? `<div class="sx-hash"><code>${hl((e.npm ? e.npm + '@' : '') + e.version)}</code></div>` : '')}
+          <p class="sx-pin-text">${ico('i-pin')}${hl(e.pin)}</p>
+          ${prov}
+          ${e.license ? `<p class="sx-license">License <code>${hl(e.license)}</code></p>` : ''}
+        </div>
+        ${skills}
+        ${links.length ? `<ul class="sx-links" aria-label="Links for ${esc(e.name)}">${links.join('')}</ul>` : ''}
+      </div>
+    </div>`;
+  };
+
+  const row = (e, info) => `
+    <li class="sx-row" id="e-${esc(e.id)}" data-verdict="${e.verdict}">
+      <details${open.has(e.id) ? ' open' : ''} data-id="${esc(e.id)}">
+        <summary>
+          <span class="sx-vd sx-vd--${e.verdict}">${LABEL[e.verdict]}</span>
+          <span class="sx-name"><b>${hl(e.name)}</b><small>${hl(e.author)}<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>${hl(e.tagline)}</small>${info.deep.length ? `<em class="sx-found">Found in ${esc(info.deep.join(', '))}</em>` : ''}</span>
+          <span class="sx-ver"><span class="visually-hidden">Reviewed version: </span>${versionHtml(e)}</span>
+          <span class="sx-date">${e.reviewed ? `<span class="visually-hidden">Reviewed on </span><time datetime="${e.reviewed}">${fmt(e.reviewed, true)}</time>` : '<span class="visually-hidden">No review date</span><span aria-hidden="true">—</span>'}</span>
+          <span class="sx-chev" aria-hidden="true">${ico('i-chev')}</span>
+        </summary>
+        ${body(e)}
+      </details>
+    </li>`;
+
+  const render = (fresh) => {
+    terms = termsOf(state.q);
+    const infos = new Map(entries.map((e) => [e.id, matchInfo(e)]));
+    const searched = entries.filter((e) => infos.get(e.id).ok);
+    const shown = searched.filter((e) => state.v === 'all' || e.verdict === state.v);
+    // chips: one per verdict present, with how many match the current search
+    chipsEl.innerHTML = FILTERS.map((v) => {
+      const n = v === 'all' ? searched.length : searched.filter((e) => e.verdict === v).length;
+      return `<button type="button" class="chip sx-chip sx-chip--${v}" aria-pressed="${state.v === v}" data-v="${v}">${v === 'all' ? '' : '<i aria-hidden="true"></i>'}${v === 'all' ? 'All' : LABEL[v]}<span>${n}</span></button>`;
+    }).join('');
+    const groups = D.groups.map((g) => ({ g, rows: shown.filter((e) => e.group === g.id) })).filter((x) => x.rows.length);
+    list.innerHTML = groups.length ? groups.map(({ g, rows }) => `
+      <section class="sx-group" aria-labelledby="sxg-${g.id}">
+        <header class="sx-group-head"><h3 id="sxg-${g.id}">${esc(g.title)}<span class="sx-group-n">${rows.length}</span></h3><p>${esc(g.note)}</p></header>
+        <div class="sx-cols" aria-hidden="true"><span>Verdict</span><span>Component</span><span>Reviewed version</span><span>Date</span><span></span></div>
+        <ul class="sx-rows">${rows.map((e) => row(e, infos.get(e.id))).join('')}</ul>
+      </section>`).join('')
+      : `<div class="sx-empty"><p><b>Nothing matches${state.q ? ` “${esc(state.q)}”` : ''}${state.v !== 'all' ? ` in ${LABEL[state.v]}` : ''}.</b> Try a name, an author, or a word like hook, telemetry or key.</p><button type="button" class="btn btn--sm" data-sx-reset>Show everything</button></div>`;
+    const total = entries.length;
+    const said = shown.length === total ? `All ${total} entries` : state.q ? `${shown.length} of ${total} entries match “${state.q}”` : `${shown.length} of ${total} entries`;
+    // while typing, the live count settles before it is announced, so a screen reader hears one result, not every keystroke
+    clearTimeout(countT);
+    if (typing) countT = setTimeout(() => { countLine.textContent = said; }, 450); else countLine.textContent = said;
+    if (fresh && !reduce) { list.classList.remove('is-fresh'); void list.offsetWidth; list.classList.add('is-fresh'); }
+    syncOpenAll();
+  };
+  let countT = 0, typing = false;
+
+  const visibleDetails = () => [...list.querySelectorAll('details')];
+  const syncOpenAll = () => {
+    const ds = visibleDetails();
+    openAll.hidden = !ds.length;
+    const allOpen = ds.length && ds.every((d) => d.open);
+    openAll.textContent = allOpen ? 'Close all' : 'Open all';
+    openAll.setAttribute('aria-label', allOpen ? 'Close all rows' : 'Open all rows');
+  };
+  list.addEventListener('toggle', (ev) => {
+    const d = ev.target; if (!(d instanceof HTMLDetailsElement)) return;
+    d.open ? open.add(d.dataset.id) : open.delete(d.dataset.id);
+    syncOpenAll();
+  }, true);
+  openAll.addEventListener('click', () => {
+    const ds = visibleDetails(), to = !ds.every((d) => d.open);
+    ds.forEach((d) => { d.open = to; to ? open.add(d.dataset.id) : open.delete(d.dataset.id); });
+    syncOpenAll();
+  });
+
+  // the search and the filter live in the address too, so a filtered view can be shared
+  let syncT = 0;
+  const syncUrl = () => {
+    clearTimeout(syncT);
+    syncT = setTimeout(() => {
+      try {
+        const u = new URL(location.href);
+        state.q ? u.searchParams.set('q', state.q) : u.searchParams.delete('q');
+        state.v !== 'all' ? u.searchParams.set('verdict', state.v) : u.searchParams.delete('verdict');
+        history.replaceState(history.state, '', u);
+      } catch (_) { /* a sandboxed or file view may refuse; the page works without it */ }
+    }, 300);
+  };
+  input.addEventListener('input', () => { state.q = input.value.trim().slice(0, 80); typing = true; render(false); typing = false; syncUrl(); });
+  input.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && input.value) { ev.preventDefault(); input.value = ''; state.q = ''; render(false); syncUrl(); } });
+  chipsEl.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-v]'); if (!b || b.dataset.v === state.v) return;
+    state.v = b.dataset.v; render(true); syncUrl();
+    chipsEl.querySelector(`[data-v="${state.v}"]`)?.focus();
+  });
+  list.addEventListener('click', (ev) => {
+    if (!ev.target.closest('[data-sx-reset]')) return;
+    state.q = ''; state.v = 'all'; input.value = ''; render(true); syncUrl(); input.focus();
+  });
+  // "/" jumps to the search from anywhere on the page
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== '/' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    const t = ev.target; if (t.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    ev.preventDefault(); input.focus({ preventScroll: true }); input.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+  });
+
+  try {
+    const p = new URLSearchParams(location.search);
+    const q = (p.get('q') || '').trim().slice(0, 80), v = p.get('verdict');
+    if (q) { state.q = q; input.value = q; }
+    if (v && FILTERS.includes(v)) state.v = v;
+  } catch (_) {}
+  render(false);
+
+  // #e-<id> opens that row; a mark in the seal links there
+  const openFromHash = (smooth) => {
+    let id = ''; try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) { return; }
+    if (!/^e-[\w-]+$/.test(id) || !entries.some((e) => `e-${e.id}` === id)) return;
+    if (!document.getElementById(id)) { state.q = ''; state.v = 'all'; input.value = ''; render(true); syncUrl(); }
+    const li = document.getElementById(id); if (!li) return;
+    const d = li.querySelector('details'); d.open = true; open.add(d.dataset.id); syncOpenAll();
+    li.classList.remove('is-target'); void li.offsetWidth; li.classList.add('is-target');
+    li.scrollIntoView({ block: 'start', behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    li.querySelector('summary').focus({ preventScroll: true });
+  };
+  addEventListener('hashchange', () => openFromHash(true));
+  strip?.addEventListener('click', (ev) => { const a = ev.target.closest('a'); if (a && a.getAttribute('href') === location.hash) { ev.preventDefault(); openFromHash(true); } });
+  if (location.hash) { if (document.readyState === 'complete') openFromHash(false); else addEventListener('load', () => setTimeout(() => openFromHash(false), 60), { once: true }); }
+
+  /* ---------- what the harness itself runs ---------- */
+  const own = document.querySelector('[data-sx-harness]');
+  if (own && D.harness) {
+    own.innerHTML = D.harness.map((h) => {
+      const href = h.site || (h.file ? `${REPO}/blob/main/${h.file}` : h.dir ? `${REPO}/tree/main/${h.dir}` : null);
+      return `<li class="sx-own-card spot">
+        <div class="sx-own-top">${ico(h.icon || 'i-doc')}${h.scope ? `<span class="sx-own-scope">${esc(h.scope)}</span>` : ''}</div>
+        <h3>${esc(h.title)}</h3>
+        ${href ? `<a class="sx-own-path" href="${esc(href)}"><code>${esc(h.path)}</code>${h.site ? ico('i-arrow') : ico('i-out')}</a>` : `<span class="sx-own-path"><code>${esc(h.path)}</code></span>`}
+        <p>${esc(h.text)}</p>
+        <p class="sx-own-net">${ico('i-globe')}<span class="visually-hidden">Network: </span>${esc(h.net)}</p>
+      </li>`;
+    }).join('');
+    const note = document.querySelector('[data-sx-harness-note]');
+    if (note && D.harnessNote) note.textContent = D.harnessNote;
+  }
+
+  /* ---------- the method timeline lights up step by step as it is read ---------- */
+  const steps = [...document.querySelectorAll('.sx-step')];
+  if (!reduce && 'IntersectionObserver' in window) {
+    root.classList.add('sx-steps-on');
+    const io = new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('is-lit'); io.unobserve(en.target); } }), { rootMargin: '0px 0px -38% 0px' });
+    steps.forEach((s) => io.observe(s));
+  }
+
+  /* ---------- copy: the button keeps its colours and swaps its icon and word for a moment ---------- */
+  const fallbackCopy = (text) => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); return ok;
+  };
+  document.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-copy-text]'); if (!b) return;
+    const text = b.dataset.copyText, label = b.dataset.label || 'Copy';
+    const done = () => {
+      b.classList.add('is-done'); b.innerHTML = `${ICON_DONE}<span>Copied</span>`;
+      clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove('is-done'); b.innerHTML = `${ICON_COPY}<span>${esc(label)}</span>`; }, 1600);
+    };
+    const failed = () => { if (fallbackCopy(text)) { done(); return; } const c = b.parentElement.querySelector('code, p'); if (c) getSelection().selectAllChildren(c); };
+    try { (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).then(done, failed); } catch (_) { failed(); }
+  });
+})();
+</script>
+<script src="fx.js?v=20261107b"></script>
+</body>
+</html>
