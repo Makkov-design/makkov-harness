@@ -821,7 +821,7 @@ Values in backticks were read from the page (selectors, names, attribute values)
 
 <span class="t-p">## </span><span class="t-h">Color (84/100)</span>
 <span class="t-p">- </span><span class="t-p">**</span><b class="t-b">6 near-identical colours</b><span class="t-p">**</span> (medium). #e5e7eb / #e4e6ea, #f9fafb / #f8f9fb, #6b7280 / #6b7181, #111827 / #121826.
-  <span class="t-k">Target</span><span class="t-p">: </span>No two colours that differ by less than 2% in OKLab unless they are the same token.
+  <span class="t-k">Target</span><span class="t-p">: </span>No colour that is a near-copy (under 2% apart in OKLab) of a more used one.
   <span class="t-k">Fix</span><span class="t-p">: </span>Merge each pair into one token and use it everywhere both values appear.
   <span class="t-k">Where</span><span class="t-p">: </span><span class="t-c">`section.faq &gt; details:nth-of-type(1) &gt; summary`</span> (#e4e6ea is almost #e5e7eb (ΔE 0.3)), <span class="t-c">`main &gt; section.pricing-grid &gt; div.plan-card.is-popular`</span> (#f8f9fb is almost #f9fafb (ΔE 0.3)), <span class="t-c">`div.plan-card &gt; p.price &gt; small`</span> (#6b7181 is almost #6b7280 (ΔE 0.4)), <span class="t-c">`section.pricing-grid &gt; div.plan-card &gt; h3`</span> (#121826 is almost #111827 (ΔE 0.3))
 
@@ -864,8 +864,8 @@ Fix these with the makkov-harness skills: interfaces for accessibility, layout, 
           <p>GitHub, X and many admin apps block scripts from other domains, so the regular pill can’t fetch the bundle there. This one carries the whole bundle inside the bookmark and fetches nothing at all.</p>
           <div class="ds-way-actions">
             <!-- bookmarklet:start -->
-            <a class="ds-pill" data-bookmarklet="offline" href="#run" draggable="true" data-ds-pill="offline" data-version="1.0.0" data-bookmarklet-src="score/offline-bookmarklet.txt?h=a04643c8f1a7"><span class="ds-pill-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><circle class="ds-pi-track" cx="16" cy="16" r="12"/><circle class="ds-pi-arc" cx="16" cy="16" r="12" pathLength="100"/></svg></span>Design Score offline<span class="ds-grip" aria-hidden="true"></span></a>
-            <span class="ds-size"><span data-bookmarklet-size="offline">about 410 KB</span> inside the link</span>
+            <a class="ds-pill" data-bookmarklet="offline" href="#run" draggable="true" data-ds-pill="offline" data-version="1.0.0" data-bookmarklet-src="score/offline-bookmarklet.txt?h=9328baf69f8f"><span class="ds-pill-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><circle class="ds-pi-track" cx="16" cy="16" r="12"/><circle class="ds-pi-arc" cx="16" cy="16" r="12" pathLength="100"/></svg></span>Design Score offline<span class="ds-grip" aria-hidden="true"></span></a>
+            <span class="ds-size"><span data-bookmarklet-size="offline">about 420 KB</span> inside the link</span>
             <!-- bookmarklet:end -->
           </div>
           <small>Drag it like the other one. Firefox can’t save a bookmark this long, so use the console snippet there. It runs exactly the code you saved, until you drag it again.</small>

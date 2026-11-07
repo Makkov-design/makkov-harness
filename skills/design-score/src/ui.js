@@ -81,9 +81,11 @@
     };
   }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  // Local date, like stamp(), so the card and the report show the same day.
   function dateOnly(ts) {
-    var s = str(ts);
-    return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+    var d = new Date(str(ts));
+    if (!isFinite(d.getTime())) return str(ts);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
   function stamp(ts) {
     var d = new Date(str(ts));
@@ -286,7 +288,7 @@
     '.ic{display:block;flex:none;width:16px;height:16px}',
     '.mark{display:block;flex:none;width:20px;height:20px;color:var(--mh-ink)}',
     // panel
-    '.panel{position:fixed;top:12px;right:12px;bottom:12px;width:400px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;isolation:isolate;outline:none;background:var(--mh-bg);border:1px solid var(--mh-edge);border-radius:20px;box-shadow:0 32px 80px -24px rgba(0,0,0,.7),0 10px 28px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05)}',
+    '.panel{position:fixed;top:12px;right:12px;bottom:12px;width:400px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;isolation:isolate;outline:none;background:var(--mh-bg);border:1px solid var(--mh-edge);border-radius:20px;box-shadow:0 32px 80px -24px rgba(0,0,0,.7),0 10px 28px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05)}',
     '.panel::before{content:"";position:absolute;z-index:-1;inset:0 0 auto 0;height:260px;pointer-events:none;background:radial-gradient(110% 80% at 0% 0%,rgba(195,182,221,.15),rgba(195,182,221,0) 62%),radial-gradient(80% 70% at 100% 0%,rgba(183,219,202,.10),rgba(183,219,202,0) 60%)}',
     '.panel:focus{outline:none}',
     '.panel.is-in{animation:mh-in 460ms var(--mh-ease) both}',
@@ -310,7 +312,8 @@
     '.tab{height:34px;border-radius:9px;text-align:center;font-size:13px;font-weight:600;color:var(--mh-muted);transition:background-color 180ms,color 180ms,box-shadow 180ms}',
     '.tab:hover{color:var(--mh-ink)}',
     '.tab[aria-selected="true"]{background:var(--mh-bg-4);color:var(--mh-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 1px 3px rgba(0,0,0,.45)}',
-    '.scroll{position:relative;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 16px 24px;scrollbar-width:thin;scrollbar-color:#2b3137 transparent}',
+    // On a short viewport (landscape phone, 400% zoom) the score area keeps a floor and the panel itself scrolls.
+    '.scroll{position:relative;flex:1 1 auto;min-height:min(160px,40vh);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 16px 24px;scrollbar-width:thin;scrollbar-color:#2b3137 transparent}',
     '.scroll::-webkit-scrollbar{width:10px}.scroll::-webkit-scrollbar-thumb{background:#2b3137;border-radius:10px;border:3px solid var(--mh-bg)}.scroll::-webkit-scrollbar-track{background:transparent}',
     '.pane{outline:none}',
     // hero
@@ -499,14 +502,15 @@
     '.dock.is-min{left:auto;right:16px}',
     '.dock.beside{max-width:calc(100vw - 460px)}',
     '@keyframes mh-pop{from{opacity:0;transform:translateY(12px) scale(.97)}}',
-    '.dock-score{display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 14px 0 4px;border-radius:999px;font-size:13px;font-weight:600;transition:background-color 160ms}',
+    '.dock-score{display:inline-flex;flex:none;align-items:center;gap:9px;height:38px;padding:0 14px 0 4px;border-radius:999px;font-size:13px;font-weight:600;transition:background-color 160ms}',
+    '.dock-score.is-compact{padding:0 4px}',
     '.dock-score:hover{background:var(--mh-tint-2)}',
     '.mini{position:relative;display:block;width:30px;height:30px;flex:none}',
     '.mini svg{display:block;width:100%;height:100%}',
     '.mini b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 11px/1 var(--mh-sans);font-variant-numeric:tabular-nums}',
     '.dock-text{min-width:0;padding:0 8px 0 10px;font-size:12.5px;color:var(--mh-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     '.dock .btn-sm{flex:none}',
-    '.dock .ib{width:38px;height:38px;border-radius:999px}',
+    '.dock .ib{flex:none;width:38px;height:38px;border-radius:999px}',
     '.dock-sep{width:1px;height:22px;margin:0 2px;background:var(--mh-rule-2);flex:none}',
     // highlights: boxes live in document coordinates
     '.layer{position:absolute;top:0;left:0;width:0;height:0;overflow:visible;pointer-events:none}',
@@ -722,13 +726,26 @@
     var t = S.tab === 'style' ? 'Copy DESIGN.md' : 'Copy fix prompt';
     S.primary._mhText = t;
     if (!S.primary.classList.contains('is-done')) S.primary._mhLbl.textContent = t;
+    syncActions();
   }
 
   function setBusy(busy) {
-    [S.primary, S.cardBtn, S.reportBtn].forEach(function (b) {
-      if (!b) return;
-      if (busy) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
-    });
+    [S.primary, S.cardBtn, S.reportBtn].forEach(function (b) { dis(b, busy); });
+  }
+  function dis(b, off) {
+    if (!b) return;
+    if (off) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+  }
+  // The card and the report need a score; the primary button follows the open tab, so "Copy DESIGN.md" works
+  // whenever a style was read, even if scoring failed.
+  function syncActions() {
+    if (!S) return;
+    var bad = S.measuring || !S.result || !!S.result.error;
+    var st = S.style;
+    var noStyle = !st || (!arr(st.colors).length && !arr(st.fonts).length && !arr(st.typeScale).length);
+    dis(S.cardBtn, bad);
+    dis(S.reportBtn, bad);
+    dis(S.primary, S.measuring || (S.tab === 'style' ? noStyle : bad));
   }
 
   /* ---------------------------------------------------------------- keyboard */
@@ -882,7 +899,7 @@
           S.result = res;
           S.style = style;
           S.sweep.classList.remove('is-on');
-          setBusy(!res || !!res.error);
+          syncActions();
           S.scrollMem = {};
           S.scroller.scrollTop = 0;
           renderScore(true);
@@ -1228,15 +1245,35 @@
       return;
     }
     p.appendChild(heroBlock(r, animate));
-    if (r.scanned && r.scanned.truncated) {
-      p.appendChild(h('p', { class: 'note' }, icon('warn'), h('span', null, 'Large page: Design Score measured the first ' + plural(r.scanned.elements || 0, 'element') + ' and scored those.')));
-    }
+    var part = partialNote(r, true);
+    if (part) p.appendChild(h('p', { class: 'note' }, icon('warn'), h('span', null, part)));
     var ins = insight(r);
     if (ins) p.appendChild(ins);
     p.appendChild(categoriesBlock(r, animate));
     p.appendChild(issuesBlock(r));
     p.appendChild(checksBlock(r));
     p.appendChild(moreBlock());
+  }
+
+  // Why a scored result is partial: the element cap, checks the time budget skipped, or a check that stopped
+  // part-way. A probe that records each cause (scanned.elementsCut, scanned.checksSkipped) is read as is; for
+  // an older result the skipped checks are counted from the checks, and the element cut is inferred: the
+  // element cap, or a time stop that no skipped or stopped-early check explains.
+  function partialNote(r, inPanel) {
+    var sc = (r && r.scanned) || {};
+    if (!sc.truncated) return '';
+    var checks = [];
+    catList(r).forEach(function (c) { checks = checks.concat(arr(c.checks)); });
+    var skipped = isNum(sc.checksSkipped) ? sc.checksSkipped : checks.filter(function (k) {
+      return k && k.status === 'skip' && /time budget ran out before this check/.test(str(k.display));
+    }).length;
+    var early = checks.some(function (k) { return !!(k && k.value && k.value.stoppedEarly); });
+    var cut = sc.elementsCut != null ? !!sc.elementsCut : sc.stoppedBy === 'elements' || (!skipped && !early);
+    var out = [];
+    if (cut) out.push('Large page: Design Score measured the first ' + plural(sc.elements || 0, 'element') + ' and scored those.');
+    if (skipped > 0) out.push('The time budget ran out: ' + fmt(skipped) + ' of ' + plural(Math.max(checks.length, skipped), 'check') + (skipped === 1 ? ' was' : ' were') + ' not measured.' + (inPanel ? ' Press Re-run.' : ''));
+    if (!out.length) out.push('The time budget ran out before every check finished.');
+    return out.join(' ');
   }
 
   function errorCard(msg) {
@@ -1665,7 +1702,9 @@
     d.classList.toggle('beside', !S.minimized);
     var r = S.result;
     if (S.minimized) {
-      d.appendChild(button('dock-score', [miniRing(r && !r.error ? r.score : null), h('span', null, 'Design Score')], function () { restore(); },
+      // On a phone with a highlight the ring alone opens the panel, so the highlight label keeps its room.
+      var compact = !!hl && narrow();
+      d.appendChild(button('dock-score' + (compact ? ' is-compact' : ''), [miniRing(r && !r.error ? r.score : null)].concat(compact ? [] : [h('span', null, 'Design Score')]), function () { restore(); },
         { 'data-k': 'open', 'aria-label': 'Open Design Score' + (r && !r.error ? ': ' + r.score + ' out of 100, grade ' + r.grade : ''), title: 'Open the panel' }));
     }
     if (hl) {
@@ -1677,6 +1716,8 @@
           var n = S.hl.items.length, j = S.hl.focus;
           for (var step = 1; step <= n; step++) { j = (S.hl.focus + step) % n; if (canShow(S.hl.items[j].ex)) break; }
           reveal(j);
+          var ex = S.hl && S.hl.items[j] ? S.hl.items[j].ex : null;
+          announce('Showing ' + (j + 1) + ' of ' + n + ': ' + oneLine((ex && ex.selector) || 'element', 80) + '.');
         }, { 'data-k': 'next', title: 'Next example' }));
       }
       d.appendChild(button('btn btn-sm', [icon('clear'), 'Clear'], function () { clearHighlights(false); }, { 'data-k': 'clear', 'aria-label': 'Clear highlights' }));
@@ -1766,15 +1807,18 @@
     closeSheet();
     var ta = h('textarea', { readonly: true, 'aria-label': 'Text to copy', spellcheck: 'false' });
     ta.value = text;
+    var touch = false;
+    try { touch = !!(W.matchMedia && W.matchMedia('(pointer: coarse)').matches); } catch (e) { /* keep the shortcut text */ }
     var sheet = h('div', { class: 'msheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'mh-ms-t' },
       h('h3', { id: 'mh-ms-t' }, 'Copy it by hand'),
-      h('p', null, 'This page blocks the clipboard. The text below is selected: press ' + (isMac() ? '⌘C' : 'Ctrl+C') + ', then Done.'),
+      h('p', null, 'This page blocks the clipboard. ' + (touch ? 'Touch and hold the text below, choose Copy, then Done.' : 'The text below is selected: press ' + (isMac() ? '⌘C' : 'Ctrl+C') + ', then Done.')),
       ta,
       h('div', { class: 'row' },
         button('btn btn-sm', 'Select all', function () { ta.focus(); ta.select(); }),
         button('btn btn-sm btn-primary', 'Done', function () { closeSheet(); })));
     S.sheet = sheet;
     S.sheetReturn = S.root.activeElement;
+    S.panel.scrollTop = 0; // the panel scrolls on a short viewport; the sheet covers it from the top
     S.panel.appendChild(sheet);
     ta.focus();
     ta.select();
@@ -1848,23 +1892,52 @@
     later(function () { b.classList.remove('is-done'); }, 1600);
   }
 
+  // A blob: tab takes the scored page's Content-Security-Policy, so the report's inline style and script run
+  // there only if they run here. Both are tried on the spot (synchronously, inside the click).
+  function inlineAllowed() {
+    if (!S || !S.root) return false;
+    var okStyle = false, okScript = false;
+    var st = D.createElement('style'), i = D.createElement('i');
+    st.textContent = '.mh-csp-probe{--mh-csp:1}';
+    i.className = 'mh-csp-probe';
+    try {
+      S.root.appendChild(st);
+      S.root.appendChild(i);
+      okStyle = W.getComputedStyle(i).getPropertyValue('--mh-csp').trim() === '1';
+    } catch (e) { okStyle = false; }
+    if (st.parentNode) st.parentNode.removeChild(st);
+    if (i.parentNode) i.parentNode.removeChild(i);
+    if (!okStyle) return false;
+    var sc = D.createElement('script');
+    try {
+      sc.textContent = 'window.__mhInline=1'; // throws where Trusted Types are enforced
+      S.root.appendChild(sc);
+      okScript = W.__mhInline === 1;
+    } catch (e2) { okScript = false; }
+    if (sc.parentNode) sc.parentNode.removeChild(sc);
+    try { delete W.__mhInline; } catch (e3) { W.__mhInline = undefined; }
+    return okScript;
+  }
+
   function openReport(b) {
     if (!S || !S.result || S.result.error) return;
     var name = 'design-score-' + slugHost(S.result.host) + '.html';
     var html = reportHtml(S.result, S.style);
     var U = W.URL || W.webkitURL, url = null, win = null;
-    try { url = U.createObjectURL(new W.Blob([html], { type: 'text/html;charset=utf-8' })); } catch (e) { url = null; }
+    var allowed = inlineAllowed();
+    // The URL is not revoked: the page releases it when it unloads, and until then a reload of the tab still works.
+    if (allowed) { try { url = U.createObjectURL(new W.Blob([html], { type: 'text/html;charset=utf-8' })); } catch (e) { url = null; } }
     if (url) { try { win = W.open(url, '_blank'); } catch (e2) { win = null; } }
     if (win) {
       try { win.opener = null; } catch (e3) { /* ignore */ }
-      W.setTimeout(function () { try { U.revokeObjectURL(url); } catch (e4) { /* ignore */ } }, 120000);
       if (b) flashSaved(b);
       toast('The full report opened in a new tab.');
       return;
     }
     if (url) { try { U.revokeObjectURL(url); } catch (e5) { /* ignore */ } }
-    if (saveText(html, name, 'text/html;charset=utf-8')) toast('Pop-ups are blocked here, so the report was downloaded as ' + name + '.');
-    else toast('This page blocked both the new tab and the download.');
+    if (saveText(html, name, 'text/html;charset=utf-8')) {
+      toast(allowed ? 'Pop-ups are blocked here, so the report was downloaded as ' + name + '.' : 'This page’s security policy would break the report tab, so it was downloaded as ' + name + '.');
+    } else toast(allowed ? 'This page blocked both the new tab and the download.' : 'This page blocked the download.');
   }
   function saveReport(b) {
     if (!S || !S.result || S.result.error) return;
@@ -2293,7 +2366,7 @@
       '<h1>' + esc(host) + '</h1>' + (r.title ? '<p class="ptitle">' + esc(r.title) + '</p>' : '') +
       (url ? '<p class="url"><a href="' + url + '" target="_blank" rel="noopener noreferrer">' + esc(r.url) + '</a></p>' : (r.url ? '<p class="url">' + esc(r.url) + '</p>' : '')) +
       '<p class="meta">' + (failed ? esc(r.error) : 'Measured on ' + esc(plural(sc.elements || 0, 'element')) + ' (' + esc(plural(sc.textBlocks || 0, 'text block')) + ') in ' + esc(fmt(sc.ms || 0)) + ' ms at ' + esc((vp.width || '?') + ' × ' + (vp.height || '?')) + (vp.dpr && vp.dpr !== 1 ? ' @' + esc(vp.dpr) + 'x' : '') +
-        (sc.truncated ? '.<br>Large page: the first ' + esc(fmt(sc.elements || 0)) + ' elements were measured.' : '.') +
+        (sc.truncated ? '.<br>' + esc(partialNote(r, false)) : '.') +
         (sc.decorative ? '<br>' + esc(plural(sc.decorative, 'HTML illustration')) + ' (aria-hidden, role="img" or data-design-score="ignore") measured as pictures, not as the page’s own interface.' : '')) + '</p>' +
       insightHtml + '</div></section>');
 

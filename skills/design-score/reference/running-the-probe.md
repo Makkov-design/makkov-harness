@@ -22,11 +22,15 @@ Exact snippets for every way to run Design Score: a browser tool that evaluates 
 ```js
 window.MHScoreNoAuto = true;
 new Promise((resolve, reject) => {
-  const s = document.createElement('script');
-  s.src = 'https://makkov-design.github.io/makkov-harness/score/mh-score.js?v=1.0.0';
-  s.onload = () => resolve(window.MHScore ? 'Design Score ' + window.MHScore.version + ' loaded' : 'loaded, but MHScore is missing');
-  s.onerror = () => reject(new Error('Blocked: this page does not allow outside scripts, or there is no network. See "Strict or offline pages".'));
-  document.documentElement.appendChild(s);
+  try {
+    const s = document.createElement('script');
+    s.src = 'https://makkov-design.github.io/makkov-harness/score/mh-score.js?v=1.0.0';
+    s.onload = () => resolve(window.MHScore ? 'Design Score ' + window.MHScore.version + ' loaded' : 'loaded, but MHScore is missing');
+    s.onerror = () => reject(new Error('Blocked: this page does not allow outside scripts, or there is no network. See "Strict or offline pages".'));
+    document.documentElement.appendChild(s);
+  } catch (e) {
+    reject(new Error('Blocked: this page does not allow outside scripts (' + e.message + '). See "Strict or offline pages".'));
+  }
 });
 ```
 
@@ -42,7 +46,7 @@ typeof MHScore === 'object' && MHScore.version   // "1.0.0"
 
 Strict pages (GitHub, X, many admin and banking apps) block outside scripts with a Content-Security-Policy, and with no network the loader has nothing to fetch. Either way it rejects with "Blocked".
 
-**A browser tool cannot paste the bundle in for you.** The evaluate tools under "Per tool" take the code to run as text inside the call, and `mh-score.js` is about 285 KB (roughly 90,000 tokens). The agent would have to write the whole file out, character for character, in one tool call: that does not fit in one response, and a single wrong character breaks it. Do not try, and do not paste `src/probe.js` on its own either (about 150 KB). Use one of these instead, in this order:
+**A browser tool cannot paste the bundle in for you.** The evaluate tools under "Per tool" take the code to run as text inside the call, and `mh-score.js` is about 320 KB (roughly 90,000 tokens). The agent would have to write the whole file out, character for character, in one tool call: that does not fit in one response, and a single wrong character breaks it. Do not try, and do not paste `src/probe.js` on its own either (about 175 KB). Use one of these instead, in this order:
 
 1. **The Node runner** (below), when it is set up. It reads the bundle from disk and injects it through the DevTools protocol with the page's CSP bypassed, so a strict policy cannot block it and loading the bundle needs no network.
 2. **A local app you are working on.** Copy `mh-score.js` into the folder its dev server serves as-is (`public/` in Vite, Next.js and Create React App, `static/` in SvelteKit; elsewhere, the folder that holds the favicon), and run the loader with `s.src = '/mh-score.js'`. The bundle then comes from the page's own origin, which a `script-src 'self'` policy allows, and no network is needed. Delete the copy when you are done, never commit it, and tell the person you added and removed it.
@@ -108,6 +112,7 @@ Check that the saved file has the same number of characters. If writing pieces i
 
 ```js
 MHScore.run({ maxElements: 8000 })                        // sample more of a huge page (default 4000)
+MHScore.run({ timeBudgetMs: 6000 })                       // allow more time on a slow page (default 2500 ms)
 MHScore.run({ root: document.querySelector('main') })     // only one part of the page
 ```
 
@@ -212,7 +217,7 @@ For the person, on any desktop browser: open the page, open DevTools (F12 or Cmd
 | The loader rejects with "Blocked" | The page's Content-Security-Policy, or no network | Step 1 B: the runner, a same-origin copy on a local app, or the person's offline bookmarklet. Never paste the bundle through a tool call |
 | `error` is set on the result | The probe could not run on this page | Report that, with no score |
 | Focus or reduced-motion checks skip, mentioning stylesheets | Stylesheets served from another domain cannot be read | Say so; those checks are not part of the score |
-| `scanned.truncated` is true | A huge page; only its first elements were sampled | Say so; `MHScore.run({ maxElements: 8000 })`, or score parts with `root` |
+| `scanned.truncated` is true | A huge or slow page; a limit cut the sample short | Say so, and read `scanned.stoppedBy`. `"elements"`: `MHScore.run({ maxElements: 8000 })`, or score parts with `root`; `"time"`: `MHScore.run({ timeBudgetMs: 6000 })`, or score parts with `root` |
 | Scores differ by a few points between runs | Late fonts, lazy content or animations in progress | Wait for the page to settle, run again, report the settled run |
 | The phone run looks like desktop | The viewport was not changed, or the page was not reloaded | Resize, reload, load the bundle again; check `viewport.width` |
 | An embedded iframe is not measured | The probe reads the top document only | Open the iframe's own URL and score that |

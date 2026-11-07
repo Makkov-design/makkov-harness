@@ -463,7 +463,7 @@
       root: rootEl,
       maxEl: isNum(opts.maxElements) && opts.maxElements > 0 ? Math.floor(opts.maxElements) : 4000,
       budget: isNum(opts.timeBudgetMs) && opts.timeBudgetMs > 0 ? opts.timeBudgetMs : 2500,
-      items: [], textItems: [], decorative: 0, byEl: new Map(), cs: new Map(), typed: new Map(), truncated: false, stoppedBy: null, memo: {},
+      items: [], textItems: [], decorative: 0, unrendered: 0, byEl: new Map(), cs: new Map(), typed: new Map(), truncated: false, stoppedBy: null, memo: {},
       vw: (de && de.clientWidth) || W.innerWidth || 0,
       vh: W.innerHeight || (de && de.clientHeight) || 0,
       sx: W.pageXOffset || 0, sy: W.pageYOffset || 0
@@ -494,17 +494,27 @@
       if ((++n & 31) === 0 && now() - ctx.t0 > ctx.budget * 0.6) { ctx.truncated = true; ctx.stoppedBy = 'time'; break; }
       var cs = getCS(ctx, el);
       if (!cs || cs.display === 'none') continue;
+      // Not rendered because of an ancestor's content-visibility (hidden, hidden="until-found", a closed details,
+      // an off-screen auto section), or a light-DOM child no slot shows: reading its layout would force the
+      // browser to lay it out (and fetch its web fonts), so it is not walked. The container's own box is still
+      // measured. checkVisibility itself does not force layout.
+      if (el !== ctx.root && cs.display !== 'contents' && el.checkVisibility && !el.checkVisibility({ contentVisibilityAuto: true })) { ctx.unrendered++; continue; }
       // Illustrations built from HTML (product mock-ups, decorative art) are set aside like pictures: subtrees
       // marked aria-hidden="true" (decorative by the page's own word, which WCAG exempts from contrast) or
       // data-design-score="ignore" are skipped; a role="img" box is measured as one picture, its insides not
-      // walked. Never the page itself or a subtree holding its main content.
+      // walked. Never the page itself or a subtree holding its main content. The explicit opt-out applies to
+      // every element; aria-hidden and role="img" only to boxes built from HTML, since an aria-hidden img or
+      // svg still shapes the layout and the imagery under text.
       var asPicture = false;
-      if (el !== ctx.root && tag !== 'BODY' && !LEAF_TAGS[tag]) {
-        var hide = attr(el, 'aria-hidden') === 'true' || attr(el, 'data-design-score') === 'ignore';
-        var pic = !hide && (attr(el, 'role') || '').toLowerCase() === 'img' && el.children && el.children.length > 0;
+      if (el !== ctx.root && tag !== 'BODY') {
+        var leaf = !!LEAF_TAGS[tag];
+        var hide = attr(el, 'data-design-score') === 'ignore' || (!leaf && attr(el, 'aria-hidden') === 'true');
+        var pic = !hide && !leaf && (attr(el, 'role') || '').toLowerCase() === 'img' && el.children && el.children.length > 0;
         if ((hide || pic) && !holdsMain(el)) {
-          // Only a real illustration (8 or more elements inside) is counted; small icons are skipped quietly.
-          if (el.getElementsByTagName('*').length >= 8) ctx.decorative++;
+          // Only a real illustration (8 or more HTML elements inside) is counted; small icons are skipped quietly.
+          // An inline svg or math subtree counts as its root element only (the walk never enters one).
+          var nIn = el.getElementsByTagName('*').length - el.querySelectorAll('svg *, math *').length;
+          if (nIn >= 8) ctx.decorative++;
           if (hide) continue;
           asPicture = true;
         }
@@ -528,7 +538,7 @@
       ctx.items.push(it);
       ctx.byEl.set(el, it);
       if (it.textLen > 0 && it.visible) ctx.textItems.push(it);
-      if (LEAF_TAGS[tag] || asPicture) continue;
+      if (LEAF_TAGS[tag] || asPicture || (!el.checkVisibility && cs.contentVisibility === 'hidden')) continue;
       var kids = el.children;
       if (kids) for (var k = kids.length - 1; k >= 0; k--) stack.push(kids[k]);
       var sr = el.shadowRoot;
@@ -583,12 +593,12 @@
 
   // Composited background colour behind an element's text, walking up the flat tree (so the shadow-tree
   // boxes behind a <slot> count). Returns { image: true } when an image or gradient sits under the text
-  // before any opaque fill.
+  // before any opaque fill. display: contents elements draw no box, so their backgrounds are never painted.
   function backdrop(ctx, el) {
     var layers = [], cur = el, guard = 0;
     while (cur && cur.nodeType === 1 && guard++ < 80) {
       var cs = getCS(ctx, cur);
-      if (cs) {
+      if (cs && cs.display !== 'contents') {
         if (cs.backgroundImage && cs.backgroundImage !== 'none') return { image: true };
         var c = parseColor(cs.backgroundColor);
         if (c && c.a > 0) { layers.push(c); if (c.a >= 0.999) break; }
@@ -613,7 +623,15 @@
     var past = false;
     for (var i = 0; i < stack.length && i < 24; i++) {
       var e = stack[i];
-      if (!past) { if (e === it.el) past = true; continue; }
+      if (!past) {
+        if (e === it.el) {
+          past = true;
+          // The text's own box (or the slot that paints it) has an opaque fill: nothing below shows through.
+          var own = opaqueAncestor(ctx, it.textFrom || it.el);
+          if (own && flatContains(it.el, own)) return false;
+        }
+        continue;
+      }
       if (e.id === HOST_ID) continue;
       if (MEDIA_TAGS[tagOf(e)]) return true;
       var cs = getCS(ctx, e);
@@ -643,7 +661,7 @@
   function opaqueAncestor(ctx, el) {
     for (var cur = el, g = 0; cur && cur.nodeType === 1 && g < 80; g++, cur = flatParent(cur)) {
       var cs = getCS(ctx, cur), c = cs && parseColor(cs.backgroundColor);
-      if (c && c.a >= 0.999) return cur;
+      if (c && c.a >= 0.999 && cs.display !== 'contents') return cur;
     }
     return null;
   }
@@ -901,14 +919,27 @@
     ctx.memo.colors = list;
     return list;
   }
-  // Greedy merge of colours closer than `tol` in OKLab. Input sorted by importance.
+  // Greedy merge of colours closer than `tol` in OKLab. Input sorted by importance; each colour joins the
+  // first (earliest) cluster whose representative is closer than tol. Representatives are indexed in a grid
+  // of tol-sized cells: one within tol differs by less than tol on every axis, so it lies in one of the 27
+  // cells around the colour, and the lowest matching index keeps the first-match order of a full scan.
   function clusterColors(list, tol, weightOf) {
-    var clusters = [];
+    var clusters = [], cells = new Map();
     list.forEach(function (u) {
-      for (var i = 0; i < clusters.length; i++) {
-        if (deltaE(clusters[i].c, u.c) < tol) { clusters[i].members.push(u); clusters[i].weight += weightOf(u); return; }
+      var p = toOklab(u.c), gx = Math.floor(p[0] / tol), gy = Math.floor(p[1] / tol), gz = Math.floor(p[2] / tol), best = -1;
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) for (var dz = -1; dz <= 1; dz++) {
+        var cell = cells.get((gx + dx) + ',' + (gy + dy) + ',' + (gz + dz));
+        if (!cell) continue;
+        for (var k = 0; k < cell.length; k++) {
+          var i = cell[k], q = clusters[i].lab;
+          if ((best < 0 || i < best) && Math.sqrt((p[0] - q[0]) * (p[0] - q[0]) + (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])) < tol) best = i;
+        }
       }
-      clusters.push({ c: u.c, hex: u.hex, members: [u], weight: weightOf(u) });
+      if (best >= 0) { clusters[best].members.push(u); clusters[best].weight += weightOf(u); return; }
+      var ck = gx + ',' + gy + ',' + gz, bucket = cells.get(ck);
+      if (!bucket) cells.set(ck, bucket = []);
+      bucket.push(clusters.length);
+      clusters.push({ c: u.c, hex: u.hex, members: [u], weight: weightOf(u), lab: p });
     });
     return clusters;
   }
@@ -993,7 +1024,7 @@
     } catch (e) { /* ignore */ }
     ctx.items.forEach(function (it) {
       if (!it.visible) return;
-      var cs = it.cs, used = false;
+      var cs = it.cs, used = false, isLong = false; // one m.long entry per element: the share is of elements
       var an = cs.animationName;
       if (an && an !== 'none') {
         var ad = durationsMs(cs.animationDuration);
@@ -1002,14 +1033,14 @@
           m.animated.push(it);
           var inf = /infinite/.test(cs.animationIterationCount || '') && !/paused/.test(cs.animationPlayState || '');
           if (inf) m.infinite.push({ it: it, ms: ad, name: an });
-          else if (ad > 1000) m.long.push({ it: it, ms: ad, what: 'animation ' + q(an.split(',')[0], 30) });
+          else if (ad > 1000) { isLong = true; m.long.push({ it: it, ms: ad, what: 'animation ' + q(an.split(',')[0], 30) }); }
         }
       }
       var tp = cs.transitionProperty, td = durationsMs(cs.transitionDuration);
       if (tp && tp !== 'none' && td > 0) {
         used = true;
         if (MOVING.test(tp)) m.moving.push({ it: it, ms: td, prop: tp });
-        if (td > 700) m.long.push({ it: it, ms: td, what: 'transition ' + q(tp, 40) });
+        if (td > 700 && !isLong) m.long.push({ it: it, ms: td, what: 'transition ' + q(tp, 40) });
       }
       if (used) m.any++;
     });
@@ -1063,30 +1094,33 @@
       return r ? fullText(r, 200) : '';
     }).join(' ').trim();
   }
-  function subtreeText(ctx, el, depth) {
-    if (depth > 10) return '';
-    var out = '';
+  // Does the subtree name its control: any text, a descendant's aria-label, an img alt or an svg <title>?
+  // Stops at the first hit. After 500 element visits (budget.n, shared down the walk) it answers yes, so a
+  // huge wrapper costs a bounded number of style reads and is treated as named rather than flagged.
+  function hasSubtreeText(ctx, el, depth, budget) {
+    if (depth > 10) return false;
     for (var n = el.firstChild; n; n = n.nextSibling) {
-      if (n.nodeType === 3) { out += n.nodeValue; continue; }
+      if (n.nodeType === 3) { if (/\S/.test(n.nodeValue || '')) return true; continue; }
       if (n.nodeType !== 1) continue;
+      if (++budget.n > 500) return true;
       if (attr(n, 'aria-hidden') === 'true' || n.hidden) continue;
       var t = tagOf(n);
       if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
       var cs = getCS(ctx, n);
       if (cs && cs.display === 'none') continue;
-      var al = (attr(n, 'aria-label') || '').trim();
-      if (al) { out += ' ' + al + ' '; continue; }
-      if (t === 'IMG') { out += ' ' + (attr(n, 'alt') || '') + ' '; continue; }
+      if ((attr(n, 'aria-label') || '').trim()) return true;
+      if (t === 'IMG') { if ((attr(n, 'alt') || '').trim()) return true; continue; }
       if (t === 'SVG') {
         var title = null;
         try { title = n.querySelector('title'); } catch (e) { title = null; }
-        out += ' ' + (title ? title.textContent || '' : '') + ' ';
+        if (title && (title.textContent || '').trim()) return true;
         continue;
       }
-      out += ' ' + subtreeText(ctx, n, depth + 1) + ' ';
+      if (hasSubtreeText(ctx, n, depth + 1, budget)) return true;
     }
-    return out.replace(/\s+/g, ' ').trim();
+    return false;
   }
+  // Returns the name, or 'content' when it comes from the element's contents: callers only need to know one exists.
   function accName(ctx, el) {
     var n = labelledBy(el);
     if (n) return n;
@@ -1103,8 +1137,7 @@
       }
     }
     if (tag === 'IMG') return (attr(el, 'alt') || '').trim();
-    n = subtreeText(ctx, el, 0);
-    if (n) return n;
+    if (hasSubtreeText(ctx, el, 0, { n: 0 })) return 'content';
     return (attr(el, 'title') || '').trim();
   }
 
@@ -1246,7 +1279,7 @@
         var labels = null;
         try { labels = el.labels; } catch (e) { labels = null; }
         if (labels && labels.length) {
-          for (var i = 0; i < labels.length; i++) if (subtreeText(ctx, labels[i], 0)) return;
+          for (var i = 0; i < labels.length; i++) if (hasSubtreeText(ctx, labels[i], 0, { n: 0 })) return;
         }
         if ((attr(el, 'placeholder') || '').trim()) { missing += 0.5; bad.push({ it: it, note: 'placeholder only, no label' }); return; }
         missing += 1;
@@ -1309,8 +1342,8 @@
       var ok = /^[a-z]{2,3}(-[a-z0-9]{1,8})*$/i.test(lang);
       return {
         score: ok ? 100 : lang ? 40 : 0,
-        value: lang || null,
-        display: ok ? 'lang="' + lang + '"' : lang ? 'lang ' + q(lang, 20) + ' is not a valid language tag' : 'No lang attribute on <html>',
+        value: lang ? cleanText(lang, 40) : null,
+        display: ok ? 'lang="' + cleanText(lang, 40) + '"' : lang ? 'lang ' + q(lang, 20) + ' is not a valid language tag' : 'No lang attribute on <html>',
         examples: ok ? [] : [example(de, null, 'add lang, for example lang="en"', '<html>')],
         issue: { title: lang ? 'Invalid page language' : 'Page language is not set', detail: 'The <html> element has ' + (lang ? 'lang ' + q(lang, 20) : 'no lang attribute') + '.', fix: 'Set <html lang="en"> (or the page’s real language).' }
       };
@@ -1464,7 +1497,7 @@
       var blocked = noScale || low;
       return {
         score: blocked ? 0 : 100,
-        value: { blocked: !!blocked, content: c },
+        value: { blocked: !!blocked, content: cleanText(c, 160) },
         display: blocked ? 'Zoom blocked: ' + (noScale ? 'user-scalable=no' : 'maximum-scale=' + mx[1]) : 'Zoom is allowed',
         examples: blocked ? [example(meta, null, q(c, 70), '<meta name="viewport">')] : [],
         issue: { title: 'Pinch zoom is blocked', detail: 'The viewport meta tag contains ' + q(c, 70) + '.', fix: 'Remove user-scalable=no and maximum-scale; keep width=device-width, initial-scale=1.' }
@@ -1521,7 +1554,7 @@
       return {
         score: curve(n, [[3, 100], [4, 75], [5, 50], [6, 25], [7, 0]]),
         value: { count: n, families: fams.slice(0, 20).map(function (f) { return cleanText(f.name, 60); }) },
-        display: plural(n, 'family', 'families') + ': ' + fams.slice(0, 6).map(function (f) { return cleanText(f.name, 40); }).join(', ') + (n > 6 ? '…' : ''),
+        display: plural(n, 'family', 'families') + ': ' + fams.slice(0, 6).map(function (f) { return q(f.name, 40); }).join(', ') + (n > 6 ? '…' : ''),
         examples: n > 3 ? fams.slice(3, 15).map(function (f) { return itemExample(f.items[0], q(f.name) + ' (' + plural(f.count, 'element') + ')'); }) : [],
         issue: { title: plural(n, 'font family', 'font families') + ' in use', detail: 'Found ' + qList(fams.map(function (f) { return f.name; }), 6) + '.', fix: 'Pick one family for text and at most one for display and one mono; replace the rest with those.' }
       };
@@ -1560,7 +1593,8 @@
       var paras = all.filter(function (p) { return !inChrome(p.it.el); });
       if (paras.reduce(function (a, p) { return a + p.chars; }, 0) < 200) paras = all;
       paras.forEach(function (p) { inc(byChars, Math.round(p.fs * 2) / 2, p.chars); total += p.chars; });
-      if (total < 200) {
+      if (total < 200) { // all text replaces the paragraphs, so their characters are not counted twice
+        byChars.clear(); total = 0;
         typeSample(ctx).list.forEach(function (x) { inc(byChars, Math.round(x.fs * 2) / 2, x.it.textLen); total += x.it.textLen; });
       }
       if (total < 200) return { skip: 'Not enough running text to find the body size.' };
@@ -2024,6 +2058,7 @@
           inFlow: pos !== 'absolute' && (!it.cs.transform || it.cs.transform === 'none') && !ariaHidden(it.el) });
       }
     });
+    ctx.memo.wideRaw = out; // before outermost(): resp-fixed filters first, so a non-offending ancestor cannot hide one
     ctx.memo.wide = outermost(out).sort(function (a, b) { return b.px - a.px; });
     return ctx.memo.wide;
   }
@@ -2037,7 +2072,7 @@
       var ok = /width\s*=\s*device-width/.test(c);
       return {
         score: !meta ? 0 : ok ? 100 : 50,
-        value: { present: !!meta, content: c || null },
+        value: { present: !!meta, content: c ? cleanText(c, 160) : null },
         display: !meta ? 'No viewport meta tag' : ok ? 'width=device-width is set' : 'Viewport meta without width=device-width (' + q(c, 50) + ')',
         examples: [],
         issue: { title: meta ? 'Viewport meta tag lacks width=device-width' : 'Missing viewport meta tag', detail: 'Mobile browsers fall back to a 980px desktop layout and zoom out.', fix: 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> to <head>.' }
@@ -2110,7 +2145,11 @@
     target: 'No element is wider than the viewport (outside scroll containers)',
     why: 'Fixed pixel widths are the usual cause of broken mobile layouts.',
     run: function (ctx) {
-      var wide = widerThanScreen(ctx).filter(function (w) { return w.inFlow && (w.it.rect.width > ctx.vw + 1 || num(w.it.cs.minWidth) > ctx.vw + 1); });
+      widerThanScreen(ctx);
+      // Filter, then keep the outermost: an ancestor that only reaches past the edge (shifted by a margin, or
+      // absolute) is no offender and must not hide the wide element inside it.
+      var wide = outermost(ctx.memo.wideRaw.filter(function (w) { return w.inFlow && (w.it.rect.width > ctx.vw + 1 || num(w.it.cs.minWidth) > ctx.vw + 1); }))
+        .sort(function (a, b) { return b.px - a.px; });
       if (!wide.length && fewElements(ctx)) return tooFew(ctx, 'element widths');
       return {
         score: capIf(curve(wide.length, [[0, 100], [1, 55], [3, 25], [6, 0]]), wide.length),
@@ -2246,9 +2285,15 @@
     shadowCache[s] = out;
     return out;
   }
+  // A border drawn in a visible colour; `1px solid transparent` only keeps heights equal and shows nothing.
+  function seenBorder(w, c) {
+    if (!(num(w) > 0)) return false;
+    var p = parseColor(c);
+    return !(p && p.a <= 0.05);
+  }
   function hasSurface(it) {
     var cs = it.cs, bg = parseColor(cs.backgroundColor);
-    return (bg && bg.a > 0.02) || num(cs.borderTopWidth) > 0 || num(cs.borderBottomWidth) > 0 || !!visibleShadow(cs.boxShadow) ||
+    return (bg && bg.a > 0.02) || seenBorder(cs.borderTopWidth, cs.borderTopColor) || seenBorder(cs.borderBottomWidth, cs.borderBottomColor) || !!visibleShadow(cs.boxShadow) ||
       (cs.backgroundImage && cs.backgroundImage !== 'none') || /^(IMG|VIDEO|BUTTON|INPUT|SELECT|TEXTAREA|CANVAS)$/.test(it.tag);
   }
   // Boxes with a visible surface: the population that radii and shadows are judged on.
@@ -2349,7 +2394,8 @@
         if (!isBtn) return;
         total++;
         var bgHex = bg && bg.a > 0.05 ? toHex(opaque(bg, ctx.pageBg)) : 'none';
-        var border = bw > 0 && cs.borderTopStyle !== 'none' ? Math.round(bw) + ' ' + toHex(opaque(parseColor(cs.borderTopColor) || WHITE, ctx.pageBg)) : 'none';
+        var bc = parseColor(cs.borderTopColor); // a transparent border is no border; an unparseable colour still counts
+        var border = bw > 0 && cs.borderTopStyle !== 'none' && !(bc && bc.a <= 0.05) ? Math.round(bw) + ' ' + toHex(opaque(bc || WHITE, ctx.pageBg)) : 'none';
         // Without a background or border, radius and padding are invisible: such text buttons differ only by type.
         var boxless = bgHex === 'none' && border === 'none';
         var sig = [bgHex, border, boxless ? 0 : radiusKey(it) || 0, boxless ? 0 : Math.round(num(cs.paddingTop) / 2) * 2, boxless ? 0 : Math.round(num(cs.paddingLeft) / 2) * 2, Math.round(num(cs.fontSize)), num(cs.fontWeight)].join('|');
@@ -2378,6 +2424,9 @@
   function freshContext(opts) {
     var ctx = collect(newContext(opts));
     lastCtx = ctx;
+    // Reuse is only valid for 3 s after ctx.t0 (see reusableContext); release the sample after that, so the
+    // sampled elements and styles of a single-page app's old route can be garbage-collected.
+    try { W.setTimeout(function () { if (lastCtx === ctx) lastCtx = null; }, 3000); } catch (e) { /* ignore */ }
     return ctx;
   }
   // extractStyle() right after run() reuses the same sample instead of walking the page twice.
@@ -2397,7 +2446,8 @@
       return l.protocol === 'file:' ? 'local file' : (l.host || 'page');
     } catch (e) { return 'page'; }
   }
-  function pageUrl() { try { return String(W.location.href); } catch (e) { return ''; } }
+  // Without the query and fragment, where apps keep tokens: every export (fix prompt, DESIGN.md, tokens) embeds it.
+  function pageUrl() { try { return String(W.location.href).split(/[?#]/)[0]; } catch (e) { return ''; } }
   function pageTitle() { try { return cleanText(D.title || '', 140); } catch (e) { return ''; } }
   function viewportInfo() {
     return { width: W.innerWidth || 0, height: W.innerHeight || 0, dpr: round(W.devicePixelRatio || 1, 2) };
@@ -2441,7 +2491,7 @@
     var ctx = freshContext(opts);
     var thin = thinReason(ctx);
     if (thin) {
-      return failedResult(thin, { elements: ctx.items.length, textBlocks: ctx.textItems.length, ms: Math.round(now() - t0), truncated: !!ctx.truncated, stoppedBy: ctx.stoppedBy },
+      return failedResult(thin, { elements: ctx.items.length, textBlocks: ctx.textItems.length, unrendered: ctx.unrendered, ms: Math.round(now() - t0), truncated: !!ctx.truncated, stoppedBy: ctx.stoppedBy },
         'Not measured: too little rendered content on the page.');
     }
     var timeSkips = 0;
@@ -2505,7 +2555,7 @@
     return {
       version: VERSION, url: pageUrl(), host: pageHost(), title: pageTitle(), timestamp: new Date().toISOString(),
       viewport: viewportInfo(),
-      scanned: { elements: ctx.items.length, textBlocks: ctx.textItems.length, decorative: ctx.decorative || 0, ms: Math.round(now() - t0), truncated: !!ctx.truncated, stoppedBy: ctx.stoppedBy || null },
+      scanned: { elements: ctx.items.length, textBlocks: ctx.textItems.length, decorative: ctx.decorative || 0, unrendered: ctx.unrendered || 0, ms: Math.round(now() - t0), truncated: !!ctx.truncated, stoppedBy: ctx.stoppedBy || null },
       score: score, grade: gradeOf(score),
       categories: cats.map(function (x) { return x.out; }),
       issues: issues.slice(0, 40)
@@ -2641,9 +2691,12 @@
     try { for (var i = 0; i < rcs.length && names.length < 600; i++) { var n = rcs[i]; if (n && n.indexOf('--') === 0 && !seen.has(n)) { seen.add(n); names.push(n); } } } catch (e2) { /* ignore */ }
     var sizeRe = /^-?(\d*\.)?\d+(px|rem|em|%|vw|vh|vmin|vmax|ch|ex|lh|svh|dvh|ms|s)$/; // a unit is required: bare numbers are z-indexes and ratios
     for (var j = 0; j < names.length && out.length < 60; j++) {
+      // Names and values are page-controlled and land raw in exports (a css fence in DESIGN.md): plain names only,
+      // and no value that could end a line or a fence.
+      if (!/^--[A-Za-z0-9_-]{1,64}$/.test(names[j])) continue;
       var v = '';
       try { v = String(rcs.getPropertyValue(names[j]) || '').trim(); } catch (e3) { v = ''; }
-      if (!v || v.length > 160) continue;
+      if (!v || v.length > 160 || /[\r\n`]/.test(v)) continue;
       var isColor = !!parseColorRaw(v.toLowerCase()) || /^(rgb|hsl|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\(/i.test(v);
       var isSize = sizeRe.test(v) || /^(clamp|calc|min|max)\(/i.test(v);
       if (isColor || isSize) out.push({ name: names[j], value: v });
@@ -2775,9 +2828,10 @@
   function designMd(style) {
     var s = style || {}, roles = s.roles || {}, out = [];
     var host = str(s.host || 'this site');
-    out.push('# DESIGN.md: ' + md(s.title || host));
+    // Page-controlled strings (title, address, font names) go in code spans: this file is handed to an agent.
+    out.push('# DESIGN.md: ' + code(cleanText(str(s.title || host), 100)));
     out.push('');
-    out.push('> Read from the computed styles of ' + str(s.url || host) + ' on ' + dateOf(s.timestamp) + ' with Design Score. This is an approximation of what one viewport renders, not the source design system: check names and values before you build on them.');
+    out.push('> Read from the computed styles of ' + code(cleanText(str(s.url || host), 300)) + ' on ' + dateOf(s.timestamp) + ' with Design Score. This is an approximation of what one viewport renders, not the source design system: check names and values before you build on them.');
     out.push('');
     var bg = roles.background ? parseColor(roles.background) : null;
     var dark = bg ? relLum(bg) < 0.2 : false;
@@ -2791,7 +2845,7 @@
     out.push('## Overview');
     out.push('');
     out.push(host + ' uses a ' + (dark ? 'dark' : 'light') + ' interface' + (acc ? ' with ' + colorName(acc).toLowerCase() + ' (' + roles.accent + ') as the accent' : ' with no strong accent colour') +
-      (body ? ', ' + body.family + ' for text' : '') + (display ? ' and ' + display.family + ' for headings' : '') +
+      (body ? ', ' + code(cleanText(body.family, 60)) + ' for text' : '') + (display ? ' and ' + code(cleanText(display.family, 60)) + ' for headings' : '') +
       (scale.length ? ', a ' + scale.length + '-step type scale from ' + scale[scale.length - 1].px + 'px to ' + scale[0].px + 'px' : '') +
       (sp.length ? ' and spacing ' + (onGridShare >= 0.75 ? 'mostly on a 4px grid' : 'that does not follow a clear grid') : '') + '.');
     out.push('');
@@ -2818,7 +2872,7 @@
     if (fonts.length) {
       out.push('| Family | Role | Weights | Stack |');
       out.push('|---|---|---|---|');
-      fonts.forEach(function (f) { out.push('| ' + md(f.family) + ' | ' + arr(f.roles).join(', ') + ' | ' + arr(f.weights).join(', ') + ' | ' + code(md(f.stack)) + ' |'); });
+      fonts.forEach(function (f) { out.push('| ' + code(md(cleanText(f.family, 60))) + ' | ' + arr(f.roles).join(', ') + ' | ' + arr(f.weights).join(', ') + ' | ' + code(md(f.stack)) + ' |'); });
     } else out.push('No text was measured.');
     if (scale.length) {
       out.push('');
@@ -3105,9 +3159,11 @@
     };
   }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  // Local date, like stamp(), so the card and the report show the same day.
   function dateOnly(ts) {
-    var s = str(ts);
-    return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+    var d = new Date(str(ts));
+    if (!isFinite(d.getTime())) return str(ts);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
   function stamp(ts) {
     var d = new Date(str(ts));
@@ -3310,7 +3366,7 @@
     '.ic{display:block;flex:none;width:16px;height:16px}',
     '.mark{display:block;flex:none;width:20px;height:20px;color:var(--mh-ink)}',
     // panel
-    '.panel{position:fixed;top:12px;right:12px;bottom:12px;width:400px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;isolation:isolate;outline:none;background:var(--mh-bg);border:1px solid var(--mh-edge);border-radius:20px;box-shadow:0 32px 80px -24px rgba(0,0,0,.7),0 10px 28px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05)}',
+    '.panel{position:fixed;top:12px;right:12px;bottom:12px;width:400px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;isolation:isolate;outline:none;background:var(--mh-bg);border:1px solid var(--mh-edge);border-radius:20px;box-shadow:0 32px 80px -24px rgba(0,0,0,.7),0 10px 28px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05)}',
     '.panel::before{content:"";position:absolute;z-index:-1;inset:0 0 auto 0;height:260px;pointer-events:none;background:radial-gradient(110% 80% at 0% 0%,rgba(195,182,221,.15),rgba(195,182,221,0) 62%),radial-gradient(80% 70% at 100% 0%,rgba(183,219,202,.10),rgba(183,219,202,0) 60%)}',
     '.panel:focus{outline:none}',
     '.panel.is-in{animation:mh-in 460ms var(--mh-ease) both}',
@@ -3334,7 +3390,8 @@
     '.tab{height:34px;border-radius:9px;text-align:center;font-size:13px;font-weight:600;color:var(--mh-muted);transition:background-color 180ms,color 180ms,box-shadow 180ms}',
     '.tab:hover{color:var(--mh-ink)}',
     '.tab[aria-selected="true"]{background:var(--mh-bg-4);color:var(--mh-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 1px 3px rgba(0,0,0,.45)}',
-    '.scroll{position:relative;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 16px 24px;scrollbar-width:thin;scrollbar-color:#2b3137 transparent}',
+    // On a short viewport (landscape phone, 400% zoom) the score area keeps a floor and the panel itself scrolls.
+    '.scroll{position:relative;flex:1 1 auto;min-height:min(160px,40vh);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 16px 24px;scrollbar-width:thin;scrollbar-color:#2b3137 transparent}',
     '.scroll::-webkit-scrollbar{width:10px}.scroll::-webkit-scrollbar-thumb{background:#2b3137;border-radius:10px;border:3px solid var(--mh-bg)}.scroll::-webkit-scrollbar-track{background:transparent}',
     '.pane{outline:none}',
     // hero
@@ -3523,14 +3580,15 @@
     '.dock.is-min{left:auto;right:16px}',
     '.dock.beside{max-width:calc(100vw - 460px)}',
     '@keyframes mh-pop{from{opacity:0;transform:translateY(12px) scale(.97)}}',
-    '.dock-score{display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 14px 0 4px;border-radius:999px;font-size:13px;font-weight:600;transition:background-color 160ms}',
+    '.dock-score{display:inline-flex;flex:none;align-items:center;gap:9px;height:38px;padding:0 14px 0 4px;border-radius:999px;font-size:13px;font-weight:600;transition:background-color 160ms}',
+    '.dock-score.is-compact{padding:0 4px}',
     '.dock-score:hover{background:var(--mh-tint-2)}',
     '.mini{position:relative;display:block;width:30px;height:30px;flex:none}',
     '.mini svg{display:block;width:100%;height:100%}',
     '.mini b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 11px/1 var(--mh-sans);font-variant-numeric:tabular-nums}',
     '.dock-text{min-width:0;padding:0 8px 0 10px;font-size:12.5px;color:var(--mh-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     '.dock .btn-sm{flex:none}',
-    '.dock .ib{width:38px;height:38px;border-radius:999px}',
+    '.dock .ib{flex:none;width:38px;height:38px;border-radius:999px}',
     '.dock-sep{width:1px;height:22px;margin:0 2px;background:var(--mh-rule-2);flex:none}',
     // highlights: boxes live in document coordinates
     '.layer{position:absolute;top:0;left:0;width:0;height:0;overflow:visible;pointer-events:none}',
@@ -3746,13 +3804,26 @@
     var t = S.tab === 'style' ? 'Copy DESIGN.md' : 'Copy fix prompt';
     S.primary._mhText = t;
     if (!S.primary.classList.contains('is-done')) S.primary._mhLbl.textContent = t;
+    syncActions();
   }
 
   function setBusy(busy) {
-    [S.primary, S.cardBtn, S.reportBtn].forEach(function (b) {
-      if (!b) return;
-      if (busy) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
-    });
+    [S.primary, S.cardBtn, S.reportBtn].forEach(function (b) { dis(b, busy); });
+  }
+  function dis(b, off) {
+    if (!b) return;
+    if (off) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+  }
+  // The card and the report need a score; the primary button follows the open tab, so "Copy DESIGN.md" works
+  // whenever a style was read, even if scoring failed.
+  function syncActions() {
+    if (!S) return;
+    var bad = S.measuring || !S.result || !!S.result.error;
+    var st = S.style;
+    var noStyle = !st || (!arr(st.colors).length && !arr(st.fonts).length && !arr(st.typeScale).length);
+    dis(S.cardBtn, bad);
+    dis(S.reportBtn, bad);
+    dis(S.primary, S.measuring || (S.tab === 'style' ? noStyle : bad));
   }
 
   /* ---------------------------------------------------------------- keyboard */
@@ -3906,7 +3977,7 @@
           S.result = res;
           S.style = style;
           S.sweep.classList.remove('is-on');
-          setBusy(!res || !!res.error);
+          syncActions();
           S.scrollMem = {};
           S.scroller.scrollTop = 0;
           renderScore(true);
@@ -4252,15 +4323,35 @@
       return;
     }
     p.appendChild(heroBlock(r, animate));
-    if (r.scanned && r.scanned.truncated) {
-      p.appendChild(h('p', { class: 'note' }, icon('warn'), h('span', null, 'Large page: Design Score measured the first ' + plural(r.scanned.elements || 0, 'element') + ' and scored those.')));
-    }
+    var part = partialNote(r, true);
+    if (part) p.appendChild(h('p', { class: 'note' }, icon('warn'), h('span', null, part)));
     var ins = insight(r);
     if (ins) p.appendChild(ins);
     p.appendChild(categoriesBlock(r, animate));
     p.appendChild(issuesBlock(r));
     p.appendChild(checksBlock(r));
     p.appendChild(moreBlock());
+  }
+
+  // Why a scored result is partial: the element cap, checks the time budget skipped, or a check that stopped
+  // part-way. A probe that records each cause (scanned.elementsCut, scanned.checksSkipped) is read as is; for
+  // an older result the skipped checks are counted from the checks, and the element cut is inferred: the
+  // element cap, or a time stop that no skipped or stopped-early check explains.
+  function partialNote(r, inPanel) {
+    var sc = (r && r.scanned) || {};
+    if (!sc.truncated) return '';
+    var checks = [];
+    catList(r).forEach(function (c) { checks = checks.concat(arr(c.checks)); });
+    var skipped = isNum(sc.checksSkipped) ? sc.checksSkipped : checks.filter(function (k) {
+      return k && k.status === 'skip' && /time budget ran out before this check/.test(str(k.display));
+    }).length;
+    var early = checks.some(function (k) { return !!(k && k.value && k.value.stoppedEarly); });
+    var cut = sc.elementsCut != null ? !!sc.elementsCut : sc.stoppedBy === 'elements' || (!skipped && !early);
+    var out = [];
+    if (cut) out.push('Large page: Design Score measured the first ' + plural(sc.elements || 0, 'element') + ' and scored those.');
+    if (skipped > 0) out.push('The time budget ran out: ' + fmt(skipped) + ' of ' + plural(Math.max(checks.length, skipped), 'check') + (skipped === 1 ? ' was' : ' were') + ' not measured.' + (inPanel ? ' Press Re-run.' : ''));
+    if (!out.length) out.push('The time budget ran out before every check finished.');
+    return out.join(' ');
   }
 
   function errorCard(msg) {
@@ -4689,7 +4780,9 @@
     d.classList.toggle('beside', !S.minimized);
     var r = S.result;
     if (S.minimized) {
-      d.appendChild(button('dock-score', [miniRing(r && !r.error ? r.score : null), h('span', null, 'Design Score')], function () { restore(); },
+      // On a phone with a highlight the ring alone opens the panel, so the highlight label keeps its room.
+      var compact = !!hl && narrow();
+      d.appendChild(button('dock-score' + (compact ? ' is-compact' : ''), [miniRing(r && !r.error ? r.score : null)].concat(compact ? [] : [h('span', null, 'Design Score')]), function () { restore(); },
         { 'data-k': 'open', 'aria-label': 'Open Design Score' + (r && !r.error ? ': ' + r.score + ' out of 100, grade ' + r.grade : ''), title: 'Open the panel' }));
     }
     if (hl) {
@@ -4701,6 +4794,8 @@
           var n = S.hl.items.length, j = S.hl.focus;
           for (var step = 1; step <= n; step++) { j = (S.hl.focus + step) % n; if (canShow(S.hl.items[j].ex)) break; }
           reveal(j);
+          var ex = S.hl && S.hl.items[j] ? S.hl.items[j].ex : null;
+          announce('Showing ' + (j + 1) + ' of ' + n + ': ' + oneLine((ex && ex.selector) || 'element', 80) + '.');
         }, { 'data-k': 'next', title: 'Next example' }));
       }
       d.appendChild(button('btn btn-sm', [icon('clear'), 'Clear'], function () { clearHighlights(false); }, { 'data-k': 'clear', 'aria-label': 'Clear highlights' }));
@@ -4790,15 +4885,18 @@
     closeSheet();
     var ta = h('textarea', { readonly: true, 'aria-label': 'Text to copy', spellcheck: 'false' });
     ta.value = text;
+    var touch = false;
+    try { touch = !!(W.matchMedia && W.matchMedia('(pointer: coarse)').matches); } catch (e) { /* keep the shortcut text */ }
     var sheet = h('div', { class: 'msheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'mh-ms-t' },
       h('h3', { id: 'mh-ms-t' }, 'Copy it by hand'),
-      h('p', null, 'This page blocks the clipboard. The text below is selected: press ' + (isMac() ? '⌘C' : 'Ctrl+C') + ', then Done.'),
+      h('p', null, 'This page blocks the clipboard. ' + (touch ? 'Touch and hold the text below, choose Copy, then Done.' : 'The text below is selected: press ' + (isMac() ? '⌘C' : 'Ctrl+C') + ', then Done.')),
       ta,
       h('div', { class: 'row' },
         button('btn btn-sm', 'Select all', function () { ta.focus(); ta.select(); }),
         button('btn btn-sm btn-primary', 'Done', function () { closeSheet(); })));
     S.sheet = sheet;
     S.sheetReturn = S.root.activeElement;
+    S.panel.scrollTop = 0; // the panel scrolls on a short viewport; the sheet covers it from the top
     S.panel.appendChild(sheet);
     ta.focus();
     ta.select();
@@ -4872,23 +4970,52 @@
     later(function () { b.classList.remove('is-done'); }, 1600);
   }
 
+  // A blob: tab takes the scored page's Content-Security-Policy, so the report's inline style and script run
+  // there only if they run here. Both are tried on the spot (synchronously, inside the click).
+  function inlineAllowed() {
+    if (!S || !S.root) return false;
+    var okStyle = false, okScript = false;
+    var st = D.createElement('style'), i = D.createElement('i');
+    st.textContent = '.mh-csp-probe{--mh-csp:1}';
+    i.className = 'mh-csp-probe';
+    try {
+      S.root.appendChild(st);
+      S.root.appendChild(i);
+      okStyle = W.getComputedStyle(i).getPropertyValue('--mh-csp').trim() === '1';
+    } catch (e) { okStyle = false; }
+    if (st.parentNode) st.parentNode.removeChild(st);
+    if (i.parentNode) i.parentNode.removeChild(i);
+    if (!okStyle) return false;
+    var sc = D.createElement('script');
+    try {
+      sc.textContent = 'window.__mhInline=1'; // throws where Trusted Types are enforced
+      S.root.appendChild(sc);
+      okScript = W.__mhInline === 1;
+    } catch (e2) { okScript = false; }
+    if (sc.parentNode) sc.parentNode.removeChild(sc);
+    try { delete W.__mhInline; } catch (e3) { W.__mhInline = undefined; }
+    return okScript;
+  }
+
   function openReport(b) {
     if (!S || !S.result || S.result.error) return;
     var name = 'design-score-' + slugHost(S.result.host) + '.html';
     var html = reportHtml(S.result, S.style);
     var U = W.URL || W.webkitURL, url = null, win = null;
-    try { url = U.createObjectURL(new W.Blob([html], { type: 'text/html;charset=utf-8' })); } catch (e) { url = null; }
+    var allowed = inlineAllowed();
+    // The URL is not revoked: the page releases it when it unloads, and until then a reload of the tab still works.
+    if (allowed) { try { url = U.createObjectURL(new W.Blob([html], { type: 'text/html;charset=utf-8' })); } catch (e) { url = null; } }
     if (url) { try { win = W.open(url, '_blank'); } catch (e2) { win = null; } }
     if (win) {
       try { win.opener = null; } catch (e3) { /* ignore */ }
-      W.setTimeout(function () { try { U.revokeObjectURL(url); } catch (e4) { /* ignore */ } }, 120000);
       if (b) flashSaved(b);
       toast('The full report opened in a new tab.');
       return;
     }
     if (url) { try { U.revokeObjectURL(url); } catch (e5) { /* ignore */ } }
-    if (saveText(html, name, 'text/html;charset=utf-8')) toast('Pop-ups are blocked here, so the report was downloaded as ' + name + '.');
-    else toast('This page blocked both the new tab and the download.');
+    if (saveText(html, name, 'text/html;charset=utf-8')) {
+      toast(allowed ? 'Pop-ups are blocked here, so the report was downloaded as ' + name + '.' : 'This page’s security policy would break the report tab, so it was downloaded as ' + name + '.');
+    } else toast(allowed ? 'This page blocked both the new tab and the download.' : 'This page blocked the download.');
   }
   function saveReport(b) {
     if (!S || !S.result || S.result.error) return;
@@ -5317,7 +5444,7 @@
       '<h1>' + esc(host) + '</h1>' + (r.title ? '<p class="ptitle">' + esc(r.title) + '</p>' : '') +
       (url ? '<p class="url"><a href="' + url + '" target="_blank" rel="noopener noreferrer">' + esc(r.url) + '</a></p>' : (r.url ? '<p class="url">' + esc(r.url) + '</p>' : '')) +
       '<p class="meta">' + (failed ? esc(r.error) : 'Measured on ' + esc(plural(sc.elements || 0, 'element')) + ' (' + esc(plural(sc.textBlocks || 0, 'text block')) + ') in ' + esc(fmt(sc.ms || 0)) + ' ms at ' + esc((vp.width || '?') + ' × ' + (vp.height || '?')) + (vp.dpr && vp.dpr !== 1 ? ' @' + esc(vp.dpr) + 'x' : '') +
-        (sc.truncated ? '.<br>Large page: the first ' + esc(fmt(sc.elements || 0)) + ' elements were measured.' : '.') +
+        (sc.truncated ? '.<br>' + esc(partialNote(r, false)) : '.') +
         (sc.decorative ? '<br>' + esc(plural(sc.decorative, 'HTML illustration')) + ' (aria-hidden, role="img" or data-design-score="ignore") measured as pictures, not as the page’s own interface.' : '')) + '</p>' +
       insightHtml + '</div></section>');
 
