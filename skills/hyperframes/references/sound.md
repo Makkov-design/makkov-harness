@@ -17,13 +17,15 @@ Sound is half of how a film feels, and the viewer notices a silent one before an
 
 ## 3. Music
 
-The person's own track first, as given. Else search the catalog (`/media-use`, `bgm`) with the film's feel and tempo, not its subject ("tense minimal pulse building to a bright drop, 120 bpm"), and read a few results before keeping one. Enter at the track's strongest bar, not a quiet intro; end on a bar line with a short fade under the end card.
+The person's own track first, as given. Else search the catalog (`/media-use`, `bgm`); Openverse's music (Jamendo, `category=music`, `license=cc0,by` only, credit CC BY) is a free option when there is no catalog with the film's feel and tempo, not its subject ("tense minimal pulse building to a bright drop, 120 bpm"), and read a few results before keeping one. Enter at the track's strongest bar, not a quiet intro; end on a bar line with a short fade under the end card.
 
 With no music source (no `heygen` sign-in and no local model), deliver silent and say so in one line with how to add one. Do not spend the run building an audio chain or writing music in code: nobody can hear whether it is good.
 
 ## 4. Effects
 
 Few and exact: every effect has a cause on screen, and too many read as a template.
+
+Take real recordings first: `/media-use` (`sfx`) searches [Openverse](https://openverse.org) for each cue (CC0 and CC BY only, mostly Freesound), then falls back to the bundled library. Name each cue by what makes the sound (`paper sheet slide`, `mechanical keyboard tap`), not by its mood. Generate a sound only for a cue that has no real recording, or when the person asks; keep `assets/sfx/CREDITS.md` with the project and put CC BY credits wherever the video is published.
 
 | Sound             | Only on                                        |
 | ----------------- | ---------------------------------------------- |

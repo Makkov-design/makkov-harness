@@ -2,6 +2,19 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.0] - 2026-11-07
+
+Real sounds for every video.
+
+### Added
+
+- Optional Openverse API keys for `media-use` sound effects: with `OPENVERSE_CLIENT_ID` and `OPENVERSE_CLIENT_SECRET` in the environment, searches use a cached access token and get the higher registered limits; without them, or when the token is refused, search stays anonymous as before. How to register and where the keys go is in [`sfx.md`](skills/media-use/audio/references/sfx.md).
+
+### Changed
+
+- Video sound rules: effects come from real Openverse recordings first (CC0 / CC BY, credits kept), generated sound only for cues with no real recording or when asked; Openverse music (Jamendo) is a free option for a bed. Stated in [`sound.md`](skills/hyperframes/references/sound.md) and the routing rules.
+- `sfx.md` notes that Freesound's CDN can refuse downloads from cloud containers, and what to do instead.
+
 ## [0.2.0] - 2026-11-07
 
 The Design Score release: the harness gets a flagship of its own.
@@ -48,5 +61,6 @@ The first public release.
 - A weekly upstream watch that flags new versions of the pinned companions in one issue.
 - The website on GitHub Pages, the brand mark and wordmark, an MIT license, issue and pull request templates and a code of conduct.
 
+[0.3.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Makkov-design/makkov-harness/releases/tag/v0.1.0
