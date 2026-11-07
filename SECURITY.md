@@ -20,6 +20,8 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 | puppeteer-core (npm, for `cloud/setup-design-tools.sh`) | 25.16.0 | 2026-11-04 | 🟢 | Installed with `--ignore-scripts`; drives the preinstalled Chrome |
 | ytlens | own project | — | own | Sends the video URL to Google Gemini with the user's own key |
 
+Why Impeccable is yellow while the Hyperframes CLI is green, though both have telemetry on by default: Impeccable's engine binary runs from its hooks on its own, in every session where you accepted the hook, and can repair its own hook entries in your agent settings. The Hyperframes CLI runs only when a video skill calls it for a task you asked for.
+
 ## What the harness itself runs
 
 - `hooks/session-start` (Claude Code only): reads `ROUTING.md` from this repository and prints it with the plugin's folder path. No network, no writes.
