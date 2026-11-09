@@ -19,6 +19,7 @@ Changed:
   skills/hyperframes/references/sound.md                  (0.3.1) sound effects go through media-use's audio engine
   skills/hyperframes/scripts/plugin-cli.mjs                (0.3.1) reads the reviewed CLI version from cli-version.json
   skills/hyperframes/scripts/plugin-cli.test.mjs           (0.3.1) tests for that pin
+  skills/hyperframes/scripts/lib/main-module.test.mjs      (0.4.0) skips the CLI sources this copy does not include
   skills/media-use/SKILL.md                                (0.3.1) points sound effects at the audio engine
   skills/media-use/audio/references/sfx.md                 (0.3.0, 0.3.1) Openverse keys, the engine command, credits
   skills/media-use/audio/scripts/lib/openverse.mjs         (0.3.0) optional Openverse API keys with a cached token
@@ -28,6 +29,7 @@ Changed:
   skills/media-use/references/resolve.md                   (0.3.1) the sfx row names the audio engine
   skills/media-use/references/setup-providers.md           (0.3.0) Openverse keys
   skills/media-use/scripts/lib/telemetry.mjs               (0.3.4) usage telemetry is off unless MEDIA_USE_TELEMETRY=1
+  skills/media-use/scripts/lib/telemetry.test.mjs          (0.4.0) tests for the opt-in
   skills/media-use/scripts/transcribe.mjs                  (0.3.4) the CLI it starts is the pinned release
 
 Added:

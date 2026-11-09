@@ -1,7 +1,8 @@
 name: check
 
 # Validates the plugin, the hook, the skills and scans for keys on every push to main and every pull request,
-# and installs then uninstalls the harness for every agent on Linux, macOS and Windows.
+# runs the unit tests and the Design Score fixtures, and installs then uninstalls the harness for
+# every agent on Linux, macOS and Windows.
 on:
   push:
     branches: [main]
@@ -20,6 +21,25 @@ jobs:
         with:
           node-version: 20
       - run: node .github/scripts/check.mjs
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 20
+      # The Design Score fixture test drives the runner's Chrome through puppeteer-core: the version
+      # reviewed in SECURITY.md, installed without scripts into a temp folder, never into the repo.
+      - name: puppeteer-core for the Design Score fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/pp" && cd "$RUNNER_TEMP/pp"
+          npm install --no-save --ignore-scripts --no-audit --no-fund puppeteer-core@25.16.0
+          echo "PUPPETEER_DIR=$RUNNER_TEMP/pp/node_modules/puppeteer-core" >> "$GITHUB_ENV"
+          echo "CHROME_PATH=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
+      - name: unit tests and Design Score fixtures
+        run: node --test --test-concurrency=2 $(find skills -name '*.test.mjs' -not -path '*/node_modules/*' | sort)
 
   installers:
     name: installers (${{ matrix.os }})
