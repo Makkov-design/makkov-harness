@@ -3,11 +3,13 @@ name: hyperframes
 description: Read first to make, edit, animate or render any video with HyperFrames (HTML rendered to video), including launch films, explainers, music videos, charts, maps, vertical clips, title cards, captions and overlays. Holds the render contract, the work loop and what each kind of video needs.
 ---
 
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
+
 **Plugin installs:** Before setup or freshness commands, follow [plugin execution rules](references/plugin-installation.md) when this skill is inside a HyperFrames plugin.
 
 # HyperFrames
 
-HyperFrames renders HTML to video by seeking a paused timeline frame by frame, so every render is identical; the person edits the same files in the Studio preview. Use it unless another framework or a plain browser recording is asked for. Run the CLI as `npx hyperframes <command>` (`/hyperframes-cli`); at the start of a new video, `npx hyperframes usage --json` reports the person's remaining plan usage (say "unknown" when it is).
+HyperFrames renders HTML to video by seeking a paused timeline frame by frame, so every render is identical; the person edits the same files in the Studio preview. Use it unless another framework or a plain browser recording is asked for. Run the CLI through the launcher bundled with these skills, from the person's project: `node "<PLUGIN_ROOT>/skills/hyperframes/scripts/plugin-cli.mjs" <command>` (`<PLUGIN_ROOT>` is two levels above this file; `references/plugin-installation.md`). It runs the CLI release this bundle was reviewed with. Every `npx hyperframes <command>` in these skills and their references means that launcher command (`/hyperframes-cli`). `npx hyperframes usage --json` reports the person's remaining plan usage; it reads their Claude or Codex sign-in, so run it only when they ask about usage or a plan limit (say "unknown" when it is).
 
 `index.html` is the root composition: it declares the video's variables and mounts one scene per sub-composition from `compositions/`. Media and fonts live in `assets/`. A new project: `npx hyperframes init <dir>`. A website as the subject: `npx hyperframes capture <url> --json`.
 

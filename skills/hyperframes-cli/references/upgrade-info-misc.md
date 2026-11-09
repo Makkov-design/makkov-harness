@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # info, upgrade, compositions, timeline, docs, benchmark, telemetry, asset preprocessing
 
 Catch-all reference for commands that don't fit the main dev loop.
@@ -23,7 +24,7 @@ npx hyperframes upgrade --yes          # print upgrade commands without promptin
 
 Compares the installed CLI version against npm latest.
 
-`--project [dir]` bumps a **project's** pinned scripts instead of the global install: it rewrites every `npx …hyperframes@<version>…` in `<dir>/package.json` (default cwd) to npm-latest. Always invoke it unpinned (`npx hyperframes@latest upgrade --project`) — a project scaffolded on an old CLI stays frozen otherwise. `--project . --check` reports the delta without writing; add `--json` for `{ changed, from, to, path }`. Pass the dir explicitly whenever another flag follows `--project` — on older releases a bare `--project` consumes the next flag as its directory value.
+`--project [dir]` bumps a **project's** pinned scripts instead of the global install: it rewrites every `npx …hyperframes@<version>…` in `<dir>/package.json` (default cwd) to npm-latest. In makkov-harness, run `upgrade` only when the person asks for it: it moves to whatever npm calls latest, which the harness has not reviewed (see `../../hyperframes/references/skill-lifecycle.md`). `--project . --check` reports the delta without writing; add `--json` for `{ changed, from, to, path }`. Pass the dir explicitly whenever another flag follows `--project` — on older releases a bare `--project` consumes the next flag as its directory value.
 
 ## timeline
 

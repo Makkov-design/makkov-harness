@@ -1,7 +1,7 @@
 // Added by makkov-harness: every `npx hyperframes …` the media-use scripts start asks npm for the
 // Hyperframes CLI release this harness reviewed, not whatever is newest on npm that day. The version
 // lives in one place, skills/hyperframes/scripts/cli-version.json, shared with the harness launcher.
-// It also keeps the CLI's own telemetry off by default (see the end of this file).
+// It also keeps the CLI's own telemetry and npm's install scripts off by default (see the end of this file).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,3 +28,10 @@ export function cliTelemetryOffByDefault(env = process.env) {
   return env;
 }
 cliTelemetryOffByDefault();
+
+// npm runs no install scripts of the CLI's packages (the CLI itself needs none), unless the user set it.
+export function npmScriptsOffByDefault(env = process.env) {
+  if (env.npm_config_ignore_scripts === undefined) env.npm_config_ignore_scripts = "true";
+  return env;
+}
+npmScriptsOffByDefault();
