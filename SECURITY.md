@@ -36,6 +36,20 @@ Why Impeccable is yellow while the Hyperframes CLI is green, though both have te
 
 The website is not part of what you install. It counts page views with GoatCounter (no cookies, no personal data, a pinned script checked with Subresource Integrity); the Design Score bundle and the bookmarklets never load it. The same verdicts, searchable and with what each piece runs, sends and needs, are on the [security index](https://makkov-design.github.io/makkov-harness/security.html).
 
+## What the install guard is, and what it is not
+
+The `third-party-install-guard` skill is a review procedure for the agent: pin down exactly what is being installed, fetch it without running it, scan it, read every hook and install script by hand, give a Green, Yellow or Red verdict, and install only the reviewed version, pinned. In Claude Code, `hooks/install-gate` adds a technical step: a command that installs or runs third-party code turns into a question to you, with a reminder to run the review.
+
+What it does not do:
+
+- It is not a sandbox. Code that you approve runs with your permissions, like any install.
+- It cannot see code that a package downloads later, at run time; the review says so when it finds such downloads, and rates them Yellow at best.
+- The scanner is a tripwire, not a verdict: it misses anything clever, and its findings are read by hand.
+- In other agents (Codex, Cursor, Gemini CLI and the rest) the skill is instructions only; there is no hook there. Keep each tool's own approval prompt for shell commands on.
+- The gate matches common install commands. A determined or compromised agent can still find another way; it raises the bar, it is not a wall.
+
+For more assurance: keep shell commands on "ask" in your agent's permission settings, install per project rather than globally, and run agents that install things for you in a container or a virtual machine.
+
 ## Reporting a problem
 
 Open an issue, or for anything sensitive use GitHub's private vulnerability reporting on this repository. Please do not post working exploits in public issues.
