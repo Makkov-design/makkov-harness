@@ -107,6 +107,23 @@ check "your animate restored from the spaced path" "grep -qx mine \"$proj/.agent
 check "our skills removed from the spaced path" "[ ! -e \"$proj/.agents/skills/design-score\" ]"
 rm -rf "$home" "$(dirname "$proj")"
 
+# The personal layer harness-onboarding writes: an update keeps it, the uninstall removes it.
+home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
+echo "codex project and cursor project, with a personal layer"
+printf '# my notes\n' > "$proj/AGENTS.md"
+bash "$inst" codex "$proj" >/dev/null
+printf '\n<!-- makkov-harness:personal:start -->\n# Personal layer (makkov-harness)\n- Answer in English.\n<!-- makkov-harness:personal:end -->\n' >> "$proj/AGENTS.md"
+bash "$inst" codex "$proj" >/dev/null
+check "an update keeps the personal layer" "grep -q '^- Answer in English.' '$proj/AGENTS.md'"
+bash "$uninst" codex "$proj" >/dev/null
+check "the uninstall removes the personal layer" "! grep -q -e 'makkov-harness:personal' -e '^- Answer in English.' '$proj/AGENTS.md'"
+check "your notes kept" "grep -qx '# my notes' '$proj/AGENTS.md'"
+bash "$inst" cursor "$proj" >/dev/null
+printf -- '---\nalwaysApply: true\n---\n<!-- makkov-harness:personal:start -->\n- Answer in English.\n<!-- makkov-harness:personal:end -->\n' > "$proj/.cursor/rules/makkov-harness-personal.mdc"
+bash "$uninst" cursor "$proj" >/dev/null
+check "the uninstall removes Cursor's personal rule" "[ ! -e '$proj/.cursor/rules/makkov-harness-personal.mdc' ]"
+rm -rf "$home" "$proj"
+
 # --scope design keeps only design routing.
 home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
 echo "codex project, --scope design"

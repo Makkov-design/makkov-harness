@@ -5,8 +5,9 @@
     changed is moved to .makkov-harness\backups\<date>\removed\ instead. Folders another installed agent
     still uses from the same place are left alone.
   - Skills of yours that the install moved aside are put back.
-  - The routing block is taken out of the instructions file; a Cursor rule is deleted and your earlier
-    rule, if there was one, is restored. A file the install created and that is now empty is deleted.
+  - The routing block, and the personal layer harness-onboarding wrote, are taken out of the instructions
+    file; a Cursor rule (and its personal rule) is deleted and your earlier rule, if there was one, is
+    restored. A file the install created and that is now empty is deleted.
 
   Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
 #>
@@ -33,7 +34,8 @@ function Get-Value([string]$Key) { (($lines | Where-Object { $_ -like "$Key=*" }
 $skillsDir = Get-Value 'skills_dir'; $rules = Get-Value 'rules'
 $rulesExisted = Get-Value 'rules_existed'; $rulesBackup = Get-Value 'rules_backup'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$pattern = '(?s)<!-- makkov-harness:start -->.*?<!-- makkov-harness:end -->'
+# The routing block or the personal layer harness-onboarding wrote: each ends with its own end marker.
+$pattern = '(?s)<!-- makkov-harness:(?<p>(?:personal:)?)start -->.*?<!-- makkov-harness:\k<p>end -->'
 if ($DryRun) { Write-Output 'Dry run: nothing will be changed.' }
 
 function Get-TreeFingerprint([string]$Dir) {
@@ -99,7 +101,12 @@ if ($skillsDir) {
   }
 }
 
-# 3. Routing.
+# 3. Routing, and the personal layer harness-onboarding wrote next to it.
+$personalRule = Join-Path (Split-Path -Parent $rules) 'makkov-harness-personal.mdc'
+if ($Agent -eq 'cursor' -and (Test-Path $personalRule)) {
+  Write-Output "  delete $personalRule (a copy stays as $personalRule.bak-$stamp)"
+  if (-not $DryRun) { Copy-Item $personalRule "$personalRule.bak-$stamp"; Remove-Item $personalRule -Force }
+}
 if (Test-Path $rules) {
   if ($Agent -eq 'cursor') {
     Write-Output "  delete $rules"; if (-not $DryRun) { Remove-Item $rules -Force }
@@ -109,7 +116,7 @@ if (Test-Path $rules) {
   } else {
     $old = [IO.File]::ReadAllText($rules)
     if ($old -match $pattern) {
-      Write-Output "  take the routing block out of $rules"
+      Write-Output "  take the routing block and the personal layer out of $rules"
       if (-not $DryRun) {
         Copy-Item $rules "$rules.bak-$stamp"
         $new = [regex]::Replace($old, "(\r?\n)?$pattern(\r?\n)?", "`n")

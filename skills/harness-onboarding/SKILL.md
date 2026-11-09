@@ -36,16 +36,27 @@ Rules: no secrets, tokens, emails of others, client names or company-internal de
 
 ## 3. Write it to the right place
 
-Pick the user-level instructions file of the agent you are running in, so it applies to all their projects:
+Write it where the harness itself was installed, so it lives and goes with that install.
 
-| Agent | File |
-|---|---|
-| Claude Code | `~/.claude/CLAUDE.md` |
-| Codex | `~/.codex/AGENTS.md` |
-| Gemini CLI | `~/.gemini/GEMINI.md` |
-| Others (Cursor, Copilot, Windsurf, Cline, OpenCode, Aider) | their user-level rules if they have one; otherwise the project's `AGENTS.md` and say so |
+1. **Find the install.** Look for an install manifest, `.makkov-harness/install-<agent>.txt`, first in the current project folder, then in the home folder. Its `rules=` line names the instructions file the installer wrote the routing map into, and `scope=` says whether the routing covers all work or design only.
+   - A manifest in the project folder (a project install): write into that project's file from `rules=`. The layer then applies to this project only; say so. Do not write to a user-level file unless the person asks for it by name.
+   - A manifest in the home folder (a user-level install): write into the file from `rules=`.
+   - Cursor (`rules=` ends in `makkov-harness.mdc`): that file is rewritten on every install, so write `makkov-harness-personal.mdc` next to it instead, starting with the same front matter (`description: makkov-harness personal layer`, `alwaysApply: true`).
+   - No manifest, running in Claude Code with the makkov-harness plugin: `~/.claude/CLAUDE.md`.
+   - No manifest anywhere else: ask the person how they installed the harness (installer for which agent and folder, or by hand) before writing anything.
+2. **Write it between markers**, on lines of their own, so updates and the uninstaller find exactly this block:
 
-Append a clearly marked section (`# Personal layer (makkov-harness)`); never overwrite existing content. If the section already exists, update it in place. Back up the file first (`<file>.bak-<date>`).
+   ```markdown
+   <!-- makkov-harness:personal:start -->
+   # Personal layer (makkov-harness)
+   - …
+   <!-- makkov-harness:personal:end -->
+   ```
+
+   Never overwrite other content. If the markers are already there, replace what is between them. If an earlier run left the `# Personal layer (makkov-harness)` heading without markers, replace that section (from the heading to the next `#` heading or the end of the file) with the marked block. Back up the file first (`<file>.bak-<date>`).
+3. **Keep to the install's scope.** With `scope=design`, write only what concerns design work; leave out preferences for research, installs and general coding, and say why.
+
+`install/uninstall.sh` and `install/uninstall.ps1` remove this block (and Cursor's `makkov-harness-personal.mdc`) together with the routing map. A Claude Code plugin install has no uninstaller for it: to remove it, delete the marked block from `~/.claude/CLAUDE.md`, or run harness-onboarding and ask to remove it.
 
 Cloud sessions do not read the user-level file from the person's computer. Tell them: to have the layer in the cloud too, keep it in a private GitHub repository of their own and add it as a plugin marketplace in their claude.ai account (see the harness README).
 

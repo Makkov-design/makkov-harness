@@ -111,6 +111,26 @@ try {
   Check 'our skills removed from the spaced path' { -not (Test-Path (Join-Path $proj '.agents\skills\design-score')) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $parent -Recurse -Force
 
+  # The personal layer harness-onboarding writes: an update keeps it, the uninstall removes it.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project and cursor project, with a personal layer'
+  $agentsMd = Join-Path $proj 'AGENTS.md'
+  Set-Content $agentsMd '# my notes'
+  & $inst -Agent codex -Project $proj | Out-Null
+  Add-Content $agentsMd "`n<!-- makkov-harness:personal:start -->`n# Personal layer (makkov-harness)`n- Answer in English.`n<!-- makkov-harness:personal:end -->"
+  Start-Sleep -Milliseconds 1100
+  & $inst -Agent codex -Project $proj | Out-Null
+  Check 'an update keeps the personal layer' { (Get-Content $agentsMd) -contains '- Answer in English.' }
+  & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'the uninstall removes the personal layer' { -not ((Get-Content $agentsMd) | Where-Object { $_ -match 'makkov-harness:personal|^- Answer in English\.' }) }
+  Check 'your notes kept' { (Get-Content $agentsMd) -contains '# my notes' }
+  & $inst -Agent cursor -Project $proj | Out-Null
+  $personal = Join-Path $proj '.cursor\rules\makkov-harness-personal.mdc'
+  Set-Content $personal "---`nalwaysApply: true`n---`n<!-- makkov-harness:personal:start -->`n- Answer in English.`n<!-- makkov-harness:personal:end -->"
+  & $uninst -Agent cursor -Project $proj | Out-Null
+  Check "the uninstall removes Cursor's personal rule" { -not (Test-Path $personal) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, -Scope design'
   & $inst -Agent codex -Project $proj -Scope design | Out-Null
