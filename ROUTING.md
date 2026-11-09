@@ -27,7 +27,7 @@ Pick the skill by the situation. A skill named here can be invoked by name even 
 | New landing page, promo page, personal site | Hallmark (`/hallmark`, `/hallmark redesign <path>`, `/hallmark audit <path>`) | github.com/Nutlope/hallmark |
 | Whole-project security review before a launch | security-audit | github.com/cloudflare/security-audit-skill |
 | Figma: design to code, code to Figma | Figma plugin and connector | Figma's official plugin |
-| Analyze, summarize or transcribe a YouTube video | ytlens | github.com/Makkov-design/ytlens (needs the user's own Gemini key) |
+| Study any video or animation (YouTube and other links, files, a website's motion, Lottie, Figma): summary, transcript, frames, cuts, motion reference, export | Frame Lens (`framelens`: start with `plan`) | github.com/Makkov-design/framelens (local and free with ffmpeg and yt-dlp; Gemini tools need the user's own key) |
 
 ## Rules of thumb
 

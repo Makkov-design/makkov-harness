@@ -202,7 +202,7 @@ Every verdict is also on [the security index](https://makkov-design.github.io/ma
 | Hallmark | New landing pages and sites that look designed, not generated | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) |
 | Superpowers | Brainstorming before building, debugging, plans | [obra/superpowers](https://github.com/obra/superpowers) |
 | security-audit | Whole-project security review before a launch | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) |
-| ytlens | Watch and analyze YouTube videos (frames and audio) through Gemini | [Makkov-design/ytlens](https://github.com/Makkov-design/ytlens) |
+| Frame Lens | Watch and analyze any video or animation (links, files, websites, Lottie, Figma): measured transcripts, frames, cuts, easing, palette and beats, with starter projects for HyperFrames, Remotion, CSS, After Effects and Lottie. Local and free; Gemini optional | [Makkov-design/framelens](https://github.com/Makkov-design/framelens) |
 
 ## Principles
 

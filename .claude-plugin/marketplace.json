@@ -48,10 +48,10 @@
       "homepage": "https://github.com/cloudflare/security-audit-skill"
     },
     {
-      "name": "ytlens",
-      "source": { "source": "github", "repo": "Makkov-design/ytlens" },
-      "description": "Watch and analyze YouTube videos (frames and audio) through Google Gemini. Needs your own Gemini API key.",
-      "homepage": "https://github.com/Makkov-design/ytlens",
+      "name": "framelens",
+      "source": { "source": "github", "repo": "Makkov-design/framelens", "ref": "v2.0.0" },
+      "description": "Frame Lens. Watch and analyze any video or animation (links, files, websites, Lottie, Figma): measured transcripts, frames, cuts, easing, palette and beats, with starter projects for HyperFrames, Remotion, CSS, After Effects and Lottie. Local and free; Gemini optional. Needs ffmpeg and yt-dlp; the Gemini tools need your own key.",
+      "homepage": "https://github.com/Makkov-design/framelens",
       "license": "MIT"
     }
   ]

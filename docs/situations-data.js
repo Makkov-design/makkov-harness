@@ -71,7 +71,7 @@ window.SITUATIONS = {
       ['Compare visual languages', 'A table: accent, neutrals, type, radii, density', 'design-md-library', 'Say “compare styles”', 'Compare the visual languages of Linear and Notion.'],
       ['Competitor breakdown', 'Positioning, features, weak spots', 'product-management:competitive-brief', '/product-management:competitive-brief', 'Competitive brief: our app against Things and Todoist.'],
       ['Synthesise interviews and feedback', 'Themes, insights and quotes from research', 'product-management:synthesize-research', '/product-management:synthesize-research', 'Synthesise these 8 interview notes into themes with quotes.'],
-      ['Break down a YouTube video', 'Watches frames and audio, writes notes', 'ytlens', 'Paste the link', '<youtube link> Break down the design techniques in this talk.'],
+      ['Break down a video or animation', 'Measures frames, cuts, motion and sound, writes notes', 'framelens', 'Paste the link or file', '<youtube link> Break down the design techniques in this talk.'],
       ['A chart or dashboard', 'The right chart type and colours', 'dataviz', 'Runs on its own', 'Chart our weekly signups by channel for the last quarter.'],
       ['An update for the team or leadership', 'A status update in the right format', 'product-management:stakeholder-update', '/product-management:stakeholder-update', 'Write this week’s design status update for leadership.']
     ]},
@@ -109,7 +109,7 @@ window.SITUATIONS = {
 };
 window.SITUATIONS.source = (skill) => {
   const s = skill.toLowerCase();
-  if (/^(superpowers|interfaces|impeccable|hallmark|security-audit|ytlens)/.test(s)) return 'companion';
+  if (/^(superpowers|interfaces|impeccable|hallmark|security-audit|framelens)/.test(s)) return 'companion';
   if (/^(animate|animation-performance|improve-animations|find-animation|rich-report|design-md-library|design-score|third-party-install-guard|hyperframes)/.test(s)) return 'harness';
   if (/^(figma|product-management)/.test(s)) return 'plugin';
   return 'claude';

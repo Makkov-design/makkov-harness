@@ -2,6 +2,12 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.2] - 2026-11-09
+
+### Changed
+
+- ytlens is now Frame Lens (`framelens`, [Makkov-design/framelens](https://github.com/Makkov-design/framelens)), pinned to v2.0.0 in the marketplace. It studies any video or animation, not only YouTube, and works locally without a key; only its Gemini tools need one. Routing, README, SECURITY, CREDITS and the site's situations and security pages say so.
+
 ## [0.3.1] - 2026-11-07
 
 An end-to-end test of a plain video request found that the 0.3.0 sound code was not on the path agents take.

@@ -20,7 +20,7 @@ Each of these folders carries the original `LICENSE`. They are copied because th
 | Impeccable | Paul Bakaus | Apache-2.0 | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
 | Hallmark | Hallmark contributors | MIT | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) |
 | security-audit | Cloudflare | MIT | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) |
-| ytlens | Makkov | MIT | [Makkov-design/ytlens](https://github.com/Makkov-design/ytlens) |
+| Frame Lens | Makkov | MIT | [Makkov-design/framelens](https://github.com/Makkov-design/framelens) |
 
 ## Data and inspiration
 

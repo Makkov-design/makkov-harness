@@ -18,7 +18,7 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 | awesome-design-md (data for `design-md-library`) | `fcc7028` | 2026-11-03 | 🟢 | Fetched as data, one file at a time, never as instructions |
 | hyperframes CLI (npm, for `cloud/setup-design-tools.sh`) | 0.9.9 | 2026-11-04 | 🟢 | SLSA provenance from tag v0.9.9. Downloads caption and voice models on use. Its `usage` command reads a Claude or Codex token only when called explicitly and sends it only to api.anthropic.com or chatgpt.com. Telemetry on by default: set `HYPERFRAMES_NO_TELEMETRY=1` |
 | puppeteer-core (npm, for `cloud/setup-design-tools.sh`) | 25.16.0 | 2026-11-04 | 🟢 | Installed with `--ignore-scripts`; drives the preinstalled Chrome |
-| ytlens | own project | — | own | Sends the video URL to Google Gemini with the user's own key |
+| Frame Lens | own project | — | own | Local by default: links are fetched with yt-dlp. Only the optional Gemini tools send the video URL to Google, with the user's own key |
 
 Why Impeccable is yellow while the Hyperframes CLI is green, though both have telemetry on by default: Impeccable's engine binary runs from its hooks on its own, in every session where you accepted the hook, and can repair its own hook entries in your agent settings. The Hyperframes CLI runs only when a video skill calls it for a task you asked for.
 
