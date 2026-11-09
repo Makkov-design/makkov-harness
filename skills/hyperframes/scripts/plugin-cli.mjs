@@ -59,6 +59,10 @@ export function invocation(
     HYPERFRAMES_PLUGIN_VERSION: version,
     HYPERFRAMES_NO_UPDATE_CHECK: "1",
   };
+  // makkov-harness: the CLI's own usage telemetry stays off unless the user opted in with
+  // MEDIA_USE_TELEMETRY=1 or set HYPERFRAMES_NO_TELEMETRY themselves.
+  if (env.MEDIA_USE_TELEMETRY !== "1" && env.HYPERFRAMES_NO_TELEMETRY === undefined)
+    childEnv.HYPERFRAMES_NO_TELEMETRY = "1";
   if (args[0] === "--script") {
     if (!args[1]) throw new Error("--script requires a Node script path.");
     return { command: node, args: args.slice(1), env: childEnv };

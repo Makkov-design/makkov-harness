@@ -70,8 +70,16 @@ test("pins CLI, suppresses standalone refresh, preserves unrelated environment",
     HYPERFRAMES_SKILL_PKG_VERSION: "1.2.3",
     HYPERFRAMES_PLUGIN_VERSION: "1.2.3",
     HYPERFRAMES_NO_UPDATE_CHECK: "1",
+    HYPERFRAMES_NO_TELEMETRY: "1",
   });
   assert.throws(() => invocation(["skills", "update"], { version: "1.2.3" }), /plugin manager/);
+});
+
+test("CLI telemetry is off unless the user opted in or chose it", () => {
+  const run = (env) => invocation(["render"], { version: "1.2.3", platform: "darwin", env }).env;
+  assert.equal(run({}).HYPERFRAMES_NO_TELEMETRY, "1");
+  assert.equal(run({ MEDIA_USE_TELEMETRY: "1" }).HYPERFRAMES_NO_TELEMETRY, undefined);
+  assert.equal(run({ HYPERFRAMES_NO_TELEMETRY: "0" }).HYPERFRAMES_NO_TELEMETRY, "0");
 });
 
 test("Windows launches npx through Node without shell argument interpretation", () => {

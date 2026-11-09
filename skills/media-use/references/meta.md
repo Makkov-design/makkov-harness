@@ -37,8 +37,9 @@ npx hyperframes media-use resolve --stats --project . --days 7
 ## Telemetry
 
 **In makkov-harness this is off by default**: nothing is sent unless you set
-`MEDIA_USE_TELEMETRY=1`. The rest of this section describes what the upstream
-copy sends when it is on.
+`MEDIA_USE_TELEMETRY=1`, and the `hyperframes` CLI these scripts start gets
+`HYPERFRAMES_NO_TELEMETRY=1` too (`scripts/lib/hyperframes-pin.mjs`). The rest of this
+section describes what the upstream copy sends when it is on.
 
 When on, `resolve` and the edit tools (transcribe / transcript-cut / audio-duck) send a
 usage event to PostHog (`scripts/lib/telemetry.mjs`), so HeyGen can see which
