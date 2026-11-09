@@ -6,7 +6,7 @@
   <a href="https://github.com/Makkov-design/makkov-harness/stargazers"><img src="https://img.shields.io/github/stars/Makkov-design/makkov-harness?style=flat-square&color=2f4fd8&label=stars" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0b0d12?style=flat-square" alt="MIT license"></a>
   <a href="SECURITY.md"><img src="https://img.shields.io/badge/companions-reviewed%20%26%20pinned-f2b31d?style=flat-square" alt="Companion plugins reviewed and pinned"></a>
-  <a href="COMPATIBILITY.md"><img src="https://img.shields.io/badge/works%20in-9%20agents-2f4fd8?style=flat-square" alt="Works in 9 agents"></a>
+  <a href="COMPATIBILITY.md"><img src="https://img.shields.io/badge/installs%20in-9%20agents-2f4fd8?style=flat-square" alt="Installs in 9 agents: installer tested in CI for 8, used by hand in Claude Code"></a>
   <a href="https://makkov-design.github.io/makkov-harness/score.html"><img src="https://img.shields.io/badge/Design%20Score-86-green?style=flat-square" alt="Design Score of this project's home page: 86 out of 100, grade A, measured at 1440 by 900"></a>
 </p>
 
@@ -42,7 +42,7 @@ Nothing is installed and nothing leaves the page. Liked it? [Install the harness
 AI agents already have hundreds of skills and plugins. The hard part is getting the right one to run at the right moment, without installing something you never checked. makkov-harness solves exactly that.
 
 - **The agent picks the right design skill on its own.** A routing map loads at the start of every session. Say "review this screen" and it runs an accessibility, type, colour and layout pass. Say "make it feel like Linear" and it pulls Linear's design system as a reference. Say "animate this card" and the motion follows Emil Kowalski's rules.
-- **Nothing third-party reaches your machine unchecked.** Every companion plugin was fetched without running, scanned, and had its hooks and scripts read by hand. Each one is pinned to the exact commit that passed, and a weekly check flags new upstream versions for review.
+- **Nothing third-party reaches your machine unchecked.** Every third-party companion plugin was fetched without running, scanned, and had its hooks and scripts read by hand. Each one is pinned to the exact commit that passed (Frame Lens, the author's own project, is pinned the same way and marked own, not reviewed), and a weekly check flags new upstream versions for review.
 - **Results you can send as they are.** Audits, research, comparisons and plans come back as designed, interactive pages with real tables, charts and navigation, not as a wall of chat text.
 - **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one message.
 
@@ -147,7 +147,7 @@ Your account keeps the copy it took when you added the plugin. For a newer versi
 <summary><b>Claude cloud sessions</b> (claude.ai/code)</summary>
 <br>
 
-Nothing extra is required. When a session needs to render a Hyperframes video or run a Hallmark browser check and the tools are missing, the agent offers to install them (1–2 minutes, only after you say yes). If you render often, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs pinned, reviewed versions of ffmpeg, puppeteer-core and the Hyperframes CLI.
+Nothing extra is required. When a session needs to render a Hyperframes video or run a Hallmark browser check and the tools are missing, the agent offers to install them (1–2 minutes, only after you say yes). If you render often, paste [`cloud/setup-design-tools.sh`](cloud/setup-design-tools.sh) into your cloud environment's Setup script and add `HYPERFRAMES_NO_TELEMETRY=1` to its variables. It installs ffmpeg from Ubuntu's archive, and pinned, reviewed versions of puppeteer-core and the Hyperframes CLI.
 </details>
 
 ### Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode, Aider
@@ -201,7 +201,7 @@ A chat app cannot run installers or hooks, and rich-report needs Claude: you get
 
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/#gate"><img src=".github/assets/review.gif" alt="Checked at the gate: a scan line passes down ten reviewed components, each pinned to a version and marked green, with Impeccable yellow; 10 reviewed, 9 green, 1 yellow, 0 red." width="100%"></a></p>
 
-The best design plugins, in one list. Their code stays in their authors' repositories; the makkov-harness marketplace lists them, pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md)), so after adding the marketplace you enable each one with one switch. A newer version appears here only after it is reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills load twice. Figma's plugin is in Anthropic's official marketplace.
+The best design plugins, in one list. Their code stays in their authors' repositories; the makkov-harness marketplace lists them, pinned to the exact version that was reviewed (verdicts in [`SECURITY.md`](SECURITY.md); Frame Lens is the author's own project, pinned to a commit and marked own), so after adding the marketplace you enable each one with one switch. A newer version appears here only after it is reviewed again. If you already have one of these from its author's own marketplace, keep that one and don't enable it here too, or its skills load twice. Figma's plugin is in Anthropic's official marketplace.
 
 Every verdict is also on [the security index](https://makkov-design.github.io/makkov-harness/security.html): searchable, with the reviewed commit and what each piece runs, sends and needs from you.
 
@@ -212,13 +212,13 @@ Every verdict is also on [the security index](https://makkov-design.github.io/ma
 | Hallmark | New landing pages and sites that look designed, not generated | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) |
 | Superpowers | Brainstorming before building, debugging, plans | [obra/superpowers](https://github.com/obra/superpowers) |
 | security-audit | Whole-project security review before a launch | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) |
-| Frame Lens | Watch and analyze any video or animation (links, files, websites, Lottie, Figma): measured transcripts, frames, cuts, easing, palette and beats, with starter projects for HyperFrames, Remotion, CSS, After Effects and Lottie. Local and free; Gemini optional | [Makkov-design/framelens](https://github.com/Makkov-design/framelens) |
+| Frame Lens | Watch and analyze any video or animation (links, files, websites, Lottie, Figma): measured transcripts, frames, cuts, easing, palette and beats, with starter projects for HyperFrames, Remotion, CSS, After Effects and Lottie. Local and free; Gemini optional | [Makkov-design/framelens](https://github.com/Makkov-design/framelens) (own project) |
 
 ## Principles
 
 - **Credit, don't repackage.** Other people's work is linked or, where the license allows and linking is impractical, copied with its license; the few changes we make to a copy are listed in [`NOTICE`](NOTICE). See [`CREDITS.md`](CREDITS.md).
 - **Checked before recommended.** Every third-party piece has a dated verdict in [`SECURITY.md`](SECURITY.md).
-- **Nothing runs that you can't read.** The only hook reads `ROUTING.md` and prints it. Installers copy local files and download nothing.
+- **Nothing runs that you can't read.** Two hooks, both plain shell: one prints `ROUTING.md` at the start of a session, and in Claude Code the install gate turns a third-party install command into a question to you. Installers copy local files and download nothing.
 - **No keys in files.** Ever.
 
 ## Like it? Star it and pass it on
