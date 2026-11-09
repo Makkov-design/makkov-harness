@@ -5,6 +5,7 @@
 // 2. the SessionStart hook prints valid JSON under 10,000 characters of context
 // 3. every skill folder has a SKILL.md whose name matches the folder and whose description fits the spec
 // 4. Design Score: the generated bundle, console snippet and bookmarklets are up to date (build.mjs --check),
+//    the agent's loader carries the built bundle's SRI hash,
 //    the two copies of mh-score.js are identical, and what SECURITY.md promises holds: the bundle uses no
 //    network or storage API, and the loader bookmarklet loads only the bundle from this site, with the referrer
 //    SECURITY.md describes
@@ -14,6 +15,7 @@
 // 6. links between the Markdown files resolve (a missing README picture is a warning: screenshots come separately)
 // 7. no file, tracked or new and not ignored, contains something that looks like a key or token
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
@@ -111,6 +113,20 @@ if (fs.existsSync(`${DS}/build.mjs`)) {
     const code = read(ship), used = API.filter(([re]) => re.test(code)).map(([, name]) => name);
     if (used.length) fail(`${ship} uses ${used.join(", ")}, but SECURITY.md says the bundle makes no network requests and keeps no storage`);
     else ok("design-score: the bundle uses no network or storage API");
+  }
+  // The agent's loader pins the bundle with Subresource Integrity: every sha384 in the skill's docs must be the
+  // built bundle's, and the GitHub Pages loader must carry one, or the browser runs whatever Pages serves.
+  if (fs.existsSync(ship)) {
+    const sri = "sha384-" + createHash("sha384").update(fs.readFileSync(ship)).digest("base64");
+    const docs = [`${DS}/SKILL.md`, ...fs.readdirSync(`${DS}/reference`).filter((f) => f.endsWith(".md")).map((f) => `${DS}/reference/${f}`)];
+    let pinned = 0, bad = 0;
+    for (const f of docs) {
+      const text = read(f);
+      for (const m of text.matchAll(/sha384-[A-Za-z0-9+/=]+/g)) { pinned++; if (m[0] !== sri) { bad++; fail(`${f}: integrity ${m[0]} is not the built bundle's; set it to ${sri}`); } }
+      for (const m of text.matchAll(/\.src\s*=\s*'https:\/\/makkov-design\.github\.io[^']*mh-score\.js[^']*';\n(?!\s*s\.integrity\s*=)/g)) { bad++; fail(`${f}: a loader of the hosted bundle without s.integrity on the next line`); }
+    }
+    if (!pinned) fail(`${DS}: no loader carries the bundle's integrity hash (${sri})`);
+    else if (!bad) ok(`design-score: the agent's loader pins the bundle with its SRI hash (${plural(pinned, "place")})`);
   }
   const page = path.join(SITE, "score.html");
   if (fs.existsSync(page)) {

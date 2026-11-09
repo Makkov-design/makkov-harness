@@ -6,7 +6,7 @@ Exact snippets for every way to run Design Score: a browser tool that evaluates 
 
 | Piece | Where |
 |---|---|
-| Bundle (probe and panel) | `mh-score.js` in the skill folder; hosted at `https://makkov-design.github.io/makkov-harness/score/mh-score.js` |
+| Bundle (probe and panel) | `mh-score.js` in the skill folder; hosted at `https://makkov-design.github.io/makkov-harness/score/mh-score.js`, loaded only when it matches the skill's copy (Step 1A) |
 | Console snippet | `https://makkov-design.github.io/makkov-harness/score/console.txt`, or the copy button next to it on the score page |
 | Bookmarklets (loader and offline) | https://makkov-design.github.io/makkov-harness/score.html |
 | Node runner | `scripts/score.mjs` in the skill folder |
@@ -25,8 +25,10 @@ new Promise((resolve, reject) => {
   try {
     const s = document.createElement('script');
     s.src = 'https://makkov-design.github.io/makkov-harness/score/mh-score.js?v=1.0.0';
+    s.integrity = 'sha384-GEi7mc6J171ytPzTlPDl1Uru7P++eiAXhODJaXEBYUNYIFCh7MKppYpIdOg/TsFM';   // the bundle this skill ships; any other file is refused
+    s.crossOrigin = 'anonymous';
     s.onload = () => resolve(window.MHScore ? 'Design Score ' + window.MHScore.version + ' loaded' : 'loaded, but MHScore is missing');
-    s.onerror = () => reject(new Error('Blocked: this page does not allow outside scripts, or there is no network. See "Strict or offline pages".'));
+    s.onerror = () => reject(new Error('Blocked: this page does not allow outside scripts, there is no network, or the hosted bundle is not the one this skill ships. See "Strict or offline pages".'));
     document.documentElement.appendChild(s);
   } catch (e) {
     reject(new Error('Blocked: this page does not allow outside scripts (' + e.message + '). See "Strict or offline pages".'));
@@ -34,7 +36,7 @@ new Promise((resolve, reject) => {
 });
 ```
 
-The page fetches the bundle from this repository's GitHub Pages; the bundle itself then sends nothing. The `?v=` query only refreshes caches. If the tool does not wait for promises, run this, then check with the line below.
+The page fetches the bundle from this repository's GitHub Pages, and the browser runs it only if it matches the `integrity` hash: the exact `mh-score.js` in this skill folder. Anything else on Pages at that moment (a newer release, or a changed file) is refused and the loader rejects with "Blocked": then use the Node runner or a local copy ("Strict or offline pages"). Never remove the `integrity` line to get past a refusal. The bundle itself sends nothing. The `?v=` query only refreshes caches. If the tool does not wait for promises, run this, then check with the line below.
 
 Then confirm it loaded:
 
@@ -50,7 +52,7 @@ Strict pages (GitHub, X, many admin and banking apps) block outside scripts with
 
 1. **The Node runner** (below), when it is set up. It reads the bundle from disk and injects it through the DevTools protocol with the page's CSP bypassed, so a strict policy cannot block it and loading the bundle needs no network.
 2. **A local app you are working on.** Copy `mh-score.js` into the folder its dev server serves as-is (`public/` in Vite, Next.js and Create React App, `static/` in SvelteKit; elsewhere, the folder that holds the favicon), and run the loader with `s.src = '/mh-score.js'`. The bundle then comes from the page's own origin, which a `script-src 'self'` policy allows, and no network is needed. Delete the copy when you are done, never commit it, and tell the person you added and removed it.
-3. **A local `.html` file opened from disk** (`file://`) with no network: run the loader with `s.src` set to the bundle's own file URL, for example `file:///C:/path/to/skills/design-score/mh-score.js`. Or serve the folder (for example `python -m http.server`), copy the bundle into it and load it as in option 2.
+3. **A local `.html` file opened from disk** (`file://`) with no network: run the loader with `s.src` set to the bundle's own file URL, for example `file:///C:/path/to/skills/design-score/mh-score.js`, and without the `integrity` and `crossOrigin` lines (browsers refuse integrity checks on `file://`; the file is the skill's own copy). Or serve the folder (for example `python -m http.server`), copy the bundle into it and load it as in option 2.
 4. **Ask the person.** On a strict site, the **offline bookmarklet** on https://makkov-design.github.io/makkov-harness/score.html#run carries the whole bundle; on a desktop browser, the console snippet does too (see "DevTools console" below). They run it on the page, press **Copy fix prompt** and paste the prompt to you. For a strict page behind a login, where the runner has no session, this is the route.
 
 ## Step 2: measure
