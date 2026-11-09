@@ -69,6 +69,17 @@ bash "$uninst" codex >/dev/null
 check "your notes kept, block gone" "grep -qx '# my notes' '$home/.codex/AGENTS.md' && [ \"\$(markers '$home/.codex/AGENTS.md')\" = 0 ]"
 rm -rf "$home"
 
+# A project path with spaces.
+home="$(mktemp -d)"; proj="$(mktemp -d)/My Project"; mkdir -p "$proj/.agents/skills/animate"; export HOME="$home"
+echo mine > "$proj/.agents/skills/animate/SKILL.md"
+echo "codex, project path with spaces"
+bash "$inst" codex "$proj" >/dev/null
+check "installed into the spaced path" "[ -e \"$proj/.agents/skills/design-score/SKILL.md\" ]"
+bash "$uninst" codex "$proj" >/dev/null
+check "your animate restored from the spaced path" "grep -qx mine \"$proj/.agents/skills/animate/SKILL.md\""
+check "our skills removed from the spaced path" "[ ! -e \"$proj/.agents/skills/design-score\" ]"
+rm -rf "$home" "$(dirname "$proj")"
+
 # --scope design keeps only design routing.
 home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
 echo "codex project, --scope design"
