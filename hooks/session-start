@@ -2,9 +2,14 @@
 # SessionStart hook: injects ROUTING.md so the agent knows which skill fits which situation,
 # even when skill descriptions are trimmed from a long skill list. Reads one local file, prints JSON, nothing else.
 # The plugin path is added so the agent can find cloud/setup-design-tools.sh when the user agrees to run it.
+# MAKKOV_HARNESS_SCOPE=design keeps the design rows only, like the installers' --scope design.
 set -u
 root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 routing="$(cat "$root/ROUTING.md" 2>/dev/null || printf 'makkov-harness: ROUTING.md not found.')"
+if [ "${MAKKOV_HARNESS_SCOPE:-}" = design ]; then
+  routing="$(printf '%s\n' "$routing" | grep -v -e '^| Research, analysis' -e '^| Installing, adding' -e '^| Any new feature or creative work' -e '^| Whole-project security review')"
+  routing="$routing"$'\n\n'"Scope: design work only (MAKKOV_HARNESS_SCOPE=design). For research, installs and general coding, work as you would without this harness."
+fi
 routing="$routing"$'\n\n'"Plugin path: $root"
 esc() {
   local s="$1"
