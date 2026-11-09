@@ -39,7 +39,7 @@ jobs:
           echo "PUPPETEER_DIR=$RUNNER_TEMP/pp/node_modules/puppeteer-core" >> "$GITHUB_ENV"
           echo "CHROME_PATH=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
       - name: unit tests and Design Score fixtures
-        run: node --test --test-concurrency=2 $(find skills -name '*.test.mjs' -not -path '*/node_modules/*' | sort)
+        run: node --test --test-concurrency=2 $(find skills hooks -name '*.test.mjs' -not -path '*/node_modules/*' | sort)
 
   installers:
     name: installers (${{ matrix.os }})

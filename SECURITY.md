@@ -25,6 +25,7 @@ Why Impeccable is yellow while the Hyperframes CLI is green, though both have te
 ## What the harness itself runs
 
 - `hooks/session-start` (Claude Code only): reads `ROUTING.md` from this repository and prints it with the plugin's folder path. No network, no writes.
+- `hooks/install-gate` (Claude Code only, before each shell command): if the command installs or runs third-party code (`npm install <package>`, `npx`, `pip install`, `curl … | sh` and the like), it makes Claude Code ask you first and reminds the agent to run the `third-party-install-guard` review. It never blocks or runs anything, and installs from an existing lockfile pass. No network, no writes. Off with `MAKKOV_HARNESS_INSTALL_GATE=off`.
 - `install/` scripts: copy files from this repository into the agent's folders. No downloads.
 - `cloud/setup-design-tools.sh` (optional, Claude cloud environments only): installs ffmpeg from Ubuntu and two pinned npm packages with `--ignore-scripts`. Runs only if you paste it into your environment's Setup script, or when you say yes to the agent's offer in a cloud session.
 - `.github/workflows/upstream-watch.yml` (GitHub only, weekly): reads the upstream repositories of the pinned companions through the GitHub API and updates one issue in this repository. It cannot change a pin or any file.
