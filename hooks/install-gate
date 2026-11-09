@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# PreToolUse hook (Claude Code): before a shell command that installs or runs third-party code, Claude Code
+# asks you first, and the agent is reminded to review it with the third-party-install-guard skill.
+# It never blocks a command and never runs one: it only turns an automatic run into a question.
+# Installs from an existing lockfile (npm ci, pnpm install --frozen-lockfile, plain npm/pnpm/yarn install)
+# are not asked about. Turn the check off with MAKKOV_HARNESS_INSTALL_GATE=off.
+# Reads the hook input from stdin, prints JSON or nothing. No network, no writes.
+set -u
+[ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = "off" ] && exit 0
+
+input="$(cat)"
+# The command string from {"tool_input":{"command":"..."}}; escaped quotes inside it are kept.
+cmd="$(printf '%s' "$input" | grep -o '"command"[[:space:]]*:[[:space:]]*"\([^"\\]\|\\.\)*"' | head -n 1 | sed 's/^"command"[[:space:]]*:[[:space:]]*"//; s/"$//')"
+[ -z "$cmd" ] && exit 0
+c=" $(printf '%s' "$cmd" | tr '\n' ' ') "
+
+# Package managers and runners that fetch new code. A bare `npm install` (lockfile) does not match:
+# these need a package name or URL after the verb.
+pm='(^|[[:space:];&|(`])'
+patterns=(
+  "${pm}(npm|pnpm|yarn|bun)(\.cmd)?[[:space:]]+(install|i|add)[[:space:]]+[^-[:space:]]"
+  "${pm}(npm|pnpm|yarn|bun)(\.cmd)?[[:space:]]+(install|i|add)[[:space:]]+(-[^[:space:]]+[[:space:]]+)+[^-[:space:]]"
+  "${pm}(npx|bunx|uvx|pnpx)(\.cmd)?[[:space:]]"
+  "${pm}(pnpm|yarn|bun)(\.cmd)?[[:space:]]+dlx[[:space:]]"
+  "${pm}(npm)(\.cmd)?[[:space:]]+(exec|x)[[:space:]]"
+  "${pm}(pip|pip3|python[0-9.]*[[:space:]]+-m[[:space:]]+pip)[[:space:]]+install[[:space:]]"
+  "${pm}uv[[:space:]]+(add|tool[[:space:]]+install|pip[[:space:]]+install)[[:space:]]"
+  "${pm}pipx[[:space:]]+(install|run)[[:space:]]"
+  "${pm}(cargo|go|gem)[[:space:]]+install[[:space:]]"
+  "${pm}(brew|winget|choco|scoop|apt|apt-get|dnf|yum|pacman)[[:space:]]+(install|-S)[[:space:]]"
+  "${pm}(claude)[[:space:]]+(plugin[[:space:]]+install|mcp[[:space:]]+add)[[:space:]]"
+  "${pm}code(\.cmd)?[[:space:]]+--install-extension[[:space:]]"
+  "(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([[:space:]]|$)"
+  "(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)[^|]*\|[[:space:]]*(iex|Invoke-Expression)"
+)
+hit=""
+for p in "${patterns[@]}"; do
+  if printf '%s' "$c" | grep -Eiq -- "$p"; then hit=1; break; fi
+done
+[ -z "$hit" ] && exit 0
+
+reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$reason"
+exit 0
