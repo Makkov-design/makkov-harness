@@ -40,14 +40,16 @@ The installer copies `skills/` into the folder your tool reads and adds the rout
 Windows (PowerShell):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent <agent> [-Project <path>]
+powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent <agent> [-Project <path>] [-DryRun]
 ```
 
 macOS / Linux:
 
 ```
-bash ~/makkov-harness/install/install.sh <agent> [project-path]
+bash ~/makkov-harness/install/install.sh <agent> [project-path] [--dry-run]
 ```
+
+Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or move and the file it would edit; nothing is written. Show that list to the user before the real run.
 
 `<agent>` is one of: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode`, `aider`. Pass a project path only for a project-only install (always needed for `cursor`, `copilot`, `windsurf`, `aider`, which have no user-level instructions file the installer can edit).
 

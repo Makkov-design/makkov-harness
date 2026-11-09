@@ -3,16 +3,25 @@
 # Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
 # file inside a marked block. Copies local files only; downloads nothing.
 #
-# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path]
+# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]
+#   --dry-run   print every change it would make and write nothing
 set -euo pipefail
 
-agent="${1:-}"
-project="${2:-}"
+dry=0
+args=()
+for a in "$@"; do
+  case "$a" in
+    --dry-run) dry=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+agent="${args[0]:-}"
+project="${args[1]:-}"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 
 case "$agent" in
   codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;;
-  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path]" >&2; exit 2 ;;
+  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]" >&2; exit 2 ;;
 esac
 if [ -n "$project" ]; then project="$(cd "$project" && pwd)"; fi
 case "$agent" in
@@ -38,26 +47,29 @@ esac
 
 stamp="$(date +%Y%m%d-%H%M%S)"
 backup_root="$base/.makkov-harness/backups/$stamp"
+[ "$dry" = 1 ] && echo "Dry run: nothing will be written."
 
 # 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
 # A folder with the same name that is not an identical copy of ours (your own skill, or one you
 # edited) is moved to the backup folder first, never deleted.
 copied="" backed=""
 if [ -n "$skills_dir" ]; then
-  mkdir -p "$skills_dir"
+  [ "$dry" = 1 ] || mkdir -p "$skills_dir"
   for d in "$repo"/skills/*/; do
     name="$(basename "$d")"
     [ "$name" = "rich-report" ] && continue
     if [ -e "$skills_dir/$name" ]; then
       if diff -rq "${d%/}" "$skills_dir/$name" >/dev/null 2>&1; then
-        rm -rf "${skills_dir:?}/$name"
+        [ "$dry" = 1 ] && echo "  would refresh $skills_dir/$name (identical copy of ours)" || rm -rf "${skills_dir:?}/$name"
       else
-        mkdir -p "$backup_root/skills"
-        mv "$skills_dir/$name" "$backup_root/skills/$name"
+        if [ "$dry" = 1 ]; then echo "  would move your $skills_dir/$name to $backup_root/skills/$name, then copy ours"
+        else mkdir -p "$backup_root/skills"; mv "$skills_dir/$name" "$backup_root/skills/$name"; fi
         backed="$backed $name"
       fi
+    else
+      [ "$dry" = 1 ] && echo "  would copy $name to $skills_dir/$name"
     fi
-    cp -R "${d%/}" "$skills_dir/$name"
+    [ "$dry" = 1 ] || cp -R "${d%/}" "$skills_dir/$name"
     copied="$copied $name"
   done
 fi
@@ -67,6 +79,18 @@ routing="$(sed 's/`rich-report` (Claude with Artifacts) or `html-report` (any ag
 block="<!-- makkov-harness:start -->
 $routing
 <!-- makkov-harness:end -->"
+if [ "$dry" = 1 ]; then
+  if [ -f "$rules" ]; then
+    echo "  would back up $rules to $rules.bak-$stamp"
+    if [ "$agent" = "cursor" ]; then echo "  would rewrite $rules with the routing rule"
+    elif grep -q '<!-- makkov-harness:start -->' "$rules"; then echo "  would update the marked routing block in $rules"
+    else echo "  would append the marked routing block to $rules"; fi
+  else
+    echo "  would create $rules with the routing block"
+  fi
+  echo "Dry run done for $agent. Run again without --dry-run to install."
+  exit 0
+fi
 mkdir -p "$(dirname "$rules")"
 # Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
 if [ -f "$rules" ]; then cp "$rules" "$rules.bak-$stamp"; fi
