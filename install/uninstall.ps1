@@ -46,19 +46,28 @@ function Test-Shared([string]$Name) {
   foreach ($m in Get-ChildItem $state -Filter 'install-*.txt') {
     if ($m.FullName -eq $manifest) { continue }
     $o = Get-Content $m.FullName -Encoding UTF8
-    if ((($o | Where-Object { $_ -like 'skills_dir=*' } | Select-Object -First 1) -replace '^skills_dir=', '') -eq $skillsDir -and ($o -contains "skill=$Name")) { return $true }
+    if ((($o | Where-Object { $_ -like 'skills_dir=*' } | Select-Object -First 1) -replace '^skills_dir=', '') -eq $skillsDir -and
+        ($o | Where-Object { $_ -eq "skill=$Name" -or $_ -like "skill=$Name *" })) { return $true }
   }
   return $false
 }
+function Get-TreeId([string]$Dir) {
+  $bytes = [Text.Encoding]::UTF8.GetBytes((Get-TreeFingerprint $Dir))
+  $sha = [Security.Cryptography.SHA256]::Create()
+  (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
+}
 
-# 1. Skills.
+# 1. Skills. A folder still matching the fingerprint the install recorded is ours and is removed; one that
+# changed since is moved aside. Installs from before 0.5.0 recorded no fingerprint: compare with this copy.
 if ($skillsDir) {
-  foreach ($name in ($lines | Where-Object { $_ -like 'skill=*' } | ForEach-Object { $_ -replace '^skill=', '' })) {
+  foreach ($entry in ($lines | Where-Object { $_ -like 'skill=*' } | ForEach-Object { $_ -replace '^skill=', '' })) {
+    $name, $id = $entry -split ' ', 2
     $dst = Join-Path $skillsDir $name
     if (-not (Test-Path $dst)) { continue }
     if (Test-Shared $name) { Write-Output "  keep $dst (another installed agent uses it)"; continue }
     $ours = Join-Path (Join-Path $repo 'skills') $name
-    if ((Test-Path $ours) -and ((Get-TreeFingerprint $ours) -eq (Get-TreeFingerprint $dst))) {
+    if (($id -and (Get-TreeId $dst) -eq $id) -or
+        (-not $id -and (Test-Path $ours) -and ((Get-TreeFingerprint $ours) -eq (Get-TreeFingerprint $dst)))) {
       Write-Output "  remove $dst"; if (-not $DryRun) { Remove-Item $dst -Recurse -Force }
     } else {
       $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') $stamp) 'removed') $name

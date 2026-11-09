@@ -56,29 +56,57 @@ function Get-TreeFingerprint([string]$Dir) {
   }) -join "`n"
 }
 
+# A short id of a fingerprint, as recorded in the manifest.
+function Get-TreeId([string]$Dir) {
+  $bytes = [Text.Encoding]::UTF8.GetBytes((Get-TreeFingerprint $Dir))
+  $sha = [Security.Cryptography.SHA256]::Create()
+  (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
+}
+
+# What earlier installs into this skills folder put there, from every manifest that points at it.
+$stateDir = Join-Path (Base) '.makkov-harness'
+$earlier = @()
+if ($skillsDir -and (Test-Path $stateDir)) {
+  foreach ($m in Get-ChildItem $stateDir -Filter 'install-*.txt') {
+    $o = @(Get-Content $m.FullName -Encoding UTF8)
+    if ((($o | Where-Object { $_ -like 'skills_dir=*' } | Select-Object -First 1) -replace '^skills_dir=', '') -eq $skillsDir) {
+      $earlier += @($o | Where-Object { $_ -like 'skill=*' })
+    }
+  }
+}
+
 # 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
-# A folder with the same name that is not an identical copy of ours (your own skill, or one you
-# edited) is moved to the backup folder first, never deleted.
-$copied = @(); $backed = @()
+# - an identical copy of ours, or the copy an earlier install of this harness put there, is replaced;
+# - a folder an install from before 0.5.0 put there (no fingerprint recorded, so it may have been edited) is
+#   moved to backups\<date>\earlier-harness\ and left there;
+# - anything else (your own skill, or ours that you edited) is moved to backups\<date>\skills\ and put back
+#   by the uninstaller. Nothing is deleted that might be yours.
+$copied = @(); $backed = @(); $older = @(); $manifestSkills = @()
 if ($skillsDir) {
   if (-not $DryRun) { New-Item -ItemType Directory -Force $skillsDir | Out-Null }
   Get-ChildItem (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' } | ForEach-Object {
-    $dst = Join-Path $skillsDir $_.Name
-    $keep = Join-Path (Join-Path $backupRoot 'skills') $_.Name
+    $name = $_.Name
+    $dst = Join-Path $skillsDir $name
+    $idNew = Get-TreeId $_.FullName
     if (Test-Path $dst) {
-      if ((Get-TreeFingerprint $_.FullName) -eq (Get-TreeFingerprint $dst)) {
-        if ($DryRun) { Write-Output "  would refresh $dst (identical copy of ours)" } else { Remove-Item $dst -Recurse -Force }
+      $idOld = Get-TreeId $dst
+      if ($idOld -eq $idNew -or ($earlier -contains "skill=$name $idOld")) {
+        if ($DryRun) { Write-Output "  would update $dst (a copy this harness put there)" } else { Remove-Item $dst -Recurse -Force }
+      } elseif ($earlier -contains "skill=$name") {
+        $keep = Join-Path (Join-Path $backupRoot 'earlier-harness') $name
+        if ($DryRun) { Write-Output "  would move $dst (from an install before 0.5.0) to $keep" }
+        else { New-Item -ItemType Directory -Force (Split-Path -Parent $keep) | Out-Null; Move-Item $dst $keep }
+        $older += $name
       } else {
+        $keep = Join-Path (Join-Path $backupRoot 'skills') $name
         if ($DryRun) { Write-Output "  would move your $dst to $keep, then copy ours" }
-        else {
-          New-Item -ItemType Directory -Force (Join-Path $backupRoot 'skills') | Out-Null
-          Move-Item $dst $keep
-        }
-        $backed += $_.Name
+        else { New-Item -ItemType Directory -Force (Split-Path -Parent $keep) | Out-Null; Move-Item $dst $keep }
+        $backed += $name
       }
-    } elseif ($DryRun) { Write-Output "  would copy $($_.Name) to $dst" }
+    } elseif ($DryRun) { Write-Output "  would copy $name to $dst" }
     if (-not $DryRun) { Copy-Item $_.FullName $dst -Recurse }
-    $copied += $_.Name
+    $copied += $name
+    $manifestSkills += "skill=$name $idNew"
   }
 }
 
@@ -134,12 +162,13 @@ New-Item -ItemType Directory -Force $state | Out-Null
 $oldBackups = @(); if (Test-Path $manifest) { $oldBackups = @(Get-Content $manifest -Encoding UTF8 | Where-Object { $_ -like 'backup=*' }) }
 $lines = @("agent=$Agent", "installed=$stamp", "skills_dir=$skillsDir", "rules=$rules", "rules_existed=$rulesExisted", "rules_backup=$rulesBackup", "scope=$Scope") + $oldBackups
 if ($backed.Count) { $lines += "backup=" + (Join-Path $backupRoot 'skills') }
-$lines += ($copied | ForEach-Object { "skill=$_" })
+$lines += $manifestSkills
 [IO.File]::WriteAllLines($manifest, [string[]]$lines, $utf8)
 
 Write-Output "makkov-harness installed for $Agent"
 if ($skillsDir) { Write-Output ("Skills -> $skillsDir : " + ($copied -join ', ')) }
 if ($backed.Count) { Write-Output ("Kept your earlier versions of: " + ($backed -join ', ') + " -> " + (Join-Path $backupRoot 'skills')) }
+if ($older.Count) { Write-Output ("Moved the copies an install before 0.5.0 left of: " + ($older -join ', ') + " -> " + (Join-Path $backupRoot 'earlier-harness') + " (delete them if you never edited them)") }
 Write-Output "Routing -> $rules"
 if ($Agent -eq 'aider') { Write-Output "Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project." }
 Write-Output 'Restart the agent, then run the harness-onboarding skill to personalize it.'

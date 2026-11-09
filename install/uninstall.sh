@@ -49,20 +49,24 @@ shared() {
   for m in "$state"/install-*.txt; do
     [ "$m" = "$manifest" ] && continue
     [ -f "$m" ] || continue
-    [ "$(sed -n 's/^skills_dir=//p' "$m" | head -n 1)" = "$skills_dir" ] && grep -qx "skill=$1" "$m" && return 0
+    [ "$(sed -n 's/^skills_dir=//p' "$m" | head -n 1)" = "$skills_dir" ] && grep -q "^skill=$1\( \|$\)" "$m" && return 0
   done
   return 1
 }
+fingerprint() { (cd "$1" && find . -type f -exec cksum {} + | LC_ALL=C sort) | cksum | cut -d' ' -f1; }
 
-# 1. Skills.
+# 1. Skills. A folder still matching the fingerprint the install recorded is ours and is removed; one that
+# changed since is moved aside. Installs from before 0.5.0 recorded no fingerprint: compare with this copy.
 if [ -n "$skills_dir" ]; then
   # Read the manifest line by line: home and project paths may contain spaces.
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    name="${line%% *}"; fp=""; [ "$line" != "$name" ] && fp="${line#* }"
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
     if shared "$name"; then say "keep $dst (another installed agent uses it)"; continue; fi
-    if [ -d "$repo/skills/$name" ] && diff -rq "$repo/skills/$name" "$dst" >/dev/null 2>&1; then
+    if { [ -n "$fp" ] && [ "$(fingerprint "$dst")" = "$fp" ]; } ||
+       { [ -z "$fp" ] && [ -d "$repo/skills/$name" ] && diff -rq "$repo/skills/$name" "$dst" >/dev/null 2>&1; }; then
       say "remove $dst"; do_ rm -rf "${dst:?}"
     else
       say "move $dst to $state/backups/$stamp/removed/$name (you changed it)"

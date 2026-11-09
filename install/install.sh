@@ -55,28 +55,54 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 backup_root="$base/.makkov-harness/backups/$stamp"
 [ "$dry" = 1 ] && echo "Dry run: nothing will be written."
 
+# A fingerprint of a folder: the checksum of every file's checksum, size and path.
+fingerprint() { (cd "$1" && find . -type f -exec cksum {} + | LC_ALL=C sort) | cksum | cut -d' ' -f1; }
+state="$base/.makkov-harness"
+# What earlier installs into this skills folder put there, from every manifest that points at it.
+earlier=""
+if [ -n "$skills_dir" ] && [ -d "$state" ]; then
+  for m in "$state"/install-*.txt; do
+    [ -f "$m" ] || continue
+    [ "$(sed -n 's/^skills_dir=//p' "$m" | head -n 1)" = "$skills_dir" ] && earlier="$earlier$(grep '^skill=' "$m")
+"
+  done
+fi
+
 # 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
-# A folder with the same name that is not an identical copy of ours (your own skill, or one you
-# edited) is moved to the backup folder first, never deleted.
-copied="" backed=""
+# - an identical copy of ours, or the copy an earlier install of this harness put there, is replaced;
+# - a folder an install from before 0.5.0 put there (no fingerprint recorded, so it may have been edited) is
+#   moved to backups/<date>/earlier-harness/ and left there;
+# - anything else (your own skill, or ours that you edited) is moved to backups/<date>/skills/ and put back
+#   by the uninstaller. Nothing is deleted that might be yours.
+copied="" backed="" older=""
+manifest_skills=""
 if [ -n "$skills_dir" ]; then
   [ "$dry" = 1 ] || mkdir -p "$skills_dir"
   for d in "$repo"/skills/*/; do
     name="$(basename "$d")"
     [ "$name" = "rich-report" ] && continue
-    if [ -e "$skills_dir/$name" ]; then
-      if diff -rq "${d%/}" "$skills_dir/$name" >/dev/null 2>&1; then
-        [ "$dry" = 1 ] && echo "  would refresh $skills_dir/$name (identical copy of ours)" || rm -rf "${skills_dir:?}/$name"
+    fp_new="$(fingerprint "${d%/}")"
+    dst="$skills_dir/$name"
+    if [ -e "$dst" ]; then
+      fp_old="$(fingerprint "$dst")"
+      if [ "$fp_old" = "$fp_new" ] || printf '%s' "$earlier" | grep -qx "skill=$name $fp_old"; then
+        [ "$dry" = 1 ] && echo "  would update $dst (a copy this harness put there)" || rm -rf "${dst:?}"
+      elif printf '%s' "$earlier" | grep -qx "skill=$name"; then
+        if [ "$dry" = 1 ]; then echo "  would move $dst (from an install before 0.5.0) to $backup_root/earlier-harness/$name"
+        else mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"; fi
+        older="$older $name"
       else
-        if [ "$dry" = 1 ]; then echo "  would move your $skills_dir/$name to $backup_root/skills/$name, then copy ours"
-        else mkdir -p "$backup_root/skills"; mv "$skills_dir/$name" "$backup_root/skills/$name"; fi
+        if [ "$dry" = 1 ]; then echo "  would move your $dst to $backup_root/skills/$name, then copy ours"
+        else mkdir -p "$backup_root/skills"; mv "$dst" "$backup_root/skills/$name"; fi
         backed="$backed $name"
       fi
     else
-      [ "$dry" = 1 ] && echo "  would copy $name to $skills_dir/$name"
+      [ "$dry" = 1 ] && echo "  would copy $name to $dst"
     fi
-    [ "$dry" = 1 ] || cp -R "${d%/}" "$skills_dir/$name"
+    [ "$dry" = 1 ] || cp -R "${d%/}" "$dst"
     copied="$copied $name"
+    manifest_skills="${manifest_skills}skill=$name $fp_new
+"
   done
 fi
 
@@ -146,12 +172,13 @@ old_backups=""; [ -f "$manifest" ] && old_backups="$(grep '^backup=' "$manifest"
   echo "scope=$scope"
   [ -n "$old_backups" ] && echo "$old_backups"
   [ -n "$backed" ] && echo "backup=$backup_root/skills"
-  for n in $copied; do echo "skill=$n"; done
+  printf '%s' "$manifest_skills"
 } > "$manifest"
 
 echo "makkov-harness installed for $agent"
 [ -n "$skills_dir" ] && echo "Skills -> $skills_dir :$copied"
 [ -n "$backed" ] && echo "Kept your earlier versions of:$backed -> $backup_root/skills"
+[ -n "$older" ] && echo "Moved the copies an install before 0.5.0 left of:$older -> $backup_root/earlier-harness (delete them if you never edited them)"
 echo "Routing -> $rules"
 [ "$agent" = "aider" ] && echo "Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project."
 echo "Restart the agent, then run the harness-onboarding skill to personalize it."

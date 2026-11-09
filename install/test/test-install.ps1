@@ -70,6 +70,36 @@ try {
   Check 'your notes kept, block gone' { ((Get-Content (Join-Path $h '.codex\AGENTS.md')) -contains '# my notes') -and ((Markers (Join-Path $h '.codex\AGENTS.md')) -eq 0) }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
 
+  # Updating in place, then uninstalling; and an update over an install from before 0.5.0.
+  $src = New-Temp
+  Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md') $src -Recurse
+  $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, update in place, then uninstall'
+  & $sInst -Agent codex -Project $proj | Out-Null
+  Set-Content (Join-Path $src 'skills\animate\CHANGES.md') 'new in this version'
+  Start-Sleep -Milliseconds 1100
+  & $sInst -Agent codex -Project $proj | Out-Null
+  Check 'the update replaced our animate' { Test-Path (Join-Path $proj '.agents\skills\animate\CHANGES.md') }
+  Check 'the update made no backup of ours' { @(Get-ChildItem (Join-Path $proj '.makkov-harness\backups') -Recurse -Directory -ErrorAction SilentlyContinue).Count -eq 0 }
+  & $sUninst -Agent codex -Project $proj | Out-Null
+  Check 'nothing of the harness left after uninstall' { -not (Test-Path (Join-Path $proj '.agents\skills\animate')) -and -not (Test-Path (Join-Path $proj '.agents\skills\design-score')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, update over an install from before 0.5.0'
+  & $sInst -Agent codex -Project $proj | Out-Null
+  $mf = Join-Path $proj '.makkov-harness\install-codex.txt'
+  [IO.File]::WriteAllLines($mf, [string[]](Get-Content $mf | ForEach-Object { $_ -replace '^(skill=\S+) .*$', '$1' }))
+  Add-Content (Join-Path $src 'skills\animate\CHANGES.md') 'newer still'
+  Start-Sleep -Milliseconds 1100
+  & $sInst -Agent codex -Project $proj | Out-Null
+  Check 'the old copy went to earlier-harness' { @(Get-ChildItem (Join-Path $proj '.makkov-harness\backups') -Recurse -Directory | Where-Object { $_.Name -eq 'animate' -and $_.Parent.Name -eq 'earlier-harness' }).Count -eq 1 }
+  Check 'nothing went to the restore list' { -not (Get-Content $mf | Where-Object { $_ -like 'backup=*' }) }
+  & $sUninst -Agent codex -Project $proj | Out-Null
+  Check 'the uninstall restores no old harness copy' { -not (Test-Path (Join-Path $proj '.agents\skills\animate')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $src -Recurse -Force
+
   $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent 'My Project'; $env:USERPROFILE = $h
   New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null
   Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
