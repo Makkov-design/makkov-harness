@@ -112,7 +112,7 @@ window.MH_SECURITY = {
       skills: ['hyperframes', 'hyperframes-cli', 'hyperframes-registry', 'media-use', 'slideshow', 'style-sampling'],
       runs: 'No hooks. Its scripts call ffmpeg, Python and the Hyperframes CLI when a skill uses them.',
       network: 'The CLI downloads Chrome on first render. Optional cloud rendering (AWS) and voice (Gemini, HeyGen).',
-      telemetry: 'Through the Hyperframes CLI, on by default: see the hyperframes CLI entry.',
+      telemetry: 'media-use usage events are off in this copy unless you set `MEDIA_USE_TELEMETRY=1`. The Hyperframes CLI it calls has its own, on by default: see the hyperframes CLI entry.',
       keys: 'Only for the optional cloud rendering (AWS) and voice (Gemini, HeyGen): your own.',
       pin: 'Copied into skills/ from commit d21877e (plugin 0.9.9).',
       notes: "Scripts call ffmpeg, Python and the Hyperframes CLI. The CLI downloads Chrome on first render. Optional cloud rendering (AWS) and voice (Gemini, HeyGen) only with the user's own keys",

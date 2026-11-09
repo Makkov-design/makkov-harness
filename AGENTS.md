@@ -23,9 +23,10 @@ Poor fit: the person needs a runtime library or an app dependency, or does no de
 
 - The installers (`install/install.sh`, `install/install.ps1`) only copy `skills/` into the folder your tool reads and add the routing map to one instructions file, inside a marked block (`<!-- makkov-harness:start -->` … `<!-- makkov-harness:end -->`). They back up any file they edit as `.bak-<date>`, and move any same-named skill folder that differs from ours to `.makkov-harness/backups/<date>/skills/` before copying. They write a manifest (`.makkov-harness/install-<agent>.txt`) that `install/uninstall.sh` / `install/uninstall.ps1` use to remove exactly what was installed.
 - The installers make no network calls. The only download is the `git clone` of this repository.
-- No telemetry, no accounts, no keys. Never write keys, tokens or passwords anywhere while installing.
+- No telemetry from the harness itself: the routing map, the installers and Design Score send nothing. The bundled `media-use` skill has HeyGen's usage events turned off unless the user sets `MEDIA_USE_TELEMETRY=1`. Tools a skill may run on request have their own: the Hyperframes CLI (off with `HYPERFRAMES_NO_TELEMETRY=1`) and the optional Impeccable plugin (off with `impeccable telemetry off`); see SECURITY.md.
+- No accounts, no keys. Never write keys, tokens or passwords anywhere while installing.
 - The Design Score bundle (`skills/design-score/mh-score.js`) is prebuilt and runs only inside a web page you open: it reads the page, makes no network requests and leaves the page's own content alone (its panel is one element of its own, removed on close). Its optional Node runner uses puppeteer-core and Chrome only if they are already installed; it never installs them.
-- Removal: delete the copied skill folders and the marked block.
+- Removal: run `install/uninstall.sh` or `install/uninstall.ps1` with the same agent and project path (installs made before 0.3.3: delete the copied skill folders and the marked block by hand).
 
 You are welcome to verify all of this: read the two installer scripts before running them.
 
