@@ -5,8 +5,9 @@
 #   changed is moved to .makkov-harness/backups/<date>/removed/ instead. Folders another installed agent
 #   still uses from the same place are left alone.
 # - Skills of yours that the install moved aside are put back.
-# - The routing block is taken out of the instructions file; a Cursor rule is deleted and your earlier
-#   rule, if there was one, is restored. A file the install created and that is now empty is deleted.
+# - The routing block, and the personal layer harness-onboarding wrote, are taken out of the instructions
+#   file; a Cursor rule (and its personal rule) is deleted and your earlier rule, if there was one, is
+#   restored. A file the install created and that is now empty is deleted.
 #
 # Usage: uninstall.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]
 set -euo pipefail
@@ -95,17 +96,22 @@ if [ -n "$skills_dir" ]; then
   done < <(sed -n 's/^backup=//p' "$manifest")
 fi
 
-# 3. Routing.
+# 3. Routing, and the personal layer harness-onboarding wrote next to it.
+personal_rule="$(dirname "$rules")/makkov-harness-personal.mdc"
+if [ "$agent" = "cursor" ] && [ -f "$personal_rule" ]; then
+  say "delete $personal_rule (a copy stays as $personal_rule.bak-$stamp)"
+  do_ cp "$personal_rule" "$personal_rule.bak-$stamp"; do_ rm -f "$personal_rule"
+fi
 if [ -f "$rules" ]; then
   if [ "$agent" = "cursor" ]; then
     say "delete $rules"; do_ rm -f "$rules"
     if [ -n "$rules_backup" ] && [ -f "$rules_backup" ]; then say "restore your earlier rule from $rules_backup"; do_ cp "$rules_backup" "$rules"; fi
-  elif grep -q '<!-- makkov-harness:start -->' "$rules"; then
-    say "take the routing block out of $rules"
+  elif grep -qE '<!-- makkov-harness:(personal:)?start -->' "$rules"; then
+    say "take the routing block and the personal layer out of $rules"
     if [ "$dry" = 0 ]; then
       cp "$rules" "$rules.bak-$stamp"
       tmp="$(mktemp)"
-      awk '/<!-- makkov-harness:start -->/ { skip=1; next } /<!-- makkov-harness:end -->/ { skip=0; next } !skip { print }' "$rules" > "$tmp"
+      awk '/<!-- makkov-harness:(personal:)?start -->/ { skip=1; next } /<!-- makkov-harness:(personal:)?end -->/ { skip=0; next } !skip { print }' "$rules" > "$tmp"
       mv "$tmp" "$rules"
       if [ "$rules_existed" != 1 ] && ! grep -q '[^[:space:]]' "$rules"; then rm -f "$rules" "$rules.bak-$stamp"; say "delete $rules (the install created it and it is now empty)"; fi
     fi
