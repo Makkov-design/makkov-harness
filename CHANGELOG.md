@@ -2,6 +2,29 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.4.0] - 2026-11-09
+
+Verified and scoped: tests run on every pull request, the compatibility table says what was checked and how, Claude Code asks before anything installs, and a design-only scope keeps the harness out of other work. Prompted by an independent review of 0.3.1.
+
+### Added
+
+- An install gate for Claude Code (`hooks/install-gate`): a shell command that installs or runs third-party code (`npm install <package>`, `npx`, `pip install`, `curl … | sh` and the like) becomes a question to you, with a reminder to run the `third-party-install-guard` review first. It never blocks or runs anything; installs from an existing lockfile pass; off with `MAKKOV_HARNESS_INSTALL_GATE=off` [#25](https://github.com/Makkov-design/makkov-harness/issues/25).
+- `--scope design` / `-Scope design` for the installers: a routing block for design work only, without the rows for research reports, third-party installs, general coding and project security reviews [#26](https://github.com/Makkov-design/makkov-harness/issues/26).
+- CI runs the unit tests (227 across the HyperFrames launcher, media-use and its audio engine) and scores the Design Score fixtures with the Node runner at desktop and phone sizes [#23](https://github.com/Makkov-design/makkov-harness/issues/23).
+
+### Changed
+
+- COMPATIBILITY.md separates "installer tested in CI" (all eight installer agents, on Linux, macOS and Windows) from "used by hand" (Claude Code, daily since 2026-11-04) [#24](https://github.com/Makkov-design/makkov-harness/issues/24).
+- SECURITY.md says what the install guard is and what it is not: a review procedure plus, in Claude Code, a question before installs; not a sandbox [#25](https://github.com/Makkov-design/makkov-harness/issues/25).
+- Design Score: the README, the skill and the score page say plainly what a score measures (shared, checkable conventions) and what it does not (whether people can use the page) [#27](https://github.com/Makkov-design/makkov-harness/issues/27).
+- README opens with a one-minute way to try Design Score with nothing installed [#28](https://github.com/Makkov-design/makkov-harness/issues/28).
+- The site's security index shows the install gate as a ninth review step and lists it with the safer installers; the home page's installer panel mentions the dry run, backups, the design scope and the uninstaller.
+- GitHub Actions: `actions/checkout` 7.0.1 and `actions/setup-node` 7.1.0, pinned by commit ([#3](https://github.com/Makkov-design/makkov-harness/pull/3), [#2](https://github.com/Makkov-design/makkov-harness/pull/2)).
+
+### Fixed
+
+- Running the full test suite found two tests that did not fit this copy of the HyperFrames skills: the telemetry tests still expected the upstream default (now opt-in, see 0.3.4), and a test scanned CLI sources that exist only upstream. Both are fixed and listed in `NOTICE`.
+
 ## [0.3.4] - 2026-11-09
 
 Privacy and pinning: nothing in the bundle sends usage data unless you opt in, every third-party version is pinned to a commit, and our changes to copied code are listed. Prompted by an independent review of 0.3.1.
