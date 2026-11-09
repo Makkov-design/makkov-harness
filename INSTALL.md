@@ -90,4 +90,12 @@ This step applies to the Claude marketplace route in Step 1 too: ask after the u
 ## Updating and removing
 
 Update: `git -C ~/makkov-harness pull`, then run the installer again.
-Remove: delete the copied skill folders and the marked block; restore from `.bak-<date>` if needed.
+
+Remove: run the uninstaller with the same agent and project path you installed with (add `-DryRun` / `--dry-run` to see the list first):
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/uninstall.ps1 -Agent <agent> [-Project <path>] [-DryRun]
+bash ~/makkov-harness/install/uninstall.sh <agent> [project-path] [--dry-run]
+```
+
+It reads the manifest the installer wrote (`.makkov-harness/install-<agent>.txt` in the home or project folder) and removes only what the install put there: skill folders still identical to ours are deleted, ones you changed are moved to `.makkov-harness/backups/<date>/removed/`, skills of yours the install had moved aside are put back, and the routing block is taken out (a Cursor rule is deleted and your earlier rule restored). Skills another installed agent still reads from the same folder stay. Installs made before 0.3.3 have no manifest: delete the copied skill folders and the marked block by hand, and restore from `.bak-<date>` if needed.
