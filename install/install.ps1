@@ -76,10 +76,11 @@ $routing = $routing.Replace('`rich-report` (Claude with Artifacts) or `html-repo
 $block = "<!-- makkov-harness:start -->`n$routing`n<!-- makkov-harness:end -->"
 $utf8 = New-Object System.Text.UTF8Encoding $false
 New-Item -ItemType Directory -Force (Split-Path -Parent $rules) | Out-Null
+# Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
+if (Test-Path $rules) { Copy-Item $rules "$rules.bak-$stamp" }
 if ($Agent -eq 'cursor') {
   $content = "---`ndescription: makkov-harness routing - which skill fits which situation`nalwaysApply: true`n---`n$block`n"
 } elseif (Test-Path $rules) {
-  Copy-Item $rules ("$rules.bak-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
   $old = [IO.File]::ReadAllText($rules)
   $pattern = '(?s)<!-- makkov-harness:start -->.*?<!-- makkov-harness:end -->'
   if ($old -match $pattern) { $content = [regex]::Replace($old, $pattern, { param($m) $block }) }
