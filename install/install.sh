@@ -68,10 +68,11 @@ block="<!-- makkov-harness:start -->
 $routing
 <!-- makkov-harness:end -->"
 mkdir -p "$(dirname "$rules")"
+# Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
+if [ -f "$rules" ]; then cp "$rules" "$rules.bak-$stamp"; fi
 if [ "$agent" = "cursor" ]; then
   printf -- '---\ndescription: makkov-harness routing - which skill fits which situation\nalwaysApply: true\n---\n%s\n' "$block" > "$rules"
 elif [ -f "$rules" ]; then
-  cp "$rules" "$rules.bak-$(date +%Y%m%d-%H%M%S)"
   if grep -q '<!-- makkov-harness:start -->' "$rules"; then
     tmp="$(mktemp)"
     BLK="$block" awk '
