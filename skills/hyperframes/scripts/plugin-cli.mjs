@@ -63,6 +63,8 @@ export function invocation(
   // MEDIA_USE_TELEMETRY=1 or set HYPERFRAMES_NO_TELEMETRY themselves.
   if (env.MEDIA_USE_TELEMETRY !== "1" && env.HYPERFRAMES_NO_TELEMETRY === undefined)
     childEnv.HYPERFRAMES_NO_TELEMETRY = "1";
+  // makkov-harness: npm runs no install scripts of the CLI's packages (the CLI itself needs none).
+  if (env.npm_config_ignore_scripts === undefined) childEnv.npm_config_ignore_scripts = "true";
   if (args[0] === "--script") {
     if (!args[1]) throw new Error("--script requires a Node script path.");
     return { command: node, args: args.slice(1), env: childEnv };

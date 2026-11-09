@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Skill installation and freshness
 
 Read this reference when installing or updating skills, diagnosing unexpected skill behavior, or running HyperFrames setup in CI.
@@ -40,10 +41,6 @@ The CLI may print a one-line stale-skill reminder during `render`, `lint`, or `c
 
 ## Keep the project's CLI current
 
-A scaffolded project pins `hyperframes@<version>` in its `package.json` scripts so renders stay reproducible; the pin never advances on its own, and a pinned run of an older CLI prints no warning about it. When resuming a project whose scripts carry a pin, probe once before the first render-affecting command:
+In makkov-harness the CLI is pinned: the launcher runs the release named in `scripts/cli-version.json`, the one the harness reviewed (see SECURITY.md at the repository root). Do not run `npx hyperframes@latest …` or `upgrade --project` on your own: both fetch whatever npm calls latest that day, which nobody has reviewed.
 
-```bash
-npx hyperframes@latest upgrade --project . --check
-```
-
-The probe is read-only and reports the pin against the latest release; keep the explicit `.` — on older CLI releases a bare `--project` followed by another flag consumes that flag as its directory value. When it reports the project behind — or any CLI output already shows it (the stderr notice `This project pins hyperframes@… (latest …)`, or `_meta.updateAvailable: true` in a `--json` result from a pinned script) — apply with `npx hyperframes@latest upgrade --project .`, then verify with `npx hyperframes check`. A passing check confirms the project's compositions still validate on the new version — not that rendered output is frame-identical to the old pin — so a successful bump is never silent: name the old and new version in the run's summary. A project with no composition yet needs no verification. If the check fails, revert the `package.json` change, continue on the pinned version, and report which version the project stays on and why. Act on the signal rather than relaying it to the user; never leave a bumped pin unverified.
+A scaffolded project also pins `hyperframes@<version>` in its `package.json` scripts. When that pin differs from the harness's release, name both versions once in the run's summary and leave the pin as it is. Change it only when the person asks, to the harness's release, then verify with `npx hyperframes check`. A passing check confirms the compositions still validate on that version, not that renders are frame-identical. If the check fails, revert the `package.json` change, continue on the project's version, and report which version the project stays on and why.
