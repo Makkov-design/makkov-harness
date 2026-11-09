@@ -2,6 +2,12 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [Unreleased]
+
+### Changed
+
+- The Hyperframes CLI kept its own usage telemetry on when the harness started it, through the launcher or the media-use scripts. It now starts with `HYPERFRAMES_NO_TELEMETRY=1` unless you set `MEDIA_USE_TELEMETRY=1` or chose `HYPERFRAMES_NO_TELEMETRY` yourself [#57](https://github.com/Makkov-design/makkov-harness/issues/57).
+
 ## [0.4.0] - 2026-11-09
 
 Verified and scoped: tests run on every pull request, the compatibility table says what was checked and how, Claude Code asks before anything installs, and a design-only scope keeps the harness out of other work. Prompted by an independent review of 0.3.1.

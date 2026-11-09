@@ -17,15 +17,16 @@ history; the release that made it is in parentheses.
 Changed:
   skills/hyperframes/references/plugin-installation.md   (0.3.1) the plugin pins its CLI in scripts/cli-version.json
   skills/hyperframes/references/sound.md                  (0.3.1) sound effects go through media-use's audio engine
-  skills/hyperframes/scripts/plugin-cli.mjs                (0.3.1) reads the reviewed CLI version from cli-version.json
-  skills/hyperframes/scripts/plugin-cli.test.mjs           (0.3.1) tests for that pin
+  skills/hyperframes/scripts/plugin-cli.mjs                (0.3.1) reads the reviewed CLI version from cli-version.json;
+                                                           (0.5.0) starts the CLI with its telemetry off unless opted in
+  skills/hyperframes/scripts/plugin-cli.test.mjs           (0.3.1, 0.5.0) tests for the pin and the telemetry default
   skills/hyperframes/scripts/lib/main-module.test.mjs      (0.4.0) skips the CLI sources this copy does not include
   skills/media-use/SKILL.md                                (0.3.1) points sound effects at the audio engine
   skills/media-use/audio/references/sfx.md                 (0.3.0, 0.3.1) Openverse keys, the engine command, credits
   skills/media-use/audio/scripts/lib/openverse.mjs         (0.3.0) optional Openverse API keys with a cached token
   skills/media-use/audio/scripts/lib/tts.mjs               (0.3.4) the CLI it starts is the pinned release
   skills/media-use/audio/scripts/gemini-pipeline.test.mjs  (0.3.4) checks the pinned CLI
-  skills/media-use/references/meta.md                      (0.3.4) usage telemetry is off unless MEDIA_USE_TELEMETRY=1
+  skills/media-use/references/meta.md                      (0.3.4, 0.5.0) usage telemetry, and the CLI's, off unless opted in
   skills/media-use/references/resolve.md                   (0.3.1) the sfx row names the audio engine
   skills/media-use/references/setup-providers.md           (0.3.0) Openverse keys
   skills/media-use/scripts/lib/telemetry.mjs               (0.3.4) usage telemetry is off unless MEDIA_USE_TELEMETRY=1
@@ -35,7 +36,9 @@ Changed:
 Added:
   skills/hyperframes/scripts/cli-version.json              (0.3.1) the reviewed CLI release
   skills/media-use/audio/scripts/lib/openverse.test.mjs    (0.3.0) tests for the Openverse keys
-  skills/media-use/scripts/lib/hyperframes-pin.mjs         (0.3.4) the pinned package spec for every CLI start
+  skills/media-use/scripts/lib/hyperframes-pin.mjs         (0.3.4) the pinned package spec for every CLI start;
+                                                           (0.5.0) the CLI's telemetry off unless opted in
+  skills/media-use/scripts/lib/hyperframes-pin.test.mjs    (0.5.0) tests for both
 
 -------------------------------------------------------------------------------
 Motion skills: animate, animate-expo, animation-performance, improve-animations,
