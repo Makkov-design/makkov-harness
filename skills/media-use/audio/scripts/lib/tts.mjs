@@ -1,4 +1,5 @@
 import { fetchMedia } from "../../../scripts/lib/media-fetch.mjs";
+import { hyperframesSpec } from "../../../scripts/lib/hyperframes-pin.mjs"; // makkov-harness: pinned CLI
 // tts.mjs — multi-provider TTS for the media audio engine. The provider chain,
 // auto-detected from env, is the one documented in ../SKILL.md:
 //
@@ -283,7 +284,7 @@ export async function synthesizeOne({
   // kokoro — via the published CLI; --output is relative to the project dir.
   const wavRel = relTo(hyperframesDir, wavAbs);
   return withTmpText(text, async (textPath) => {
-    const args = ["hyperframes", "tts", textPath, "--voice", voiceId, "--output", wavRel];
+    const args = [hyperframesSpec(), "tts", textPath, "--voice", voiceId, "--output", wavRel];
     if (lang !== "en") args.push("--lang", lang);
     if (speed !== 1) args.push("--speed", String(speed));
     const r = await spawnP("npx", args, { cwd: hyperframesDir });
@@ -358,7 +359,7 @@ export async function synthesizeHeygen({ text, voiceId, lang, speed, wavAbs }, d
 export async function transcribeWav({ wavRel, lang = "en", hyperframesDir }) {
   const model = lang === "en" ? "small.en" : "small";
   const td = mkdtempSync(join(tmpdir(), "hf-trans-"));
-  const args = ["hyperframes", "transcribe", wavRel, "--model", model, "--dir", td];
+  const args = [hyperframesSpec(), "transcribe", wavRel, "--model", model, "--dir", td];
   if (lang !== "en") args.push("--language", lang);
   const r = await spawnP("npx", args, { cwd: hyperframesDir });
   let words = null;
