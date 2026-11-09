@@ -1,3 +1,4 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 import { fetchMedia } from "../../../scripts/lib/media-fetch.mjs";
 import { hyperframesSpec } from "../../../scripts/lib/hyperframes-pin.mjs"; // makkov-harness: pinned CLI
 // tts.mjs — multi-provider TTS for the media audio engine. The provider chain,

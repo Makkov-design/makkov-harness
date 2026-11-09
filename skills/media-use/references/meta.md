@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Ownership matrix, usage stats, telemetry, privacy
 
 Maintainer-facing reference. Nothing here changes how you resolve or operate on media.

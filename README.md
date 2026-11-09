@@ -206,7 +206,7 @@ Every verdict is also on [the security index](https://makkov-design.github.io/ma
 
 ## Principles
 
-- **Credit, don't repackage.** Other people's work is linked or, where the license allows and linking is impractical, copied unmodified with its license. See [`CREDITS.md`](CREDITS.md).
+- **Credit, don't repackage.** Other people's work is linked or, where the license allows and linking is impractical, copied with its license; the few changes we make to a copy are listed in [`NOTICE`](NOTICE). See [`CREDITS.md`](CREDITS.md).
 - **Checked before recommended.** Every third-party piece has a dated verdict in [`SECURITY.md`](SECURITY.md).
 - **Nothing runs that you can't read.** The only hook reads `ROUTING.md` and prints it. Installers copy local files and download nothing.
 - **No keys in files.** Ever.

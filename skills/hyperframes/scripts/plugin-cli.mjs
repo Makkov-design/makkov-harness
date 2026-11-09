@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 // Run from the user's project; locate the release from this installed file.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";

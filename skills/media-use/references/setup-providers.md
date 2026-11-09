@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Setup and providers — install, auth, RAM ladders, forcing a provider
 
 ## Setup — install the helper and sign in to HyperFrames

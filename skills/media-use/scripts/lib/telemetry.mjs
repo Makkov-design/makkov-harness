@@ -1,5 +1,5 @@
 // Modified by makkov-harness (2026-11-09): usage events are off unless MEDIA_USE_TELEMETRY=1 is set.
-// The upstream copy (heygen-com/hyperframes, Apache-2.0) sends them unless you opt out.
+// The upstream copy (heygen-com/hyperframes, Apache-2.0) sends them unless you opt out. See NOTICE.
 // Usage tracking shares the CLI and Studio identity. Properties stay coarse and
 // never carry intent text, file names, or paths.
 

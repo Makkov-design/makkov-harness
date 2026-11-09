@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Sound
 
 Sound is half of how a film feels, and the viewer notices a silent one before any frame. Every judge of frames misses it, so plan it on purpose.

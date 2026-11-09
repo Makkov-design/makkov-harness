@@ -2,14 +2,14 @@
 
 makkov-harness is a curated distribution. Most of its value comes from other people's work; this file says whose.
 
-## Included in this repository (copied, unmodified, under their licenses)
+## Included in this repository (copied under their licenses)
 
 | Skills | Author | License | Source and version |
 |---|---|---|---|
 | `animate`, `animate-expo`, `animation-performance`, `improve-animations`, `find-animation-opportunities` | Emil Kowalski | MIT | [emilkowalski/skills](https://github.com/emilkowalski/skills) at `f1090be` |
 | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `style-sampling` | HeyGen | Apache-2.0 | [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) at `d21877e` |
 
-Each of these folders carries the original `LICENSE`. They are copied because their upstream repositories are too large to sync as a plugin marketplace (Hyperframes is about 530 MB) or ship many unrelated skills.
+Each of these folders carries the original `LICENSE`. The motion skills are unmodified. The HyperFrames skills are the upstream copy plus a few changes of ours (the reviewed CLI pinned, sound effects through the harness audio engine, optional Openverse keys, usage telemetry off by default); [`NOTICE`](NOTICE) lists every changed file, and each one says so at the top. They are copied because their upstream repositories are too large to sync as a plugin marketplace (Hyperframes is about 530 MB) or ship many unrelated skills.
 
 ## Linked, not copied (install from the authors)
 

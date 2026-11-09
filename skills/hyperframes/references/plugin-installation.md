@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Running from an installed plugin
 
 Check the directory two levels above the loaded `SKILL.md` for `plugin.json`,
