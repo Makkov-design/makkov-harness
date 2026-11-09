@@ -232,4 +232,4 @@ If the harness saved you one wrong tool, one unchecked install or one wall of ch
 
 ---
 
-<sub>MIT licensed. Third-party skills keep their own licenses. Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</sub>
+<sub>MIT licensed. Third-party skills keep their own licenses, and the sound effects bundled with `media-use` are under the Pixabay Content License ([`CREDITS.md`](CREDITS.md)). Not affiliated with Anthropic, OpenAI, Google, Cursor, GitHub or any other vendor named here.</sub>

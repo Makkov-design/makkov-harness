@@ -44,6 +44,11 @@ Added:
                                                            (0.5.0) the CLI's telemetry and npm install scripts off by default
   skills/media-use/scripts/lib/hyperframes-pin.test.mjs    (0.5.0) tests for both
 
+Not under Apache-2.0: the 19 sound effects in skills/media-use/audio/assets/sfx/*.mp3 come from Pixabay
+(https://pixabay.com/sound-effects/) under the Pixabay Content License
+(https://pixabay.com/service/license-summary/). Use them in the videos you make; do not
+distribute them on their own, as they are. Their list is in skills/media-use/audio/assets/sfx/CREDITS.md.
+
 -------------------------------------------------------------------------------
 Motion skills: animate, animate-expo, animation-performance, improve-animations,
 find-animation-opportunities
