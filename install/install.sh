@@ -3,17 +3,22 @@
 # Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
 # file inside a marked block. Copies local files only; downloads nothing.
 #
-# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]
-#   --dry-run   print every change it would make and write nothing
+# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design]
+#   --dry-run        print every change it would make and write nothing
+#   --scope design   route design work only: research reports, third-party installs and general coding
+#                    plugins are left out of the routing map (the skills are still copied)
 set -euo pipefail
 
-dry=0
+dry=0 scope=all
 args=()
-for a in "$@"; do
-  case "$a" in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --dry-run) dry=1 ;;
-    *) args+=("$a") ;;
+    --scope) scope="${2:-}"; shift ;;
+    --scope=*) scope="${1#--scope=}" ;;
+    *) args+=("$1") ;;
   esac
+  shift
 done
 agent="${args[0]:-}"
 project="${args[1]:-}"
@@ -21,8 +26,9 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 
 case "$agent" in
   codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;;
-  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]" >&2; exit 2 ;;
+  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design]" >&2; exit 2 ;;
 esac
+case "$scope" in all|design) ;; *) echo "--scope is all or design" >&2; exit 2 ;; esac
 if [ -n "$project" ]; then project="$(cd "$project" && pwd)"; fi
 case "$agent" in
   cursor|copilot|windsurf|aider)
@@ -76,6 +82,13 @@ fi
 
 # 2. Routing block.
 routing="$(sed 's/`rich-report` (Claude with Artifacts) or `html-report` (any agent)/`html-report`/' "$repo/ROUTING.md")"
+if [ "$scope" = design ]; then
+  # Design work only: drop the rows that route research, installs and general coding.
+  routing="$(printf '%s\n' "$routing" | grep -v -e '^| Research, analysis' -e '^| Installing, adding' -e '^| Any new feature or creative work' -e '^| Whole-project security review')"
+  routing="$routing
+
+Scope: design work only (installed with --scope design). For research, installs and general coding, work as you would without this harness."
+fi
 block="<!-- makkov-harness:start -->
 $routing
 <!-- makkov-harness:end -->"
@@ -130,6 +143,7 @@ old_backups=""; [ -f "$manifest" ] && old_backups="$(grep '^backup=' "$manifest"
   echo "rules=$rules"
   echo "rules_existed=${rules_existed:-0}"
   echo "rules_backup=$rules_backup"
+  echo "scope=$scope"
   [ -n "$old_backups" ] && echo "$old_backups"
   [ -n "$backed" ] && echo "backup=$backup_root/skills"
   for n in $copied; do echo "skill=$n"; done

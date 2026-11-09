@@ -69,6 +69,16 @@ try {
   & $uninst -Agent codex | Out-Null
   Check 'your notes kept, block gone' { ((Get-Content (Join-Path $h '.codex\AGENTS.md')) -contains '# my notes') -and ((Markers (Join-Path $h '.codex\AGENTS.md')) -eq 0) }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
+
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, -Scope design'
+  & $inst -Agent codex -Project $proj -Scope design | Out-Null
+  $agents = Get-Content (Join-Path $proj 'AGENTS.md')
+  Check 'research and install rows dropped' { -not ($agents | Where-Object { $_ -match '^\| (Research, analysis|Installing, adding)' }) }
+  Check 'design rows kept' { [bool]($agents | Where-Object { $_ -like '| A design score*' }) }
+  Check 'the block says it is design-only' { [bool]($agents | Where-Object { $_ -like 'Scope: design work only*' }) }
+  & $uninst -Agent codex -Project $proj | Out-Null
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 } finally { $env:USERPROFILE = $realHome }
 
 Write-Output ''

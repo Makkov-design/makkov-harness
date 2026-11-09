@@ -3,15 +3,19 @@
   Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
   file inside a marked block. Copies local files only; downloads nothing.
 
-  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
-    -DryRun   print every change it would make and write nothing
+  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun] [-Scope all|design]
+    -DryRun          print every change it would make and write nothing
+    -Scope design    route design work only: research reports, third-party installs and general coding
+                     plugins are left out of the routing map (the skills are still copied)
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider')]
   [string]$Agent,
   [string]$Project,
-  [switch]$DryRun
+  [switch]$DryRun,
+  [ValidateSet('all', 'design')]
+  [string]$Scope = 'all'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -81,6 +85,12 @@ if ($skillsDir) {
 # 2. Routing block.
 $routing = Get-Content (Join-Path $repo 'ROUTING.md') -Raw -Encoding UTF8
 $routing = $routing.Replace('`rich-report` (Claude with Artifacts) or `html-report` (any agent)', '`html-report`')
+if ($Scope -eq 'design') {
+  # Design work only: drop the rows that route research, installs and general coding.
+  $drop = '^\| (Research, analysis|Installing, adding|Any new feature or creative work|Whole-project security review)'
+  $routing = (($routing -split "`r?`n") | Where-Object { $_ -notmatch $drop }) -join "`n"
+  $routing = $routing.TrimEnd() + "`n`nScope: design work only (installed with -Scope design). For research, installs and general coding, work as you would without this harness."
+}
 $block = "<!-- makkov-harness:start -->`n$routing`n<!-- makkov-harness:end -->"
 $pattern = '(?s)<!-- makkov-harness:start -->.*?<!-- makkov-harness:end -->'
 if ($DryRun) {
@@ -122,7 +132,7 @@ if ($Agent -eq 'cursor') {
 # 3. Manifest: what this install put where, so install/uninstall.ps1 removes exactly that.
 New-Item -ItemType Directory -Force $state | Out-Null
 $oldBackups = @(); if (Test-Path $manifest) { $oldBackups = @(Get-Content $manifest -Encoding UTF8 | Where-Object { $_ -like 'backup=*' }) }
-$lines = @("agent=$Agent", "installed=$stamp", "skills_dir=$skillsDir", "rules=$rules", "rules_existed=$rulesExisted", "rules_backup=$rulesBackup") + $oldBackups
+$lines = @("agent=$Agent", "installed=$stamp", "skills_dir=$skillsDir", "rules=$rules", "rules_existed=$rulesExisted", "rules_backup=$rulesBackup", "scope=$Scope") + $oldBackups
 if ($backed.Count) { $lines += "backup=" + (Join-Path $backupRoot 'skills') }
 $lines += ($copied | ForEach-Object { "skill=$_" })
 [IO.File]::WriteAllLines($manifest, [string[]]$lines, $utf8)
