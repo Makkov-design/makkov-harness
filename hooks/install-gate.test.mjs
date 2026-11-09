@@ -1,6 +1,8 @@
 // Tests for hooks/install-gate: which commands make Claude Code ask first, and which pass through.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -57,8 +59,46 @@ const ALLOW = [
   "npm view react version",
 ];
 
-for (const c of ASK) test(`asks before: ${c}`, () => assert.equal(gate(c), "ask"));
-for (const c of ALLOW) test(`lets through: ${c}`, () => assert.equal(gate(c), "allow"));
+// Found by an independent review of 0.4.0: commands agents really write.
+ASK.push(
+  "cd app\nnpm install left-pad",
+  "cd app\r\nnpm install left-pad",
+  "echo start; npm i lodash",
+  'bash -c "npm install x"',
+  "sh -c 'npx some-tool'",
+  "npm --prefix app install x",
+  "npm --prefix=app install x",
+  "(cd web && pnpm add zod)",
+  "npx tsc@5.6.3 --init",
+  "PY=1 python -m pip install rich",
+);
+ALLOW.push("cd app\nnpm ci", "npm run install-deps", "npm --prefix app install", "echo 'npm is great'");
+
+for (const c of ASK) test(`asks before: ${JSON.stringify(c)}`, () => assert.equal(gate(c), "ask"));
+for (const c of ALLOW) test(`lets through: ${JSON.stringify(c)}`, () => assert.equal(gate(c), "allow"));
+
+test("npx of a tool installed in the project passes; a missing one is asked about", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gate-"));
+  try {
+    mkdirSync(join(dir, "node_modules", ".bin"), { recursive: true });
+    writeFileSync(join(dir, "node_modules", ".bin", "tsc"), "");
+    const run = (command) => {
+      const r = spawnSync("bash", [HOOK], { input: JSON.stringify({ tool_name: "Bash", cwd: dir, tool_input: { command } }), encoding: "utf8" });
+      return r.stdout.trim() ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : "allow";
+    };
+    assert.equal(run("npx tsc --noEmit"), "allow");
+    assert.equal(run("npx tsc@5.6.3 --init"), "ask");
+    assert.equal(run("npx create-vite my-app"), "ask");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("one run takes well under a second", () => {
+  const t = Date.now();
+  for (let i = 0; i < 5; i++) gate("cd app\nnpm run build && npm test");
+  assert.ok((Date.now() - t) / 5 < 1000, `average ${(Date.now() - t) / 5} ms`);
+});
 
 test("MAKKOV_HARNESS_INSTALL_GATE=off turns it off", () => {
   assert.equal(gate("npm install left-pad", { MAKKOV_HARNESS_INSTALL_GATE: "off" }), "allow");

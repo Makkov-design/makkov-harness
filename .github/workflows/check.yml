@@ -51,6 +51,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: install gate hook (the system's own bash; macOS ships bash 3.2)
+        shell: bash
+        run: node --test hooks/install-gate.test.mjs
       - name: install.sh / uninstall.sh, every agent
         if: runner.os != 'Windows'
         run: bash install/test/test-install.sh
