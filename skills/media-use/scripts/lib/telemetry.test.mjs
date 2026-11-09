@@ -1,3 +1,6 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
+// In makkov-harness telemetry is opt-in (MEDIA_USE_TELEMETRY=1), so these tests check that nothing is
+// sent by default and that, once opted in, every upstream opt-out still wins.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,6 +14,7 @@ import { optedOut } from "./telemetry.mjs";
 const ENV_KEYS = [
   "HOME",
   "USERPROFILE",
+  "MEDIA_USE_TELEMETRY",
   "HYPERFRAMES_NO_TELEMETRY",
   "DO_NOT_TRACK",
   "CI",
@@ -28,6 +32,14 @@ function writeConfig(contents) {
     writeFileSync(configPath, contents);
   }
 }
+function withOptIn(fn) {
+  process.env.MEDIA_USE_TELEMETRY = "1";
+  try {
+    fn();
+  } finally {
+    delete process.env.MEDIA_USE_TELEMETRY;
+  }
+}
 
 test.before(() => {
   for (const key of ENV_KEYS) delete process.env[key];
@@ -42,32 +54,39 @@ test.after(() => {
   rmSync(home, { recursive: true, force: true });
 });
 
-test("optedOut is false with no config and no opt-out env", () => {
+test("nothing is sent by default: optedOut is true with no opt-in", () => {
   writeConfig(null);
-  assert.equal(optedOut(), false);
-});
-
-test("optedOut honors telemetryEnabled: false from the shared config", () => {
-  writeConfig(JSON.stringify({ telemetryEnabled: false }));
   assert.equal(optedOut(), true);
 });
 
-test("optedOut is false when the shared config enables telemetry", () => {
+test("the shared config alone does not opt in", () => {
   writeConfig(JSON.stringify({ telemetryEnabled: true }));
-  assert.equal(optedOut(), false);
+  assert.equal(optedOut(), true);
 });
 
-test("optedOut treats an unreadable shared config as no opt-out", () => {
+test("opted in, with no config and no opt-out env: optedOut is false", () => {
+  writeConfig(null);
+  withOptIn(() => assert.equal(optedOut(), false));
+});
+
+test("opted in, telemetryEnabled: false in the shared config still wins", () => {
+  writeConfig(JSON.stringify({ telemetryEnabled: false }));
+  withOptIn(() => assert.equal(optedOut(), true));
+});
+
+test("opted in, an unreadable shared config is not an opt-out", () => {
   writeConfig("{not json");
-  assert.equal(optedOut(), false);
+  withOptIn(() => assert.equal(optedOut(), false));
 });
 
-test("optedOut still honors the env opt-outs", () => {
+test("opted in, the env opt-outs still win", () => {
   writeConfig(JSON.stringify({ telemetryEnabled: true }));
-  process.env.DO_NOT_TRACK = "1";
-  try {
-    assert.equal(optedOut(), true);
-  } finally {
-    delete process.env.DO_NOT_TRACK;
-  }
+  withOptIn(() => {
+    process.env.DO_NOT_TRACK = "1";
+    try {
+      assert.equal(optedOut(), true);
+    } finally {
+      delete process.env.DO_NOT_TRACK;
+    }
+  });
 });
