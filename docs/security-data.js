@@ -183,8 +183,10 @@ window.MH_SECURITY = {
   harness: [
     { title: 'Session-start hook', icon: 'i-terminal', path: 'hooks/session-start', scope: 'Claude Code only', file: 'hooks/session-start',
       text: "Reads ROUTING.md from this repository and prints it with the plugin's folder path.", net: 'No network, no writes' },
+    { title: 'Install gate', icon: 'i-lock', path: 'hooks/install-gate', scope: 'Claude Code only, before shell commands', file: 'hooks/install-gate',
+      text: 'Turns a command that installs or runs third-party code into a question to you, with a reminder to run the review. Never blocks or runs anything; off with MAKKOV_HARNESS_INSTALL_GATE=off.', net: 'No network, no writes' },
     { title: 'Installers', icon: 'i-package', path: 'install/', scope: null, dir: 'install',
-      text: "Copy files from this repository into the agent's folders.", net: 'No downloads' },
+      text: "Copy files from this repository into the agent's folders. A dry run shows every change first, anything replaced is backed up, and an uninstaller takes it all back out.", net: 'No downloads' },
     { title: 'Cloud setup script', icon: 'i-globe', path: 'cloud/setup-design-tools.sh', scope: 'Optional, Claude cloud environments only', file: 'cloud/setup-design-tools.sh',
       text: "Installs ffmpeg from Ubuntu and two pinned npm packages with --ignore-scripts. Runs only if you paste it into your environment's Setup script, or when you say yes to the agent's offer in a cloud session.", net: 'Ubuntu archives and the npm registry' },
     { title: 'Upstream watch', icon: 'i-clock', path: '.github/workflows/upstream-watch.yml', scope: 'GitHub only, weekly', file: '.github/workflows/upstream-watch.yml',
@@ -194,5 +196,5 @@ window.MH_SECURITY = {
     { title: 'Design Score bookmarklet', icon: 'i-lock', path: 'score.html', scope: 'Loader or offline version', site: 'score.html',
       text: "The loader adds the bundle from this repository's GitHub Pages and nothing else. The offline version carries the whole bundle and loads nothing.", net: 'Loader: this site only' },
   ],
-  harnessNote: 'No skill here sends data anywhere unless the user asks for a task that needs it.',
+  harnessNote: 'No skill here sends data anywhere unless the user asks for a task that needs it. The bundled media-use sends no usage telemetry unless you set MEDIA_USE_TELEMETRY=1.',
 };
