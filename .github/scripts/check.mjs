@@ -32,7 +32,12 @@ for (const f of [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"
 }
 try {
   const m = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  for (const p of m.plugins) if (typeof p.source === "object" && "sha" in p.source && !/^[0-9a-f]{40}$/.test(p.source.sha)) fail(`marketplace: ${p.name} sha is not a full 40-character commit`);
+  // Every third-party plugin is pinned to the full commit that was reviewed; a tag or branch can move.
+  for (const p of m.plugins) {
+    if (typeof p.source !== "object") continue;
+    if (!("sha" in p.source)) fail(`marketplace: ${p.name} is not pinned to a commit (add "sha": the reviewed commit)`);
+    else if (!/^[0-9a-f]{40}$/.test(p.source.sha)) fail(`marketplace: ${p.name} sha is not a full 40-character commit`);
+  }
   ok(`marketplace lists ${m.plugins.length} plugins`);
 } catch {}
 try {
