@@ -29,6 +29,14 @@
 
 ---
 
+## Try it in a minute, no install
+
+1. Open the [Design Score page](https://makkov-design.github.io/makkov-harness/score.html) and drag its bookmarklet to your bookmarks bar.
+2. Open any site, or your own on `localhost`, and click the bookmark.
+3. Read the score, click an issue to see it on the page, and copy the fix prompt into the agent you already use.
+
+Nothing is installed and nothing leaves the page. Liked it? [Install the harness](#install-in-two-minutes) in one project first; the installers have a dry run, keep backups of anything they replace and come with an uninstaller.
+
 ## Why designers install it
 
 AI agents already have hundreds of skills and plugins. The hard part is getting the right one to run at the right moment, without installing something you never checked. makkov-harness solves exactly that.
