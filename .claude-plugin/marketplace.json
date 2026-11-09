@@ -49,7 +49,7 @@
     },
     {
       "name": "framelens",
-      "source": { "source": "github", "repo": "Makkov-design/framelens", "ref": "v2.0.0", "sha": "843870cae3108063efb89b8d94e124498864e1df" },
+      "source": { "source": "github", "repo": "Makkov-design/framelens", "ref": "v2.1.0", "sha": "94d426f8dff85f844b516792533ecff73051bf43" },
       "description": "Frame Lens. Watch and analyze any video or animation (links, files, websites, Lottie, Figma): measured transcripts, frames, cuts, easing, palette and beats, with starter projects for HyperFrames, Remotion, CSS, After Effects and Lottie. Local and free; Gemini optional. Needs ffmpeg and yt-dlp; the Gemini tools need your own key.",
       "homepage": "https://github.com/Makkov-design/framelens",
       "license": "MIT"
