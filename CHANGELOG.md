@@ -2,20 +2,31 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
-## [Unreleased]
+## [0.5.0] - 2026-11-09
+
+Hardened: the install gate catches the commands people really type, updates and uninstalls know the harness's own copies, the Hyperframes CLI runs only as reviewed (pinned, its telemetry and npm install scripts off), the Design Score loader is pinned by hash, and the docs claim no more than what ships. Prompted by an independent review of 0.4.0.
+
+### Security
+
+- Design Score: the agent's loader carries the bundle's Subresource Integrity hash, so a browser runs the copy on GitHub Pages only when it is exactly the `mh-score.js` the skill ships, and refuses anything else. CI checks the hash against the built file; AGENTS.md says which file runs on each path [#55](https://github.com/Makkov-design/makkov-harness/issues/55).
+- The Hyperframes CLI kept its own usage telemetry on when the harness started it, through the launcher or the media-use scripts. It now starts with `HYPERFRAMES_NO_TELEMETRY=1` unless you set `MEDIA_USE_TELEMETRY=1` or chose `HYPERFRAMES_NO_TELEMETRY` yourself [#57](https://github.com/Makkov-design/makkov-harness/issues/57).
+- The hyperframes skill now opens with the launcher command and says every `npx hyperframes` in the skills means it, so the reviewed CLI release is what runs. It no longer tells the agent to run `npx hyperframes@latest upgrade` on its own, runs `usage` (which reads your Claude or Codex sign-in) only when you ask about plan usage, and the launcher starts the CLI with npm install scripts off [#56](https://github.com/Makkov-design/makkov-harness/issues/56).
+
+### Fixed
+
+- The install gate let real commands through: a multi-line command, one inside quotes (`bash -c "npm install x"`) or with options before the verb (`npm --prefix app install x`). It now decodes the hook input and matches in pure bash, starting no other program; `npx` for a tool already in the project's `node_modules/.bin` passes without a question. 54 test cases, run on Linux, macOS and Windows [#52](https://github.com/Makkov-design/makkov-harness/issues/52).
+- Updating in place and then uninstalling left old harness skills behind: an update treated the previous version of each skill as yours and backed it up, and the uninstaller restored it. The manifest now records a fingerprint of every skill copied, so an update replaces the harness's own earlier copies and the uninstaller removes exactly them; copies from installs before 0.5.0 go to `backups/<date>/earlier-harness/` and are not restored [#53](https://github.com/Makkov-design/makkov-harness/issues/53).
+- `uninstall.sh` split paths on spaces, so in a folder like `My Project` your own skills stayed in the backup folder. It reads the manifest line by line now [#54](https://github.com/Makkov-design/makkov-harness/issues/54).
 
 ### Added
 
-- CREDITS.md, NOTICE and the README footer say that the 19 sound effects bundled with `media-use` are under the Pixabay Content License, not Apache-2.0 or MIT: free to use in your videos, not to be distributed on their own [#61](https://github.com/Makkov-design/makkov-harness/issues/61).
 - A design-only scope for the Claude plugin: with `MAKKOV_HARNESS_SCOPE=design` (for example under `env` in `~/.claude/settings.json`), the session-start hook loads the design rows of the routing map only, as `--scope design` does for the installers [#60](https://github.com/Makkov-design/makkov-harness/issues/60).
+- CREDITS.md, NOTICE and the README footer say that the 19 sound effects bundled with `media-use` are under the Pixabay Content License, not Apache-2.0 or MIT: free to use in your videos, not to be distributed on their own [#61](https://github.com/Makkov-design/makkov-harness/issues/61).
 
 ### Changed
 
 - `harness-onboarding` writes the personal layer where the harness was installed (the manifest's instructions file; a project install stays in the project), between `<!-- makkov-harness:personal:start -->` and `<!-- makkov-harness:personal:end -->`, within the install's scope. The uninstallers take it out with the routing block, and an update keeps it [#59](https://github.com/Makkov-design/makkov-harness/issues/59).
 - Claims brought in line with what ships: two hooks, not one (README, AGENTS.md); the badge and the site say the harness installs in 9 agents, as COMPATIBILITY.md separates installs tested in CI from use by hand; Frame Lens is marked as the author's own, not as a reviewed companion; ffmpeg in the cloud setup comes from Ubuntu's archive, not a pin; SECURITY.md names the site's font hosts next to GoatCounter [#58](https://github.com/Makkov-design/makkov-harness/issues/58).
-- Design Score: the agent's loader carries the bundle's Subresource Integrity hash, so a browser runs the copy on GitHub Pages only when it is exactly the `mh-score.js` the skill ships, and refuses anything else. CI checks the hash against the built file; AGENTS.md says which file runs on each path [#55](https://github.com/Makkov-design/makkov-harness/issues/55).
-- The Hyperframes CLI kept its own usage telemetry on when the harness started it, through the launcher or the media-use scripts. It now starts with `HYPERFRAMES_NO_TELEMETRY=1` unless you set `MEDIA_USE_TELEMETRY=1` or chose `HYPERFRAMES_NO_TELEMETRY` yourself [#57](https://github.com/Makkov-design/makkov-harness/issues/57).
-- The hyperframes skill now opens with the launcher command and says every `npx hyperframes` in the skills means it, so the reviewed CLI release is what runs. It no longer tells the agent to run `npx hyperframes@latest upgrade` on its own, runs `usage` (which reads your Claude or Codex sign-in) only when you ask about plan usage, and the launcher starts the CLI with npm install scripts off [#56](https://github.com/Makkov-design/makkov-harness/issues/56).
 
 ## [0.4.0] - 2026-11-09
 
