@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Resolve — command, flags, reuse, adopt, inventory
 
 ```bash

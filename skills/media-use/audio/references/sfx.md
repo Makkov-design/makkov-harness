@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Sound effects (SFX)
 
 Named sound effects, produced by the shared audio engine (`scripts/audio.mjs` → `scripts/lib/sfx.mjs`). No account or key is needed:

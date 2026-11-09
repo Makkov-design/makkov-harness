@@ -1,3 +1,4 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 // Sound effects from Openverse (https://api.openverse.org): free, no key needed.
 // Anonymous use is rate limited (20 requests a minute, 200 a day). With a free registered
 // app (OPENVERSE_CLIENT_ID + OPENVERSE_CLIENT_SECRET in the environment) searches carry a
