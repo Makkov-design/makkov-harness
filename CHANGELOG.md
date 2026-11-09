@@ -4,6 +4,10 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- A design-only scope for the Claude plugin: with `MAKKOV_HARNESS_SCOPE=design` (for example under `env` in `~/.claude/settings.json`), the session-start hook loads the design rows of the routing map only, as `--scope design` does for the installers [#60](https://github.com/Makkov-design/makkov-harness/issues/60).
+
 ### Changed
 
 - `harness-onboarding` writes the personal layer where the harness was installed (the manifest's instructions file; a project install stays in the project), between `<!-- makkov-harness:personal:start -->` and `<!-- makkov-harness:personal:end -->`, within the install's scope. The uninstallers take it out with the routing block, and an update keeps it [#59](https://github.com/Makkov-design/makkov-harness/issues/59).
