@@ -6,6 +6,7 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ### Changed
 
+- Design Score: the agent's loader carries the bundle's Subresource Integrity hash, so a browser runs the copy on GitHub Pages only when it is exactly the `mh-score.js` the skill ships, and refuses anything else. CI checks the hash against the built file; AGENTS.md says which file runs on each path [#55](https://github.com/Makkov-design/makkov-harness/issues/55).
 - The Hyperframes CLI kept its own usage telemetry on when the harness started it, through the launcher or the media-use scripts. It now starts with `HYPERFRAMES_NO_TELEMETRY=1` unless you set `MEDIA_USE_TELEMETRY=1` or chose `HYPERFRAMES_NO_TELEMETRY` yourself [#57](https://github.com/Makkov-design/makkov-harness/issues/57).
 - The hyperframes skill now opens with the launcher command and says every `npx hyperframes` in the skills means it, so the reviewed CLI release is what runs. It no longer tells the agent to run `npx hyperframes@latest upgrade` on its own, runs `usage` (which reads your Claude or Codex sign-in) only when you ask about plan usage, and the launcher starts the CLI with npm install scripts off [#56](https://github.com/Makkov-design/makkov-harness/issues/56).
 
