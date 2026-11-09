@@ -38,13 +38,33 @@ switch ($Agent) {
   default    { $rules = Join-Path $Project 'AGENTS.md' }
 }
 
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backupRoot = Join-Path (Join-Path (Join-Path (Base) '.makkov-harness') 'backups') $stamp
+
+# A fingerprint of a folder: every file's relative path and SHA-256.
+function Get-TreeFingerprint([string]$Dir) {
+  $root = (Resolve-Path $Dir).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  (Get-ChildItem $root -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
+    $_.FullName.Substring($root.Length) + ':' + (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+  }) -join "`n"
+}
+
 # 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
-$copied = @()
+# A folder with the same name that is not an identical copy of ours (your own skill, or one you
+# edited) is moved to the backup folder first, never deleted.
+$copied = @(); $backed = @()
 if ($skillsDir) {
   New-Item -ItemType Directory -Force $skillsDir | Out-Null
   Get-ChildItem (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' } | ForEach-Object {
     $dst = Join-Path $skillsDir $_.Name
-    if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+    if (Test-Path $dst) {
+      if ((Get-TreeFingerprint $_.FullName) -eq (Get-TreeFingerprint $dst)) { Remove-Item $dst -Recurse -Force }
+      else {
+        New-Item -ItemType Directory -Force (Join-Path $backupRoot 'skills') | Out-Null
+        Move-Item $dst (Join-Path (Join-Path $backupRoot 'skills') $_.Name)
+        $backed += $_.Name
+      }
+    }
     Copy-Item $_.FullName $dst -Recurse
     $copied += $_.Name
   }
@@ -71,6 +91,7 @@ if ($Agent -eq 'cursor') {
 
 Write-Output "makkov-harness installed for $Agent"
 if ($skillsDir) { Write-Output ("Skills -> $skillsDir : " + ($copied -join ', ')) }
+if ($backed.Count) { Write-Output ("Kept your earlier versions of: " + ($backed -join ', ') + " -> " + (Join-Path $backupRoot 'skills')) }
 Write-Output "Routing -> $rules"
 if ($Agent -eq 'aider') { Write-Output "Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project." }
 Write-Output 'Restart the agent, then run the harness-onboarding skill to personalize it.'

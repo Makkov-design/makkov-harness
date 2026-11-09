@@ -35,7 +35,7 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov
 
 ## Step 4. Run the installer for your tool
 
-The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. It makes a `.bak-<date>` backup of any instructions file it edits.
+The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. It makes a `.bak-<date>` backup of any instructions file it edits, and if a skill folder with the same name is already there and differs from ours (your own skill, or one you changed), it moves it to `.makkov-harness/backups/<date>/skills/` in the same home or project folder instead of replacing it.
 
 Windows (PowerShell):
 

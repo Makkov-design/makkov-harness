@@ -21,7 +21,7 @@ Poor fit: the person needs a runtime library or an app dependency, or does no de
 
 ## What it does and does not do on the machine
 
-- The installers (`install/install.sh`, `install/install.ps1`) only copy `skills/` into the folder your tool reads and add the routing map to one instructions file, inside a marked block (`<!-- makkov-harness:start -->` … `<!-- makkov-harness:end -->`). They back up any file they edit as `.bak-<date>`.
+- The installers (`install/install.sh`, `install/install.ps1`) only copy `skills/` into the folder your tool reads and add the routing map to one instructions file, inside a marked block (`<!-- makkov-harness:start -->` … `<!-- makkov-harness:end -->`). They back up any file they edit as `.bak-<date>`, and move any same-named skill folder that differs from ours to `.makkov-harness/backups/<date>/skills/` before copying.
 - The installers make no network calls. The only download is the `git clone` of this repository.
 - No telemetry, no accounts, no keys. Never write keys, tokens or passwords anywhere while installing.
 - The Design Score bundle (`skills/design-score/mh-score.js`) is prebuilt and runs only inside a web page you open: it reads the page, makes no network requests and leaves the page's own content alone (its panel is one element of its own, removed on close). Its optional Node runner uses puppeteer-core and Chrome only if they are already installed; it never installs them.
