@@ -16,6 +16,7 @@ import { parseArgs, stripVTControlCharacters } from "node:util";
 import { mergeTokensToWords } from "./lib/parakeet-words.mjs";
 import { track } from "./lib/telemetry.mjs";
 import { resolveNpxInvocation } from "./lib/npx-sync.mjs";
+import { hyperframesSpec } from "./lib/hyperframes-pin.mjs"; // makkov-harness: pinned CLI
 
 // The DEFAULT local transcription path. Prefers NVIDIA Parakeet-TDT via
 // parakeet-mlx, which beats whisper.cpp on the Open ASR Leaderboard (~6.05% vs
@@ -134,7 +135,7 @@ function runCli(cliEngine) {
     // mechanism as the audio engine's TTS spawns.
     // Under auto or parakeet the CLI may run its own Parakeet; --json says which engine ran.
     const resolved = resolveNpxInvocation(
-      ["hyperframes", "transcribe", inputPath, "--dir", workDir, "--engine", cliEngine, "--json"],
+      [hyperframesSpec(), "transcribe", inputPath, "--dir", workDir, "--engine", cliEngine, "--json"],
       { stdio: ["ignore", "pipe", "pipe"], timeout: 1_800_000 },
     );
     let stdout;
