@@ -6,6 +6,7 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ### Added
 
+- CREDITS.md, NOTICE and the README footer say that the 19 sound effects bundled with `media-use` are under the Pixabay Content License, not Apache-2.0 or MIT: free to use in your videos, not to be distributed on their own [#61](https://github.com/Makkov-design/makkov-harness/issues/61).
 - A design-only scope for the Claude plugin: with `MAKKOV_HARNESS_SCOPE=design` (for example under `env` in `~/.claude/settings.json`), the session-start hook loads the design rows of the routing map only, as `--scope design` does for the installers [#60](https://github.com/Makkov-design/makkov-harness/issues/60).
 
 ### Changed
