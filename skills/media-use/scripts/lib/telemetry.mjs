@@ -1,3 +1,5 @@
+// Modified by makkov-harness (2026-11-09): usage events are off unless MEDIA_USE_TELEMETRY=1 is set.
+// The upstream copy (heygen-com/hyperframes, Apache-2.0) sends them unless you opt out.
 // Usage tracking shares the CLI and Studio identity. Properties stay coarse and
 // never carry intent text, file names, or paths.
 
@@ -35,9 +37,10 @@ function posthogHost() {
   return override || POSTHOG_HOST;
 }
 
-/** True when telemetry must NOT be sent (opt-out envs, CI, dev, shared config). */
+/** True when telemetry must NOT be sent. In makkov-harness nothing is sent unless MEDIA_USE_TELEMETRY=1. */
 export function optedOut() {
   return (
+    process.env.MEDIA_USE_TELEMETRY !== "1" ||
     // `hyperframes telemetry disable` writes telemetryEnabled: false to the
     // shared config; one opt-out must cover the CLI and the media-use scripts.
     readSharedConfig().telemetryEnabled === false ||
