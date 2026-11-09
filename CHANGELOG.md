@@ -2,6 +2,24 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.4] - 2026-11-09
+
+Privacy and pinning: nothing in the bundle sends usage data unless you opt in, every third-party version is pinned to a commit, and our changes to copied code are listed. Prompted by an independent review of 0.3.1.
+
+### Changed
+
+- `media-use` (copied from HeyGen's hyperframes skills) sent usage events to PostHog unless you opted out, linked to your HeyGen account when signed in. In this harness it now sends nothing unless you set `MEDIA_USE_TELEMETRY=1` [#17](https://github.com/Makkov-design/makkov-harness/issues/17).
+- AGENTS.md said "No telemetry", which was true of the routing map, the installers and Design Score but broader than the bundle. AGENTS.md, SECURITY.md and the site's security index now say exactly what sends what, and how each is turned off [#18](https://github.com/Makkov-design/makkov-harness/issues/18).
+
+### Security
+
+- `media-use` started the Hyperframes CLI as plain `npx hyperframes`, which resolves whatever npm has that day. Every start now asks for the reviewed release (0.9.9, from `skills/hyperframes/scripts/cli-version.json`) [#19](https://github.com/Makkov-design/makkov-harness/issues/19).
+- Frame Lens was pinned to a tag, which can move; it is now pinned to its commit, and the repository check fails on any third-party plugin without a commit pin [#20](https://github.com/Makkov-design/makkov-harness/issues/20).
+
+### Fixed
+
+- CREDITS.md called the copied HyperFrames skills "unmodified". A root `NOTICE` now lists every file we changed or added, as Apache-2.0 asks, and each of those files says so at the top [#21](https://github.com/Makkov-design/makkov-harness/issues/21).
+
 ## [0.3.3] - 2026-11-09
 
 Safe installs: the installers for Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode and Aider never lose your files. Prompted by an independent review of 0.3.1.
