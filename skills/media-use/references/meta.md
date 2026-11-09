@@ -35,16 +35,20 @@ npx hyperframes media-use resolve --stats --project . --days 7
 
 ## Telemetry
 
-`resolve` and the edit tools (transcribe / transcript-cut / audio-duck) send a
-usage event to PostHog (`scripts/lib/telemetry.mjs`), so we can see which
+**In makkov-harness this is off by default**: nothing is sent unless you set
+`MEDIA_USE_TELEMETRY=1`. The rest of this section describes what the upstream
+copy sends when it is on.
+
+When on, `resolve` and the edit tools (transcribe / transcript-cut / audio-duck) send a
+usage event to PostHog (`scripts/lib/telemetry.mjs`), so HeyGen can see which
 capabilities are actually used. It is anonymous until you sign in to HeyGen
 (see Privacy below). It records only the media TYPE, the
 resolution SOURCE, and the winning PROVIDER: never the intent text, file names,
 or paths, and `$ip:null` so no IP is stored. Best-effort and non-blocking (a
 resolve never waits on or fails from telemetry).
 
-Opt out with `DO_NOT_TRACK=1` or `HYPERFRAMES_NO_TELEMETRY=1` (also off in CI and
-dev). Same public PostHog project key and opt-outs as the `hyperframes` CLI.
+Once opted in, `DO_NOT_TRACK=1` or `HYPERFRAMES_NO_TELEMETRY=1` still turn it off (so
+do CI and dev). Same public PostHog project key and opt-outs as the `hyperframes` CLI.
 
 HeyGen request tagging: every generating `heygen` call (TTS, avatar video, catalog
 search) carries the allowlisted `X-HeyGen-Client-Source: media-use` header, sourced
@@ -58,5 +62,5 @@ media-use uses the same shared install id as the `hyperframes` CLI/studio
 (`~/.hyperframes/config.json`). When you are signed in to HeyGen, usage is
 linked to your HeyGen account (keyed on an id derived from your username, with
 your email and username stored on it), matching the CLI behavior. The events stay coarse: media type, source, provider, and
-small counts only; intent text and paths stay local. Disable telemetry with
-`HYPERFRAMES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1`.
+small counts only; intent text and paths stay local. In makkov-harness none of this
+happens unless you set `MEDIA_USE_TELEMETRY=1`.
