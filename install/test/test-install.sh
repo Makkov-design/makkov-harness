@@ -69,6 +69,33 @@ bash "$uninst" codex >/dev/null
 check "your notes kept, block gone" "grep -qx '# my notes' '$home/.codex/AGENTS.md' && [ \"\$(markers '$home/.codex/AGENTS.md')\" = 0 ]"
 rm -rf "$home"
 
+# Updating in place: a newer copy of the harness replaces the old one without treating it as yours,
+# and the uninstall then leaves nothing of either behind.
+src="$(mktemp -d)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$src/"
+home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
+echo "codex project, update in place, then uninstall"
+bash "$src/install/install.sh" codex "$proj" >/dev/null
+echo "new in this version" > "$src/skills/animate/CHANGES.md"
+bash "$src/install/install.sh" codex "$proj" >/dev/null
+check "the update replaced our animate" "[ -f '$proj/.agents/skills/animate/CHANGES.md' ]"
+check "the update made no backup of ours" "[ ! -e '$proj/.makkov-harness/backups' ] || [ -z \"\$(ls -A '$proj/.makkov-harness/backups')\" ]"
+bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+check "nothing of the harness left after uninstall" "[ ! -e '$proj/.agents/skills/animate' ] && [ ! -e '$proj/.agents/skills/design-score' ]"
+rm -rf "$home" "$proj"
+
+# An install made before 0.5.0 (no fingerprints in its manifest): its copies are set aside, not restored.
+home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
+echo "codex project, update over an install from before 0.5.0"
+bash "$src/install/install.sh" codex "$proj" >/dev/null
+sed -i.orig 's/^\(skill=[^ ]*\) .*/\1/' "$proj/.makkov-harness/install-codex.txt" && rm -f "$proj/.makkov-harness/install-codex.txt.orig"
+echo "newer still" >> "$src/skills/animate/CHANGES.md"
+bash "$src/install/install.sh" codex "$proj" >/dev/null
+check "the old copy went to earlier-harness" "ls '$proj'/.makkov-harness/backups/*/earlier-harness/animate >/dev/null 2>&1"
+check "nothing went to the restore list" "! grep -q '^backup=' '$proj/.makkov-harness/install-codex.txt'"
+bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+check "the uninstall restores no old harness copy" "[ ! -e '$proj/.agents/skills/animate' ]"
+rm -rf "$home" "$proj" "$src"
+
 # A project path with spaces.
 home="$(mktemp -d)"; proj="$(mktemp -d)/My Project"; mkdir -p "$proj/.agents/skills/animate"; export HOME="$home"
 echo mine > "$proj/.agents/skills/animate/SKILL.md"
