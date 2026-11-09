@@ -93,6 +93,15 @@ if [ "$dry" = 1 ]; then
 fi
 mkdir -p "$(dirname "$rules")"
 # Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
+# The uninstaller needs to know whether the file was yours before the first install.
+state="$base/.makkov-harness"
+manifest="$state/install-$agent.txt"
+rules_existed=0 rules_backup=""
+if [ -f "$manifest" ]; then
+  rules_existed="$(sed -n 's/^rules_existed=//p' "$manifest")"; rules_backup="$(sed -n 's/^rules_backup=//p' "$manifest")"
+elif [ -f "$rules" ] && ! grep -q '<!-- makkov-harness:start -->' "$rules"; then
+  rules_existed=1; rules_backup="$rules.bak-$stamp"
+fi
 if [ -f "$rules" ]; then cp "$rules" "$rules.bak-$stamp"; fi
 if [ "$agent" = "cursor" ]; then
   printf -- '---\ndescription: makkov-harness routing - which skill fits which situation\nalwaysApply: true\n---\n%s\n' "$block" > "$rules"
@@ -110,6 +119,21 @@ elif [ -f "$rules" ]; then
 else
   printf '%s\n' "$block" > "$rules"
 fi
+
+# 3. Manifest: what this install put where, so install/uninstall.sh removes exactly that.
+mkdir -p "$state"
+old_backups=""; [ -f "$manifest" ] && old_backups="$(grep '^backup=' "$manifest" || true)"
+{
+  echo "agent=$agent"
+  echo "installed=$stamp"
+  echo "skills_dir=$skills_dir"
+  echo "rules=$rules"
+  echo "rules_existed=${rules_existed:-0}"
+  echo "rules_backup=$rules_backup"
+  [ -n "$old_backups" ] && echo "$old_backups"
+  [ -n "$backed" ] && echo "backup=$backup_root/skills"
+  for n in $copied; do echo "skill=$n"; done
+} > "$manifest"
 
 echo "makkov-harness installed for $agent"
 [ -n "$skills_dir" ] && echo "Skills -> $skills_dir :$copied"

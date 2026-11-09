@@ -96,6 +96,17 @@ if ($DryRun) {
 $utf8 = New-Object System.Text.UTF8Encoding $false
 New-Item -ItemType Directory -Force (Split-Path -Parent $rules) | Out-Null
 # Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
+# The uninstaller needs to know whether the file was yours before the first install.
+$state = Join-Path (Base) '.makkov-harness'
+$manifest = Join-Path $state "install-$Agent.txt"
+$rulesExisted = '0'; $rulesBackup = ''
+if (Test-Path $manifest) {
+  $prev = Get-Content $manifest -Encoding UTF8
+  $rulesExisted = (($prev | Where-Object { $_ -like 'rules_existed=*' }) -replace '^rules_existed=', '')
+  $rulesBackup = (($prev | Where-Object { $_ -like 'rules_backup=*' }) -replace '^rules_backup=', '')
+} elseif ((Test-Path $rules) -and -not ([IO.File]::ReadAllText($rules) -match $pattern)) {
+  $rulesExisted = '1'; $rulesBackup = "$rules.bak-$stamp"
+}
 if (Test-Path $rules) { Copy-Item $rules "$rules.bak-$stamp" }
 if ($Agent -eq 'cursor') {
   $content = "---`ndescription: makkov-harness routing - which skill fits which situation`nalwaysApply: true`n---`n$block`n"
@@ -107,6 +118,14 @@ if ($Agent -eq 'cursor') {
   $content = $block + "`n"
 }
 [IO.File]::WriteAllText($rules, $content, $utf8)
+
+# 3. Manifest: what this install put where, so install/uninstall.ps1 removes exactly that.
+New-Item -ItemType Directory -Force $state | Out-Null
+$oldBackups = @(); if (Test-Path $manifest) { $oldBackups = @(Get-Content $manifest -Encoding UTF8 | Where-Object { $_ -like 'backup=*' }) }
+$lines = @("agent=$Agent", "installed=$stamp", "skills_dir=$skillsDir", "rules=$rules", "rules_existed=$rulesExisted", "rules_backup=$rulesBackup") + $oldBackups
+if ($backed.Count) { $lines += "backup=" + (Join-Path $backupRoot 'skills') }
+$lines += ($copied | ForEach-Object { "skill=$_" })
+[IO.File]::WriteAllLines($manifest, [string[]]$lines, $utf8)
 
 Write-Output "makkov-harness installed for $Agent"
 if ($skillsDir) { Write-Output ("Skills -> $skillsDir : " + ($copied -join ', ')) }
