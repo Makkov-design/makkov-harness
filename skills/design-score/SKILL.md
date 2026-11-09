@@ -121,6 +121,7 @@ Save the result as `DESIGN.md` (the runner's `--style DESIGN.md` refuses to over
 - Say what was skipped and why (cross-origin stylesheets, no images, a wide viewport) and when the sample was truncated.
 - One page, one viewport, one moment. Hover, focus and other states are not measured.
 - A score is a guide, not a verdict: it cannot tell whether a design is right for its audience.
+- What a score measures: whether a page follows widely shared, measurable conventions (contrast, a type scale, a spacing grid, few colours and radii, reduced motion, layouts that fit). It does not measure whether people understand the page, find the main action or get their task done, and a deliberate choice (an 8px grid, a large display size, a rich palette) can lose points while being right for the product. Say so when a high score could be read as "easy to use", and suggest a usability check (interfaces, or watching real users) for that.
 
 ## Checklist
 
