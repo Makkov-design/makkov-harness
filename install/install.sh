@@ -36,15 +36,28 @@ case "$agent" in
   *)        rules="$project/AGENTS.md" ;;
 esac
 
+stamp="$(date +%Y%m%d-%H%M%S)"
+backup_root="$base/.makkov-harness/backups/$stamp"
+
 # 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
-copied=""
+# A folder with the same name that is not an identical copy of ours (your own skill, or one you
+# edited) is moved to the backup folder first, never deleted.
+copied="" backed=""
 if [ -n "$skills_dir" ]; then
   mkdir -p "$skills_dir"
   for d in "$repo"/skills/*/; do
     name="$(basename "$d")"
     [ "$name" = "rich-report" ] && continue
-    rm -rf "${skills_dir:?}/$name"
-    cp -R "$d" "$skills_dir/$name"
+    if [ -e "$skills_dir/$name" ]; then
+      if diff -rq "${d%/}" "$skills_dir/$name" >/dev/null 2>&1; then
+        rm -rf "${skills_dir:?}/$name"
+      else
+        mkdir -p "$backup_root/skills"
+        mv "$skills_dir/$name" "$backup_root/skills/$name"
+        backed="$backed $name"
+      fi
+    fi
+    cp -R "${d%/}" "$skills_dir/$name"
     copied="$copied $name"
   done
 fi
@@ -75,6 +88,7 @@ fi
 
 echo "makkov-harness installed for $agent"
 [ -n "$skills_dir" ] && echo "Skills -> $skills_dir :$copied"
+[ -n "$backed" ] && echo "Kept your earlier versions of:$backed -> $backup_root/skills"
 echo "Routing -> $rules"
 [ "$agent" = "aider" ] && echo "Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project."
 echo "Restart the agent, then run the harness-onboarding skill to personalize it."
