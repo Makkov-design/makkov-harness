@@ -51,6 +51,8 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 - **Steal the style.** The palette with roles, fonts, type scale, spacing, radii and shadows the page renders, copied as `DESIGN.md`, CSS variables, a Tailwind theme or W3C design tokens.
 - **Fix it with your agent.** Paste the fix prompt into any agent, or say "score localhost:3000 and fix the top issues". The [`design-score`](skills/design-score/SKILL.md) skill measures, fixes one category at a time with interfaces and animate, scores again and reports before → after.
 
+**What a score means.** It measures how well a page follows widely shared, measurable conventions: contrast, a type scale, a spacing grid, a restrained palette, reduced motion, layouts that fit. It does not tell you whether people understand the page or get their task done, and a deliberate choice can cost points while being right for your product. Treat it like Lighthouse: a guide to fix the measurable basics, not a verdict on the design. The [method](skills/design-score/rubric.md) lists every threshold and its known limits.
+
 Three ways to run it:
 
 | Way | Best for | How |
