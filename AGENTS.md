@@ -4,7 +4,7 @@ You are an AI agent reading this repository, probably because a person asked you
 
 ## What it is
 
-A harness of agent skills for product, UX and UI designers who build interfaces with AI agents. It is Markdown instructions, not an application: nothing runs in the background.
+A harness of agent skills for product, UX and UI designers who build interfaces with AI agents. It is Markdown instructions, not an application: no service or daemon runs. In Claude Code two small shell hooks run on events: one prints the routing map at session start, and the install gate asks the user before a third-party install command.
 
 - **A routing map** (`ROUTING.md`) loads at the start of every session and picks the right design skill for a request. "Review this screen" runs an interface review, "make it feel like Linear" pulls Linear's design system as a reference, "animate this card" follows motion rules.
 - **Skills** (`skills/`): designed report pages, a library of product design systems, motion and animation skills, Hyperframes video, and a security review that runs before any third-party install.
