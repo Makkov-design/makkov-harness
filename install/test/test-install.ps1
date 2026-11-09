@@ -70,6 +70,17 @@ try {
   Check 'your notes kept, block gone' { ((Get-Content (Join-Path $h '.codex\AGENTS.md')) -contains '# my notes') -and ((Markers (Join-Path $h '.codex\AGENTS.md')) -eq 0) }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
 
+  $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent 'My Project'; $env:USERPROFILE = $h
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null
+  Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
+  Write-Output 'codex, project path with spaces'
+  & $inst -Agent codex -Project $proj | Out-Null
+  Check 'installed into the spaced path' { Test-Path (Join-Path $proj '.agents\skills\design-score\SKILL.md') }
+  & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'your animate restored from the spaced path' { (Get-Content (Join-Path $proj '.agents\skills\animate\SKILL.md')) -eq 'mine' }
+  Check 'our skills removed from the spaced path' { -not (Test-Path (Join-Path $proj '.agents\skills\design-score')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $parent -Recurse -Force
+
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, -Scope design'
   & $inst -Agent codex -Project $proj -Scope design | Out-Null

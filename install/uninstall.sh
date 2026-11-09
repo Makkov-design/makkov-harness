@@ -56,7 +56,9 @@ shared() {
 
 # 1. Skills.
 if [ -n "$skills_dir" ]; then
-  for name in $(sed -n 's/^skill=//p' "$manifest"); do
+  # Read the manifest line by line: home and project paths may contain spaces.
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
     if shared "$name"; then say "keep $dst (another installed agent uses it)"; continue; fi
@@ -66,25 +68,27 @@ if [ -n "$skills_dir" ]; then
       say "move $dst to $state/backups/$stamp/removed/$name (you changed it)"
       do_ mkdir -p "$state/backups/$stamp/removed"; do_ mv "$dst" "$state/backups/$stamp/removed/$name"
     fi
-  done
+  done < <(sed -n 's/^skill=//p' "$manifest")
   # 2. Put back the skills the install moved aside. While another agent still uses this skills folder,
   #    hand the record of those backups on to its manifest, so its uninstall restores them.
   for m in "$state"/install-*.txt; do
     [ "$m" = "$manifest" ] || [ ! -f "$m" ] && continue
     [ "$(sed -n 's/^skills_dir=//p' "$m" | head -n 1)" = "$skills_dir" ] || continue
-    for line in $(grep '^backup=' "$manifest" || true); do
-      grep -qxF "$line" "$m" || { say "hand the backup record on to $(basename "$m")"; [ "$dry" = 1 ] || echo "$line" >> "$m"; }
-    done
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      grep -qxF "$line" "$m" || { say "hand the backup record on to $(basename "$m")"; [ "$dry" = 1 ] || printf '%s
+' "$line" >> "$m"; }
+    done < <(grep '^backup=' "$manifest" || true)
   done
-  for b in $(sed -n 's/^backup=//p' "$manifest"); do
-    [ -d "$b" ] || continue
+  while IFS= read -r b; do
+    [ -n "$b" ] && [ -d "$b" ] || continue
     for d in "$b"/*/; do
       [ -d "$d" ] || continue
       name="$(basename "$d")"
       if [ -e "$skills_dir/$name" ]; then say "leave your earlier $name in $b ($skills_dir/$name exists)"
       else say "restore your $name to $skills_dir/$name"; do_ mv "${d%/}" "$skills_dir/$name"; fi
     done
-  done
+  done < <(sed -n 's/^backup=//p' "$manifest")
 fi
 
 # 3. Routing.
