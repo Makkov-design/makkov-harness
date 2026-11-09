@@ -69,5 +69,15 @@ bash "$uninst" codex >/dev/null
 check "your notes kept, block gone" "grep -qx '# my notes' '$home/.codex/AGENTS.md' && [ \"\$(markers '$home/.codex/AGENTS.md')\" = 0 ]"
 rm -rf "$home"
 
+# --scope design keeps only design routing.
+home="$(mktemp -d)"; proj="$(mktemp -d)"; export HOME="$home"
+echo "codex project, --scope design"
+bash "$inst" codex "$proj" --scope design >/dev/null
+check "research and install rows dropped" "! grep -q -e '^| Research, analysis' -e '^| Installing, adding' '$proj/AGENTS.md'"
+check "design rows kept" "grep -q '^| A design score' '$proj/AGENTS.md'"
+check "the block says it is design-only" "grep -q '^Scope: design work only' '$proj/AGENTS.md'"
+bash "$uninst" codex "$proj" >/dev/null
+rm -rf "$home" "$proj"
+
 echo
 if [ "$fails" = 0 ]; then echo "installer tests: all passed"; else echo "installer tests: $fails failed"; exit 1; fi

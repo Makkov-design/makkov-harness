@@ -51,6 +51,11 @@ bash ~/makkov-harness/install/install.sh <agent> [project-path] [--dry-run]
 
 Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or move and the file it would edit; nothing is written. Show that list to the user before the real run.
 
+Two choices worth offering:
+
+- **One project first.** Passing a project path keeps everything inside that project, so the person can try the harness without changing how their agent works elsewhere. Suggest it for a first install.
+- **Design work only.** `-Scope design` / `--scope design` leaves out the routing rows that are not about design (research reports, the third-party install review, general coding plugins and the whole-project security review), so a global install does not change how the agent handles other work. The skills are still copied and can be called by name.
+
 `<agent>` is one of: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode`, `aider`. Pass a project path only for a project-only install (always needed for `cursor`, `copilot`, `windsurf`, `aider`, which have no user-level instructions file the installer can edit).
 
 What it does, per tool (from each tool's documentation, checked 2026-11-04):
