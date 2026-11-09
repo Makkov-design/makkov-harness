@@ -3,13 +3,15 @@
   Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
   file inside a marked block. Copies local files only; downloads nothing.
 
-  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>]
+  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
+    -DryRun   print every change it would make and write nothing
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider')]
   [string]$Agent,
-  [string]$Project
+  [string]$Project,
+  [switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -40,6 +42,7 @@ switch ($Agent) {
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $backupRoot = Join-Path (Join-Path (Join-Path (Base) '.makkov-harness') 'backups') $stamp
+if ($DryRun) { Write-Output 'Dry run: nothing will be written.' }
 
 # A fingerprint of a folder: every file's relative path and SHA-256.
 function Get-TreeFingerprint([string]$Dir) {
@@ -54,18 +57,23 @@ function Get-TreeFingerprint([string]$Dir) {
 # edited) is moved to the backup folder first, never deleted.
 $copied = @(); $backed = @()
 if ($skillsDir) {
-  New-Item -ItemType Directory -Force $skillsDir | Out-Null
+  if (-not $DryRun) { New-Item -ItemType Directory -Force $skillsDir | Out-Null }
   Get-ChildItem (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' } | ForEach-Object {
     $dst = Join-Path $skillsDir $_.Name
+    $keep = Join-Path (Join-Path $backupRoot 'skills') $_.Name
     if (Test-Path $dst) {
-      if ((Get-TreeFingerprint $_.FullName) -eq (Get-TreeFingerprint $dst)) { Remove-Item $dst -Recurse -Force }
-      else {
-        New-Item -ItemType Directory -Force (Join-Path $backupRoot 'skills') | Out-Null
-        Move-Item $dst (Join-Path (Join-Path $backupRoot 'skills') $_.Name)
+      if ((Get-TreeFingerprint $_.FullName) -eq (Get-TreeFingerprint $dst)) {
+        if ($DryRun) { Write-Output "  would refresh $dst (identical copy of ours)" } else { Remove-Item $dst -Recurse -Force }
+      } else {
+        if ($DryRun) { Write-Output "  would move your $dst to $keep, then copy ours" }
+        else {
+          New-Item -ItemType Directory -Force (Join-Path $backupRoot 'skills') | Out-Null
+          Move-Item $dst $keep
+        }
         $backed += $_.Name
       }
-    }
-    Copy-Item $_.FullName $dst -Recurse
+    } elseif ($DryRun) { Write-Output "  would copy $($_.Name) to $dst" }
+    if (-not $DryRun) { Copy-Item $_.FullName $dst -Recurse }
     $copied += $_.Name
   }
 }
@@ -74,6 +82,17 @@ if ($skillsDir) {
 $routing = Get-Content (Join-Path $repo 'ROUTING.md') -Raw -Encoding UTF8
 $routing = $routing.Replace('`rich-report` (Claude with Artifacts) or `html-report` (any agent)', '`html-report`')
 $block = "<!-- makkov-harness:start -->`n$routing`n<!-- makkov-harness:end -->"
+$pattern = '(?s)<!-- makkov-harness:start -->.*?<!-- makkov-harness:end -->'
+if ($DryRun) {
+  if (Test-Path $rules) {
+    Write-Output "  would back up $rules to $rules.bak-$stamp"
+    if ($Agent -eq 'cursor') { Write-Output "  would rewrite $rules with the routing rule" }
+    elseif ([IO.File]::ReadAllText($rules) -match $pattern) { Write-Output "  would update the marked routing block in $rules" }
+    else { Write-Output "  would append the marked routing block to $rules" }
+  } else { Write-Output "  would create $rules with the routing block" }
+  Write-Output "Dry run done for $Agent. Run again without -DryRun to install."
+  return
+}
 $utf8 = New-Object System.Text.UTF8Encoding $false
 New-Item -ItemType Directory -Force (Split-Path -Parent $rules) | Out-Null
 # Every instructions file it is about to change, the Cursor rule included, gets a dated copy first.
@@ -82,7 +101,6 @@ if ($Agent -eq 'cursor') {
   $content = "---`ndescription: makkov-harness routing - which skill fits which situation`nalwaysApply: true`n---`n$block`n"
 } elseif (Test-Path $rules) {
   $old = [IO.File]::ReadAllText($rules)
-  $pattern = '(?s)<!-- makkov-harness:start -->.*?<!-- makkov-harness:end -->'
   if ($old -match $pattern) { $content = [regex]::Replace($old, $pattern, { param($m) $block }) }
   else { $content = $old.TrimEnd() + "`n`n" + $block + "`n" }
 } else {
