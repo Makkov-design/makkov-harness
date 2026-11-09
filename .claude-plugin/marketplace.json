@@ -7,7 +7,7 @@
       "name": "makkov-harness",
       "source": "./",
       "description": "Design Score for any page, report pages, install guard, design references, motion, HTML-to-video and a routing map that tells the agent which skill fits which situation.",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "license": "MIT"
     },
     {

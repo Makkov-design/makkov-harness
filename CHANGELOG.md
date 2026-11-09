@@ -2,6 +2,22 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [0.3.3] - 2026-11-09
+
+Safe installs: the installers for Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode and Aider never lose your files. Prompted by an independent review of 0.3.1.
+
+### Fixed
+
+- The installers deleted a skill folder with the same name as one of ours before copying, so your own skill (or one you had edited) was lost. A folder that is not an identical copy of ours is now moved to `.makkov-harness/backups/<date>/skills/` instead, and the installer says so ([#12](https://github.com/Makkov-design/makkov-harness/issues/12)).
+- The Cursor rule (`.cursor/rules/makkov-harness.mdc`) was overwritten without the `.bak-<date>` copy INSTALL.md promises for every instructions file; it now gets one ([#13](https://github.com/Makkov-design/makkov-harness/issues/13)).
+- `.claude-plugin/marketplace.json` listed makkov-harness 0.3.1 while `plugin.json` said 0.3.2 ([#22](https://github.com/Makkov-design/makkov-harness/issues/22)).
+
+### Added
+
+- A dry run: `--dry-run` / `-DryRun` prints every folder the installer would copy or move and the file it would edit, and writes nothing ([#14](https://github.com/Makkov-design/makkov-harness/issues/14)).
+- A clean uninstall: the installers write a manifest (`.makkov-harness/install-<agent>.txt`), and `install/uninstall.sh` / `install/uninstall.ps1` remove exactly what was installed, put back skills of yours the install had moved aside, take out the routing block and restore your earlier Cursor rule ([#15](https://github.com/Makkov-design/makkov-harness/issues/15)).
+- End-to-end installer tests for every agent, run in CI on Linux, macOS and Windows (PowerShell 5.1 and 7) ([#16](https://github.com/Makkov-design/makkov-harness/issues/16)).
+
 ## [0.3.2] - 2026-11-09
 
 ### Changed
