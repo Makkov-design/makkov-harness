@@ -150,7 +150,7 @@
     <div class="container sx-method-grid">
       <div class="sx-method-side">
         <h2 id="method-title">How a review works.</h2>
-        <p class="lead">The same steps for every piece: the first seven are the third-party-install-guard skill, the last is a weekly check on GitHub. The scanner is a tripwire, not a verdict: reading the code by hand is what decides.</p>
+        <p class="lead">The same steps for every piece: the first seven are the third-party-install-guard skill, the eighth is a weekly check on GitHub, and the ninth is a hook that makes Claude Code ask before anything installs. The scanner is a tripwire, not a verdict: reading the code by hand is what decides.</p>
         <ul class="sx-side-links">
           <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/skills/third-party-install-guard/SKILL.md"><svg aria-hidden="true"><use href="#i-doc"/></svg>Read the skill</a></li>
           <li><a href="https://github.com/Makkov-design/makkov-harness/blob/main/skills/third-party-install-guard/scripts/scan.mjs"><svg aria-hidden="true"><use href="#i-eye"/></svg>Read the scanner</a></li>
@@ -242,6 +242,14 @@
             <h3>Watch upstream every week</h3>
             <p>Every Monday a GitHub Action reads each pinned upstream, read-only, and keeps one issue up to date: what moved, how many files changed, and how many of them are code or hooks. It never changes a pin.</p>
             <p class="sx-step-link"><a href="https://github.com/Makkov-design/makkov-harness/blob/main/.github/workflows/upstream-watch.yml">The workflow</a><span aria-hidden="true">·</span><a href="https://github.com/Makkov-design/makkov-harness/issues?q=is%3Aissue+%22Companion+plugins%3A+updates+to+review%22">The watch issue</a></p>
+          </div>
+        </li>
+        <li class="sx-step">
+          <span class="sx-step-n" aria-hidden="true">09</span>
+          <div class="sx-step-body">
+            <h3>Ask before anything installs</h3>
+            <p>In Claude Code, a hook turns any command that installs or runs third-party code (<code>npm install &lt;package&gt;</code>, <code>npx</code>, <code>pip install</code>, <code>curl … | sh</code>) into a question to you, and reminds the agent to run this review first. It never blocks or runs anything, and installs from an existing lockfile pass. It raises the bar; it is not a sandbox.</p>
+            <p class="sx-step-link"><a href="https://github.com/Makkov-design/makkov-harness/blob/main/hooks/install-gate">The hook</a><span aria-hidden="true">·</span><a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md#what-the-install-guard-is-and-what-it-is-not">What it is and is not</a></p>
           </div>
         </li>
       </ol>
