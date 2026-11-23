@@ -20,7 +20,9 @@ function run(args, home, opts = {}) {
   return spawnSync(process.execPath, [bin, ...args], { env, encoding: 'utf8', ...opts });
 }
 
-test('cksum matches POSIX cksum', { skip: !has('cksum') && 'no cksum here' }, () => {
+// (BSD cksum has no --version: probe it by running it on nothing.)
+const hasCksum = spawnSync('cksum', { input: '' }).status === 0;
+test('cksum matches POSIX cksum', { skip: !hasCksum && 'no cksum here' }, () => {
   for (const b of [Buffer.alloc(0), Buffer.from('a'), Buffer.from('hello world\n'), crypto256(70000)]) {
     const r = spawnSync('cksum', { input: b });
     assert.equal(String(L.cksum(b)), r.stdout.toString().split(' ')[0]);
@@ -28,7 +30,9 @@ test('cksum matches POSIX cksum', { skip: !has('cksum') && 'no cksum here' }, ()
 });
 function crypto256(n) { const b = Buffer.alloc(n); for (let i = 0; i < n; i++) b[i] = (i * 7919) & 0xff; return b; }
 
-test("every skill's fingerprint equals install.sh's", { skip: (process.platform === 'win32' || !has('bash')) && 'no POSIX bash here' }, () => {
+// Not on Windows: there the shell installer is install.ps1 (its fingerprint is checked below); Git Bash's install.sh
+// is covered by the sequence test that mixes it with the Node installer on the same folders.
+test("every skill's fingerprint equals install.sh's", { skip: (process.platform === 'win32' || !has('bash')) && 'not on Windows (install.ps1 is checked below)' }, () => {
   for (const name of fs.readdirSync(path.join(repo, 'skills'))) {
     const d = path.join(repo, 'skills', name);
     const r = spawnSync('bash', ['-c', '. "$1/install/lib.sh"; mh_fingerprint "$2"', '_', repo, d], { encoding: 'utf8' });
