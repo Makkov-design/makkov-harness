@@ -4,6 +4,14 @@ Short records of what a change taught, so the next change does not relearn it. N
 
 ## Installers: update and uninstall (installer fixes after 0.5.0)
 
+- **The installer never destroys bytes it cannot restore, decides everything that can fail before the first
+  write, records what it is about to do before doing it, and treats its own manifest as untrusted input.** The
+  first audit of this change found five ways to break each of these (a failed first install with no manifest,
+  a re-encoded file, a manifest pointing outside the project, a marked block with no copy, a dangling link). Each
+  rule now has a place in the code (pre-flight, journal, the original copy, `mh_valid_manifest`) and a scenario.
+- **Read files as bytes in PowerShell.** `ReadAllText` decodes, so Windows-1251 text becomes U+FFFD and a BOM
+  disappears. Latin-1 (code page 28591) maps every byte to one character and back, so the bash and PowerShell
+  installers agree byte for byte.
 - **A file can belong to more than one install.** Codex, Copilot, Windsurf, Cline and OpenCode all write
   `<project>/AGENTS.md`; Codex and Cline in the home folder share `~/.agents`. Every "is this still in use?"
   check has to cover every shared resource (skills, the instructions file, folders), not only the first one

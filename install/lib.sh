@@ -74,18 +74,14 @@ mh_replace_block() {
     !skip { print }' "$1"
 }
 
-# The file with the routing block and the personal layer taken out. When nothing but blank lines follows the
-# last block taken out, the blank lines before it go too (the installer put one there when it appended).
+# The file with the routing block and the personal layer taken out, each with the one blank line before it that
+# the installer (or harness-onboarding) put there when it appended the block. Every other line stays as it is.
 mh_remove_blocks() {
   awk '
-    /<!-- makkov-harness:(personal:)?start -->/ { skip = 1; next }
-    /<!-- makkov-harness:(personal:)?end -->/   { skip = 0; last = n; cut = 1; next }
+    /<!-- makkov-harness:(personal:)?start -->/ { if (n > 0 && line[n] ~ /^[ \t\r]*$/) n--; skip = 1; next }
+    /<!-- makkov-harness:(personal:)?end -->/   { skip = 0; next }
     !skip { line[++n] = $0 }
-    END {
-      if (cut) { tail = 1; for (i = last + 1; i <= n; i++) if (line[i] !~ /^[ \t\r]*$/) tail = 0
-                 if (tail) while (n > 0 && line[n] ~ /^[ \t\r]*$/) n-- }
-      for (i = 1; i <= n; i++) print line[i]
-    }' "$1"
+    END { for (i = 1; i <= n; i++) print line[i] }' "$1"
 }
 
 # The personal layer of a file, markers included (empty when there is none).
@@ -106,3 +102,117 @@ mh_missing_dirs() {
     d="$(dirname "$d")"
   done
 }
+
+# Where each agent's skills and instructions file go: sets MH_SKILLS and MH_RULES.
+# Usage: mh_paths <agent> <project, or empty for a user-level install>
+mh_paths() {
+  local a="$1" p="$2" b="${2:-$HOME}"
+  case "$a" in cline) MH_SKILLS="$b/.cline/skills" ;; aider) MH_SKILLS="" ;; *) MH_SKILLS="$b/.agents/skills" ;; esac
+  case "$a" in
+    codex)    MH_RULES="${p:+$p/AGENTS.md}";  MH_RULES="${MH_RULES:-$HOME/.codex/AGENTS.md}" ;;
+    gemini)   MH_RULES="${p:+$p/GEMINI.md}";  MH_RULES="${MH_RULES:-$HOME/.gemini/GEMINI.md}" ;;
+    opencode) MH_RULES="${p:+$p/AGENTS.md}";  MH_RULES="${MH_RULES:-$HOME/.config/opencode/AGENTS.md}" ;;
+    cline)    MH_RULES="${p:+$p/AGENTS.md}";  MH_RULES="${MH_RULES:-$HOME/.agents/AGENTS.md}" ;;
+    cursor)   MH_RULES="$p/.cursor/rules/makkov-harness.mdc" ;;
+    aider)    MH_RULES="$p/CONVENTIONS.md" ;;
+    *)        MH_RULES="$p/AGENTS.md" ;;
+  esac
+}
+
+# A path with . or .. among its parts (never written by the installer).
+mh_dotdot() { case "/$1/" in */../*|*/./*) return 0 ;; esac; return 1; }
+
+# A path lies inside the base: below it as written, with no .. and no symlink on the way (itself included).
+mh_inside() {
+  local p="$1" b="$2" rest d
+  case "$p" in "$b"/*) ;; *) return 1 ;; esac
+  mh_dotdot "$p" && return 1
+  rest="${p#"$b"/}/" d="$b"
+  while [ -n "$rest" ]; do
+    d="$d/${rest%%/*}"; rest="${rest#*/}"
+    [ -L "$d" ] && return 1
+  done
+  return 0
+}
+
+# A manifest is input the installer does not trust: someone may have edited it, or it came with a cloned
+# repository. It is used only when it names exactly the paths the installer itself would use for that agent
+# in this folder, its backups lie in .makkov-harness/backups/ and its skill names are plain folder names.
+# Prints why not and returns 1 otherwise. Usage: mh_valid_manifest <manifest> <base> <project, or empty>
+mh_valid_manifest() {
+  local m="$1" base="$2" proj="$3" st="$2/.makkov-harness" a ob v line rel
+  a="$(mh_raw "$m" agent)"
+  case "$a" in codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;; *) echo "it names no agent"; return 1 ;; esac
+  [ "$(basename "$m")" = "install-$a.txt" ] || { echo "it is for $a, not for its file name"; return 1; }
+  grep -q '^rules=.' "$m" || { echo "it names no instructions file"; return 1; }
+  mh_paths "$a" "$proj"
+  ob="$(mh_old_base "$m")"
+  [ "$(mh_rebase "$(mh_raw "$m" rules)" "$ob" "$base")" = "$MH_RULES" ] || { echo "its instructions file is not the one $a uses here"; return 1; }
+  [ "$(mh_rebase "$(mh_raw "$m" skills_dir)" "$ob" "$base")" = "$MH_SKILLS" ] || { echo "its skills folder is not the one $a uses here"; return 1; }
+  v="$(mh_rebase "$(mh_raw "$m" rules_backup)" "$ob" "$base")"
+  if [ -n "$v" ]; then
+    case "$v" in
+      "$st/backups/original/"*) mh_dotdot "$v" && { echo "its copy of the instructions file is outside the harness folder"; return 1; }
+                                mh_inside "$v" "$base" || { echo "its copy of the instructions file is outside $base"; return 1; } ;;
+      "$MH_RULES".bak-*) case "${v#"$MH_RULES".bak-}" in */*) echo "its copy of the instructions file is not next to the file"; return 1 ;; esac ;;
+      *) echo "its copy of the instructions file is not one the installer makes"; return 1 ;;
+    esac
+  fi
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    v="$(mh_rebase "$line" "$ob" "$base")"
+    case "$v" in "$st/backups/"?*) ;; *) echo "a backup folder outside .makkov-harness/backups"; return 1 ;; esac
+    mh_dotdot "$v" && { echo "a backup folder with .. in its path"; return 1; }
+    mh_inside "$v" "$base" || { echo "a backup folder outside $base"; return 1; }
+  done < <(sed -n 's/^backup=//p' "$m")
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '%s\n' "$line" | grep -Eq '^[A-Za-z0-9._-]+( [0-9a-f]+)?$' || { echo "a skill entry that is not a plain folder name"; return 1; }
+    case "${line%% *}" in .|..) echo "a skill entry that is not a plain folder name"; return 1 ;; esac
+  done < <(sed -n 's/^skill=//p' "$m")
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    case "$rel" in /*) echo "a created folder given as an absolute path"; return 1 ;; esac
+    mh_dotdot "$rel" && { echo "a created folder with .. in its path"; return 1; }
+    v="$base/$rel"
+    case "$MH_SKILLS/" in "$v"/*) continue ;; esac
+    case "$(dirname "$MH_RULES")/" in "$v"/*) continue ;; esac
+    echo "a created folder the installer would not create"; return 1
+  done < <(sed -n 's/^created_dir=//p' "$m")
+  return 0
+}
+
+# Checks that a file can be changed in place: absent (with a folder it can be created in), or a regular file,
+# or a symlink to one, that can be written. Prints why not and returns 1 otherwise.
+mh_writable_file() {
+  local f="$1" d
+  if [ -L "$f" ] && [ ! -e "$f" ]; then echo "$f is a symlink to $(readlink "$f"), which does not exist"; return 1; fi
+  if [ -e "$f" ]; then
+    [ -f "$f" ] || { echo "$f is not a regular file"; return 1; }
+    [ -w "$f" ] || { echo "$f is read-only"; return 1; }
+    return 0
+  fi
+  mh_writable_dir "$(dirname "$f")"
+}
+# Checks that a folder exists and can be written to, or can be created.
+mh_writable_dir() {
+  local d="$1"
+  if [ -e "$d" ] || [ -L "$d" ]; then
+    [ -d "$d" ] || { echo "$d is not a folder"; return 1; }
+    [ -w "$d" ] || { echo "$d is read-only"; return 1; }
+    return 0
+  fi
+  while [ ! -e "$d" ] && [ ! -L "$d" ]; do d="$(dirname "$d")"; done
+  [ -d "$d" ] || { echo "$d is not a folder"; return 1; }
+  [ -w "$d" ] || { echo "$d is read-only"; return 1; }
+}
+
+# A file in UTF-16 or UTF-32 (a byte order mark says so): the harness would corrupt it, so it stops instead.
+mh_wide_text() {
+  [ -f "$1" ] || return 1
+  case "$(head -c 4 "$1" | od -An -tx1 | tr -d ' \n')" in fffe*|feff*|0000feff) return 0 ;; esac
+  return 1
+}
+
+# Two files say the same apart from trailing spaces and blank lines at the end.
+mh_same_text() { [ "$(sed 's/[[:space:]]*$//' "$1")" = "$(sed 's/[[:space:]]*$//' "$2")" ]; }

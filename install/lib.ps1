@@ -1,27 +1,36 @@
 # Shared by install.ps1 and uninstall.ps1. Dot-sourced, not run. Windows PowerShell 5.1 and PowerShell 7.
 # install/lib.sh is the bash twin: keep the two in step, rule for rule. Every path goes through -LiteralPath,
 # so a folder name with [ or ] is not read as a wildcard.
+#
+# Files are read and written as bytes. Text is handled as Latin-1 (code page 28591), which maps every byte to
+# one character and back unchanged, so a file in any 8-bit encoding (UTF-8, with or without a BOM, Windows-1251,
+# Windows-1252...) keeps its bytes; the routing block is inserted as its UTF-8 bytes, as the bash twin does.
 
 $MhStart = '<!-- makkov-harness:start -->'
 $MhEnd = '<!-- makkov-harness:end -->'
 $MhPStart = '<!-- makkov-harness:personal:start -->'
 $MhPEnd = '<!-- makkov-harness:personal:end -->'
 $MhUtf8 = New-Object System.Text.UTF8Encoding $false
+$MhRaw = [Text.Encoding]::GetEncoding(28591)
 
-# A fingerprint of a folder: every file's relative path and SHA-256.
-function Get-MhTreeFingerprint([string]$Dir) {
-  $root = (Resolve-Path -LiteralPath $Dir).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
-  (Get-ChildItem -LiteralPath $root -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
-    $_.FullName.Substring($root.Length) + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-  }) -join "`n"
-}
-
-# A short id of a fingerprint, as recorded in the manifest.
-function Get-MhTreeId([string]$Dir) {
-  $bytes = [Text.Encoding]::UTF8.GetBytes((Get-MhTreeFingerprint $Dir))
+# A fingerprint of a folder: every file's relative path and SHA-256, in ordinal order (the same in every
+# culture and in both PowerShell versions). Get-MhTreeIds also gives the id of the culture-sorted fingerprint
+# that installs up to this version recorded (the same id whenever no two file names sort differently).
+function Get-MhId([string]$Text) {
   $sha = [Security.Cryptography.SHA256]::Create()
-  (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
+  (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text)) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
 }
+function Get-MhTreeIds([string]$Dir) {
+  $root = (Resolve-Path -LiteralPath $Dir).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force)
+  $hash = @{}; foreach ($f in $files) { $hash[$f.FullName] = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash }
+  $ordinal = [string[]]@($files | ForEach-Object { $_.FullName }); [Array]::Sort($ordinal, [StringComparer]::Ordinal)
+  $legacy = @($files | Sort-Object FullName | ForEach-Object { $_.FullName })
+  $line = { param($p) $p.Substring($root.Length) + ':' + $hash[$p] }
+  @((Get-MhId (($ordinal | ForEach-Object { & $line $_ }) -join "`n")), (Get-MhId (($legacy | ForEach-Object { & $line $_ }) -join "`n"))) | Select-Object -Unique
+}
+# The id recorded in a new manifest.
+function Get-MhTreeId([string]$Dir) { @(Get-MhTreeIds $Dir)[0] }
 
 function Read-MhManifest([string]$Path) { @([IO.File]::ReadAllLines($Path, $MhUtf8)) }
 
@@ -64,10 +73,170 @@ function Get-MhPath([string[]]$Lines, [string]$Key, [string]$Base) { Get-MhRebas
 
 # Two paths name the same file (Windows paths are not case-sensitive).
 function Test-MhSamePath([string]$A, [string]$B) { [string]::Equals(($A -replace '\\', '/'), ($B -replace '\\', '/'), [StringComparison]::OrdinalIgnoreCase) }
+# A path starts with a folder (as written, any separator, not case-sensitive).
+function Test-MhUnder([string]$Path, [string]$Dir) {
+  $p = $Path -replace '\\', '/'; $d = ($Dir -replace '\\', '/').TrimEnd('/') + '/'
+  $p.StartsWith($d, [StringComparison]::OrdinalIgnoreCase) -and $p.Length -gt $d.Length
+}
+
+# Where each agent's skills and instructions file go.
+function Get-MhPaths([string]$Agent, [string]$Project, [string]$HomeDir) {
+  $b = if ($Project) { $Project } else { $HomeDir }
+  $skills = switch ($Agent) { 'cline' { Join-Path $b '.cline\skills' } 'aider' { '' } default { Join-Path $b '.agents\skills' } }
+  $rules = switch ($Agent) {
+    'codex'    { if ($Project) { Join-Path $Project 'AGENTS.md' } else { Join-Path $HomeDir '.codex\AGENTS.md' } }
+    'gemini'   { if ($Project) { Join-Path $Project 'GEMINI.md' } else { Join-Path $HomeDir '.gemini\GEMINI.md' } }
+    'opencode' { if ($Project) { Join-Path $Project 'AGENTS.md' } else { Join-Path $HomeDir '.config\opencode\AGENTS.md' } }
+    'cline'    { if ($Project) { Join-Path $Project 'AGENTS.md' } else { Join-Path $HomeDir '.agents\AGENTS.md' } }
+    'cursor'   { Join-Path $Project '.cursor\rules\makkov-harness.mdc' }
+    'aider'    { Join-Path $Project 'CONVENTIONS.md' }
+    default    { Join-Path $Project 'AGENTS.md' }
+  }
+  @{ Skills = $skills; Rules = $rules }
+}
+
+# A path with . or .. among its parts (never written by the installer).
+function Test-MhDotDot([string]$Path) { @(($Path -replace '\\', '/') -split '/' | Where-Object { $_ -eq '.' -or $_ -eq '..' }).Count -gt 0 }
+# A file system entry that is a symlink or a junction.
+# (GetAttributes reads the link itself, not what it points to.)
+function Test-MhLink([string]$Path) {
+  try { [bool]([IO.File]::GetAttributes($Path) -band [IO.FileAttributes]::ReparsePoint) } catch { $false }
+}
+# A symlink whose target does not exist: opening it fails with "not found".
+function Test-MhDangling([string]$Path) {
+  if (-not (Test-MhLink $Path)) { return $false }
+  try { [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite).Dispose(); $false }
+  catch [IO.FileNotFoundException] { $true } catch [IO.DirectoryNotFoundException] { $true } catch { [IO.Directory]::Exists($Path) -eq $false -and -not [IO.File]::Exists((Resolve-MhLink $Path)) }
+}
+# A path lies inside the base: below it as written, with no .. and no symlink on the way (itself included).
+function Test-MhInside([string]$Path, [string]$Base) {
+  if (-not (Test-MhUnder $Path $Base) -or (Test-MhDotDot $Path)) { return $false }
+  $d = $Base.TrimEnd('\', '/')
+  foreach ($part in (($Path -replace '\\', '/').Substring(($Base -replace '\\', '/').TrimEnd('/').Length + 1) -split '/')) {
+    if (-not $part) { continue }
+    $d = Join-Path $d $part
+    if (Test-MhLink $d) { return $false }
+  }
+  $true
+}
+
+# A manifest is input the installer does not trust: someone may have edited it, or it came with a cloned
+# repository. It is used only when it names exactly the paths the installer itself would use for that agent
+# in this folder, its backups lie in .makkov-harness\backups\ and its skill names are plain folder names.
+# Returns why not, or '' when it is fine.
+function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [string]$HomeDir) {
+  $lines = Read-MhManifest $Path
+  $st = Join-Path $Base '.makkov-harness'
+  $a = Get-MhRaw $lines 'agent'
+  if (@('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider') -notcontains $a) { return 'it names no agent' }
+  if ((Split-Path -Leaf $Path) -ne "install-$a.txt") { return "it is for $a, not for its file name" }
+  if (-not (Get-MhRaw $lines 'rules')) { return 'it names no instructions file' }
+  $p = Get-MhPaths $a $Project $HomeDir
+  if (-not (Test-MhSamePath (Get-MhPath $lines 'rules' $Base) $p.Rules)) { return "its instructions file is not the one $a uses here" }
+  if (-not (Test-MhSamePath (Get-MhPath $lines 'skills_dir' $Base) $p.Skills)) { return "its skills folder is not the one $a uses here" }
+  $ob = Get-MhOldBase $lines
+  $v = Get-MhPath $lines 'rules_backup' $Base
+  if ($v) {
+    $orig = Join-Path (Join-Path $st 'backups') 'original'
+    if (Test-MhUnder $v $orig) {
+      if (-not (Test-MhInside $v $Base)) { return 'its copy of the instructions file is outside the harness folder' }
+    } elseif ((Test-MhUnder $v (Split-Path -Parent $p.Rules)) -and (Split-Path -Leaf $v).StartsWith((Split-Path -Leaf $p.Rules) + '.bak-', [StringComparison]::OrdinalIgnoreCase) -and
+              (Test-MhSamePath (Split-Path -Parent $v) (Split-Path -Parent $p.Rules))) {
+    } else { return 'its copy of the instructions file is not one the installer makes' }
+  }
+  foreach ($l in ($lines | Where-Object { $_.StartsWith('backup=') })) {
+    $v = Get-MhRebased $l.Substring(7) $ob $Base
+    if (-not (Test-MhUnder $v (Join-Path $st 'backups'))) { return 'a backup folder outside .makkov-harness\backups' }
+    if (-not (Test-MhInside $v $Base)) { return "a backup folder outside $Base" }
+  }
+  foreach ($l in ($lines | Where-Object { $_.StartsWith('skill=') })) {
+    $e = $l.Substring(6)
+    if ($e -cnotmatch '^[A-Za-z0-9._-]+( [0-9a-f]+)?$' -or @('.', '..') -contains ($e -split ' ')[0]) { return 'a skill entry that is not a plain folder name' }
+  }
+  foreach ($l in ($lines | Where-Object { $_.StartsWith('created_dir=') })) {
+    $rel = $l.Substring(12)
+    if (-not $rel) { continue }
+    if ([IO.Path]::IsPathRooted($rel) -or $rel.StartsWith('/') -or $rel.StartsWith('\')) { return 'a created folder given as an absolute path' }
+    if (Test-MhDotDot $rel) { return 'a created folder with .. in its path' }
+    $v = Join-Path $Base $rel
+    if (($p.Skills -and ((Test-MhSamePath $p.Skills $v) -or (Test-MhUnder $p.Skills $v))) -or
+        (Test-MhSamePath (Split-Path -Parent $p.Rules) $v) -or (Test-MhUnder (Split-Path -Parent $p.Rules) $v)) { continue }
+    return 'a created folder the installer would not create'
+  }
+  ''
+}
+
+# The file a path finally names: a symlink is followed to its target (a relative target is read against the
+# link's folder), so writes go to the real file and the link itself is left as it is.
+function Resolve-MhLink([string]$Path) {
+  $p = $Path
+  for ($i = 0; $i -lt 16; $i++) {
+    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.LinkType -ne 'SymbolicLink') { return $p }
+    $t = @($item.Target)[0]
+    if (-not $t) { return $p }
+    if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $p) $t }
+    $p = $t
+  }
+  $p
+}
+
+# Checks that a file can be changed in place: absent (with a folder it can be created in), or a regular file,
+# or a symlink to one, that is not read-only. Returns why not, or ''.
+function Test-MhWritableFile([string]$File) {
+  if (Test-MhDangling $File) { return "$File is a symlink to $(Resolve-MhLink $File), which does not exist" }
+  if ([IO.Directory]::Exists($File)) { return "$File is not a regular file" }
+  if ([IO.File]::Exists($File)) {
+    if ((Get-Item -LiteralPath (Resolve-MhLink $File) -Force).IsReadOnly) { return "$File is read-only" }
+    return ''
+  }
+  Test-MhWritableDir (Split-Path -Parent $File)
+}
+# Checks that a folder exists, or can be created (no file in the way).
+function Test-MhWritableDir([string]$Dir) {
+  $d = $Dir
+  while ($d -and -not [IO.Directory]::Exists($d)) {
+    if ([IO.File]::Exists($d)) { return "$d is not a folder" }
+    $d = Split-Path -Parent $d
+  }
+  ''
+}
+
+# Reads and writes a file's bytes, through a symlink, to the end of the stream (not to the length the file
+# system reports, which for a link can be the link's own, 0).
+function Read-MhBytes([string]$File) {
+  $in = [IO.File]::Open($File, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  try { $ms = New-Object IO.MemoryStream; $in.CopyTo($ms); ,$ms.ToArray() } finally { $in.Dispose() }
+}
+function Write-MhBytes([string]$File, [byte[]]$Bytes) {
+  $out = [IO.File]::Open((Resolve-MhLink $File), [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
+  try { $out.Write($Bytes, 0, $Bytes.Length) } finally { $out.Dispose() }
+}
+function Copy-MhBytes([string]$From, [string]$To) { Write-MhBytes $To (Read-MhBytes $From) }
+# A file as text, one character per byte; and text written back the same way.
+function Read-MhText([string]$File) { $MhRaw.GetString((Read-MhBytes $File)) }
+function Write-MhText([string]$File, [string]$Text) { Write-MhBytes $File $MhRaw.GetBytes($Text) }
+# UTF-8 text (the routing block) as the characters Read-MhText would give for its bytes.
+function ConvertTo-MhRaw([string]$Text) { $MhRaw.GetString([Text.Encoding]::UTF8.GetBytes($Text)) }
+
+# A file in UTF-16 or UTF-32 (a byte order mark says so): the harness would corrupt it, so it stops instead.
+function Test-MhWideText([string]$File) {
+  if (-not [IO.File]::Exists($File)) { return $false }
+  $b = Read-MhBytes $File
+  ($b.Length -ge 2 -and (($b[0] -eq 0xFF -and $b[1] -eq 0xFE) -or ($b[0] -eq 0xFE -and $b[1] -eq 0xFF))) -or
+  ($b.Length -ge 4 -and $b[0] -eq 0 -and $b[1] -eq 0 -and $b[2] -eq 0xFE -and $b[3] -eq 0xFF)
+}
+
+# Two files say the same apart from trailing spaces and blank lines at the end.
+function Test-MhSameText([string]$A, [string]$B) {
+  $na = ((Read-MhText $A) -replace '(?m)[ \t\r\f\v]+$', '').TrimEnd("`n")
+  $nb = ((Read-MhText $B) -replace '(?m)[ \t\r\f\v]+$', '').TrimEnd("`n")
+  $na -ceq $nb
+}
 
 # A file's lines without their line ends ("`r" of a CRLF file stays on the line, as in awk).
 function Get-MhLines([string]$File) {
-  $t = [IO.File]::ReadAllText($File)
+  $t = Read-MhText $File
   if ($t.Length -eq 0) { return ,@() }
   $l = $t -split "`n"
   if ($t.EndsWith("`n")) { $l = $l[0..($l.Count - 2)] }
@@ -78,7 +247,7 @@ function Join-MhLines([string[]]$Lines) { if ($Lines.Count) { ($Lines -join "`n"
 # Checks the marked blocks before anything is rewritten: every start marker has its end marker after it, no
 # block opens inside another, and there is at most one routing block. Returns what is wrong, or '' if nothing.
 function Test-MhMarkers([string]$File) {
-  if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { return '' }
+  if (-not [IO.File]::Exists($File)) { return '' }
   $open = ''; $at = 0; $mains = 0; $n = 0
   foreach ($line in (Get-MhLines $File)) {
     $n++
@@ -106,7 +275,8 @@ function Stop-MhMarkers([string]$File, [string]$Why) {
   [Console]::Error.WriteLine('Nothing was changed. Fix or delete the marked lines by hand, then run this again.')
 }
 
-# The file with the routing block replaced by $Block. Lines outside the block are kept as they are.
+# The file with the routing block replaced by $Block (as Read-MhText characters). Lines outside the block
+# are kept as they are.
 function Get-MhReplacedBlock([string]$File, [string]$Block) {
   $out = New-Object System.Collections.Generic.List[string]; $skip = $false
   foreach ($line in (Get-MhLines $File)) {
@@ -117,19 +287,17 @@ function Get-MhReplacedBlock([string]$File, [string]$Block) {
   Join-MhLines $out.ToArray()
 }
 
-# The file with the routing block and the personal layer taken out. When nothing but blank lines follows the
-# last block taken out, the blank lines before it go too (the installer put one there when it appended).
+# The file with the routing block and the personal layer taken out, each with the one blank line before it that
+# the installer (or harness-onboarding) put there when it appended the block. Every other line stays as it is.
 function Get-MhRemovedBlocks([string]$File) {
-  $out = New-Object System.Collections.Generic.List[string]; $skip = $false; $last = 0; $cut = $false
+  $out = New-Object System.Collections.Generic.List[string]; $skip = $false
   foreach ($line in (Get-MhLines $File)) {
-    if ($line.Contains($MhStart) -or $line.Contains($MhPStart)) { $skip = $true; continue }
-    if ($line.Contains($MhEnd) -or $line.Contains($MhPEnd)) { $skip = $false; $last = $out.Count; $cut = $true; continue }
+    if ($line.Contains($MhStart) -or $line.Contains($MhPStart)) {
+      if ($out.Count -gt 0 -and $out[$out.Count - 1] -match '^[ \t\r]*$') { $out.RemoveAt($out.Count - 1) }
+      $skip = $true; continue
+    }
+    if ($line.Contains($MhEnd) -or $line.Contains($MhPEnd)) { $skip = $false; continue }
     if (-not $skip) { $out.Add($line) }
-  }
-  if ($cut) {
-    $tail = $true
-    for ($i = $last; $i -lt $out.Count; $i++) { if ($out[$i] -notmatch '^[ \t\r]*$') { $tail = $false } }
-    if ($tail) { while ($out.Count -gt 0 -and $out[$out.Count - 1] -match '^[ \t\r]*$') { $out.RemoveAt($out.Count - 1) } }
   }
   Join-MhLines $out.ToArray()
 }
@@ -144,35 +312,6 @@ function Get-MhPersonalLayer([string]$File) {
   }
   Join-MhLines $out.ToArray()
 }
-
-# The file a path finally names: a symlink is followed to its target (a relative target is read against the
-# link's folder), so writes go to the real file and the link itself is left as it is.
-function Resolve-MhLink([string]$Path) {
-  $p = $Path
-  for ($i = 0; $i -lt 16; $i++) {
-    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
-    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.LinkType -ne 'SymbolicLink') { return $p }
-    $t = @($item.Target)[0]
-    if (-not $t) { return $p }
-    if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $p) $t }
-    $p = $t
-  }
-  $p
-}
-
-# Copies a file's bytes into another file, in place: through a symlink at either end, and read to the end of
-# the stream rather than to the length the file system reports (which can be the link's own, 0).
-function Copy-MhBytes([string]$From, [string]$To) {
-  $To = Resolve-MhLink $To
-  $in = [IO.File]::Open($From, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-  try {
-    $out = [IO.File]::Open($To, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
-    try { $in.CopyTo($out) } finally { $out.Dispose() }
-  } finally { $in.Dispose() }
-}
-
-# Writes text into a file in place (through a symlink, keeping the file's attributes), as UTF-8 without a BOM.
-function Write-MhText([string]$File, [string]$Text) { [IO.File]::WriteAllText((Resolve-MhLink $File), $Text, $MhUtf8) }
 
 # A path relative to the base, for created_dir= lines (always with / separators).
 function Get-MhRel([string]$Path, [string]$Base) {

@@ -108,8 +108,8 @@ try {
   & $inst -Agent codex | Out-Null
   [IO.File]::AppendAllText($mine, "# added later`n")
   & $uninst -Agent codex | Out-Null
-  Check 'your notes and your later edit kept, block gone' { [IO.File]::ReadAllText($mine) -eq "# my notes`n`n# added later`n" }
-  Check 'no harness folder left' { -not (Test-Path (Join-Path $h '.makkov-harness')) }
+  Check 'your notes and your later edit kept, block and the blank line before it gone' { [IO.File]::ReadAllText($mine) -eq "# my notes`n# added later`n" }
+  Check 'the copy of your file as it was stays (it differs from the file now)' { [IO.File]::ReadAllText((Join-Path $h '.makkov-harness\backups\original\.codex\AGENTS.md')) -eq "# my notes`n" }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
 
   # Two agents in one project share <project>\AGENTS.md and .agents\skills: uninstalling one leaves the other
@@ -320,6 +320,189 @@ try {
   Check "the uninstall removes Cursor's personal rule" { -not (Test-Path $personal) }
   Check 'a copy of it is kept aside' { [bool](Get-ChildItem (Join-Path $proj '.makkov-harness\backups') -Recurse -Filter 'makkov-harness-personal.mdc') }
   Check 'no empty .cursor folder left' { -not (Test-Path (Join-Path $proj '.cursor')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # Everything listed under a folder, with hashes: equal listings mean nothing changed, manifests included.
+  function Tree([string]$Dir) {
+    $root = (Resolve-Path -LiteralPath $Dir).ProviderPath
+    (@(Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+      $r = $_.FullName.Substring($root.Length)
+      if ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) { "$r -> link" }
+      elseif ($_.PSIsContainer) { "$r\" } else { "$r " + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
+    }) | Sort-Object) -join "`n"
+  }
+  # A run in a child PowerShell, to see its exit code and what it wrote to stderr.
+  function Run-Child([string]$Script, [string[]]$ArgList) {
+    $ErrorActionPreference = 'Continue'
+    $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $Script @ArgList 2>&1 | ForEach-Object { "$_" }) -join ' '
+    $script:code = $LASTEXITCODE; $script:out = $o
+  }
+
+  # A first install that cannot finish stops before it changes anything.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md is a folder'
+  New-Item -ItemType Directory -Force (Join-Path $proj 'AGENTS.md'), (Join-Path $proj '.agents\skills\animate') | Out-Null
+  Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
+  $before = Tree $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops with exit code 1 and says why' { $script:code -eq 1 -and $script:out -match 'not a regular file' }
+  Check 'nothing changed: no skills, no backup, no manifest' { (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, read-only AGENTS.md'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "# mine`n"); Copy-Item $agentsMd $exp; (Get-Item $agentsMd).IsReadOnly = $true
+  $before = Tree $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops with exit code 1 and says why' { $script:code -eq 1 -and $script:out -match 'read-only' }
+  Check 'nothing changed' { (Tree $proj) -eq $before }
+  (Get-Item $agentsMd).IsReadOnly = $false
+  & $inst -Agent codex -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'once writable, install and uninstall put it back as it was' { (Same $exp $agentsMd) -and -not (Test-Path (Join-Path $proj '.makkov-harness')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # An interrupted install (the run stops after the skills, or after the file) can be uninstalled at once, or run
+  # again and then uninstalled; either way your skill and your file come back as they were.
+  foreach ($stopAt in 'skills', 'rules') {
+    foreach ($then in 'uninstall', 'rerun') {
+      $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+      Write-Output "codex project, install stopped after the $stopAt step, then $then"
+      $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
+      [IO.File]::WriteAllText($agentsMd, '# mine'); Copy-Item $agentsMd $exp
+      New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null; Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
+      $env:MAKKOV_HARNESS_TEST_STOP = $stopAt
+      try { & $inst -Agent codex -Project $proj 2>$null | Out-Null } catch { }
+      Remove-Item Env:\MAKKOV_HARNESS_TEST_STOP
+      Check 'a manifest is there after the interruption' { Test-Path (Join-Path $proj '.makkov-harness\install-codex.txt') }
+      if ($then -eq 'rerun') { & $inst -Agent codex -Project $proj | Out-Null }
+      & $uninst -Agent codex -Project $proj | Out-Null
+      Check 'your animate is back' { (Get-Content (Join-Path $proj '.agents\skills\animate\SKILL.md')) -eq 'mine' }
+      Check 'your file is back byte for byte' { Same $exp $agentsMd }
+      Check 'nothing of the harness left' { -not (Test-Path (Join-Path $proj '.makkov-harness')) -and ((@(Get-ChildItem (Join-Path $proj '.agents\skills')) | ForEach-Object Name) -join ',') -eq 'animate' }
+      $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+    }
+  }
+
+  # Your file's bytes pass through as they are: another encoding, a byte order mark, edited after the install.
+  # A UTF-16 file is not rewritten at all.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a Windows-1251 file and a UTF-8 file with a BOM, edited after the install'
+  $agentsMd = Join-Path $proj 'AGENTS.md'
+  foreach ($kind in 'cp1251', 'bom') {
+    $bytes = if ($kind -eq 'cp1251') { [byte[]](0x23, 0x20, 0xCF, 0xF0, 0xE8, 0xE2, 0xE5, 0xF2, 0x0D, 0x0A) } else { [byte[]](0xEF, 0xBB, 0xBF, 0x23, 0x20, 0x6E, 0xE2, 0x80, 0x94, 0x0A) }
+    [IO.File]::WriteAllBytes($agentsMd, $bytes)
+    & $inst -Agent codex -Project $proj | Out-Null; & $inst -Agent codex -Project $proj -Scope design | Out-Null
+    $now = [IO.File]::ReadAllBytes($agentsMd)
+    Check "${kind}: your bytes are unchanged at the top of the file" { [Convert]::ToBase64String([byte[]]$now[0..($bytes.Length - 1)]) -eq [Convert]::ToBase64String($bytes) }
+    [IO.File]::WriteAllBytes($agentsMd, [byte[]]($now + [byte[]](0x61, 0x64, 0x64, 0x65, 0x64, 0x0A)))
+    & $uninst -Agent codex -Project $proj | Out-Null
+    Check "${kind}: after the uninstall your bytes and your edit are there" { [Convert]::ToBase64String([IO.File]::ReadAllBytes($agentsMd)) -eq [Convert]::ToBase64String([byte[]]($bytes + [byte[]](0x61, 0x64, 0x64, 0x65, 0x64, 0x0A))) }
+    Remove-Item (Join-Path $proj '.makkov-harness') -Recurse -Force
+  }
+  [IO.File]::WriteAllBytes($agentsMd, [byte[]](0xFF, 0xFE, 0x23, 0x00, 0x20, 0x00, 0x6D, 0x00, 0x0A, 0x00)); $before = Tree $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'a UTF-16 file: install stops with exit code 1 and says why' { $script:code -eq 1 -and $script:out -match 'UTF-16' }
+  Check 'and changes nothing' { (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A manifest is not trusted: one that points outside the folder, or names paths the installer would not use,
+  # stops install and uninstall before any change.
+  foreach ($tamper in 'rules', 'skill', 'created', 'backup', 'empty') {
+    $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+    Write-Output "codex project, manifest edited: $tamper"
+    $precious = Join-Path $h 'precious.txt'; Set-Content $precious 'PRECIOUS'; New-Item -ItemType Directory -Force (Join-Path $h 'outside\keep') | Out-Null
+    & $inst -Agent codex -Project $proj | Out-Null
+    $mf = Join-Path $proj '.makkov-harness\install-codex.txt'; $ml = @(Get-Content $mf)
+    switch ($tamper) {
+      'rules'   { $ml = @($ml | ForEach-Object { if ($_ -like 'rules=*') { "rules=$precious" } else { $_ } }) }
+      'skill'   { $ml += 'skill=../../../outside 123' }
+      'created' { $ml += 'created_dir=../outside' }
+      'backup'  { $ml += 'backup=' + (Join-Path $h 'outside') }
+      'empty'   { $ml = @() }
+    }
+    [IO.File]::WriteAllLines($mf, [string[]]$ml)
+    $before = Tree $proj
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+    Check 'uninstall stops with exit code 1 and says the manifest is not one it wrote' { $script:code -eq 1 -and $script:out -match 'does not look like a manifest' }
+    Check 'nothing changed in the project or outside it' { (Tree $proj) -eq $before -and (Get-Content $precious) -eq 'PRECIOUS' -and (Test-Path (Join-Path $h 'outside\keep')) }
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'install stops too' { $script:code -eq 1 -and (Tree $proj) -eq $before }
+    $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+  }
+
+  # A file that already holds a marked block is kept as it was before the install, and the copy stays after the
+  # uninstall, since the file then differs from it.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, your file already has a marked block'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "# doc`n<!-- makkov-harness:start -->`nMY EXAMPLE TEXT`n<!-- makkov-harness:end -->`nafter`n"); Copy-Item $agentsMd $exp
+  & $inst -Agent codex -Project $proj | Out-Null
+  $orig = Join-Path $proj '.makkov-harness\backups\original\AGENTS.md'
+  Check 'a copy of your file as it was, block and all' { Same $exp $orig }
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'the copy stays after the uninstall, and the uninstall says where' { (Same $exp $orig) -and $script:out -match 'is kept in' }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A symlink to a file that does not exist: nothing is created outside the project, and the link is not deleted.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md is a dangling symlink'
+  $target = Join-Path $h 'target.md'; $link = Join-Path $proj 'AGENTS.md'; $linked = $true
+  try { Set-Content $target 'x'; New-Item -ItemType SymbolicLink -Path $link -Target $target | Out-Null; Remove-Item $target } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
+  if ($linked) {
+    $before = Tree $proj
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'install stops with exit code 1 and says why' { $script:code -eq 1 -and $script:out -match 'does not exist' }
+    Check 'nothing changed, and no target created' { (Tree $proj) -eq $before -and -not (Test-Path $target) }
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A file of blank lines and spaces comes back as it was.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a file of whitespace only'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "  `n`n`t`n"); Copy-Item $agentsMd $exp
+  & $inst -Agent codex -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'put back byte for byte' { (Same $exp $agentsMd) -and -not (Test-Path (Join-Path $proj '.makkov-harness')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # An uninstall that cannot finish stops before it changes anything, and works once it can.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, uninstall with a read-only AGENTS.md'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "# mine`n"); Copy-Item $agentsMd $exp
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null; Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
+  & $inst -Agent codex -Project $proj | Out-Null; (Get-Item $agentsMd).IsReadOnly = $true; $before = Tree $proj
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'uninstall stops with exit code 1 and changes nothing' { $script:code -eq 1 -and (Tree $proj) -eq $before }
+  (Get-Item $agentsMd).IsReadOnly = $false; & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'once writable, the uninstall puts back your file and your animate' { (Same $exp $agentsMd) -and (Get-Content (Join-Path $proj '.agents\skills\animate\SKILL.md')) -eq 'mine' -and -not (Test-Path (Join-Path $proj '.makkov-harness')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A skill another agent's newer install updated is still the harness's own when the older agent goes last.
+  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex from an older copy, copilot from a newer one, uninstalled copilot first'
+  & $sInst -Agent codex -Project $proj | Out-Null
+  Set-Content (Join-Path $src 'skills\animate\CHANGES.md') 'newer'
+  & $sInst -Agent copilot -Project $proj | Out-Null
+  & $sUninst -Agent copilot -Project $proj | Out-Null
+  & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'nothing taken for yours, nothing left' { (Entries $proj).Count -eq 0 }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $src -Recurse -Force
+
+  # Agents without skills (Aider) next to agents with them; and a project path that is your home folder.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'aider and codex in one project'
+  & $inst -Agent aider -Project $proj | Out-Null
+  & $inst -Agent codex -Project $proj | Out-Null
+  Check 'codex installs next to aider' { Test-Path (Join-Path $proj '.agents\skills\design-score') }
+  & $uninst -Agent codex -Project $proj | Out-Null; & $uninst -Agent aider -Project $proj | Out-Null
+  Check 'both uninstall, nothing left' { (Entries $proj).Count -eq 0 }
+  Write-Output 'codex with the home folder as the project path'
+  Run-Child $inst @('-Agent', 'codex', '-Project', $h)
+  Check 'install stops with exit code 2 and says why' { $script:code -eq 2 -and $script:out -match 'home folder' }
+  Check 'nothing written' { (Entries $h).Count -eq 0 }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 } finally { $env:USERPROFILE = $realHome }
 

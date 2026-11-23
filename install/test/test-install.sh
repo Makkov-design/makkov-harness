@@ -96,8 +96,8 @@ echo "codex with your own AGENTS.md, edited after the install"
 bash "$inst" codex >/dev/null
 printf '# added later\n' >> "$home/.codex/AGENTS.md"
 bash "$uninst" codex >/dev/null
-check "your notes and your later edit kept, block gone" "[ \"\$(cat '$home/.codex/AGENTS.md')\" = \"\$(printf '# my notes\n\n# added later')\" ]"
-check "no harness folder left" "[ ! -e '$home/.makkov-harness' ]"
+check "your notes and your later edit kept, block and the blank line before it gone" "[ \"\$(cat '$home/.codex/AGENTS.md')\" = \"\$(printf '# my notes\n# added later')\" ]"
+check "the copy of your file as it was stays (it differs from the file now)" "[ \"\$(cat '$home/.makkov-harness/backups/original/.codex/AGENTS.md')\" = '# my notes' ]"
 rm -rf "$home"
 
 # Two agents in one project share <project>/AGENTS.md and .agents/skills: uninstalling one leaves the other
@@ -290,6 +290,166 @@ bash "$uninst" cursor "$proj" >/dev/null
 check "the uninstall removes Cursor's personal rule" "[ ! -e '$proj/.cursor/rules/makkov-harness-personal.mdc' ]"
 check "a copy of it is kept aside" "ls '$proj'/.makkov-harness/backups/*/removed/makkov-harness-personal.mdc >/dev/null 2>&1"
 check "no empty .cursor folder left" "[ ! -e '$proj/.cursor' ]"
+rm -rf "$home" "$proj"
+
+# Everything listed under a folder, with checksums: equal listings mean nothing changed, manifests included.
+tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
+runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
+root=0; [ "$(id -u)" = 0 ] && root=1
+
+# A first install that cannot finish stops before it changes anything.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, AGENTS.md is a folder"
+mkdir -p "$proj/AGENTS.md" "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
+before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops with exit code 1 and says why" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'not a regular file'"
+check "nothing changed: no skills, no backup, no manifest" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+if [ "$root" = 1 ]; then echo "codex project, read-only AGENTS.md"; echo "  skip (running as root, which can write a read-only file)"; else
+  home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+  echo "codex project, read-only AGENTS.md"
+  printf '# mine\n' > "$proj/AGENTS.md"; chmod 444 "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
+  before="$(tree "$proj")"
+  runs bash "$inst" codex "$proj"
+  check "install stops with exit code 1 and says why" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'read-only'"
+  check "nothing changed" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
+  chmod 644 "$proj/AGENTS.md"
+  bash "$inst" codex "$proj" >/dev/null && bash "$uninst" codex "$proj" >/dev/null
+  check "once writable, install and uninstall put it back as it was" "cmp -s '$home/expected' '$proj/AGENTS.md' && [ ! -e '$proj/.makkov-harness' ]"
+  rm -rf "$home" "$proj"
+fi
+
+# An interrupted install (the run stops after the skills, or after the file) can be uninstalled at once, or run
+# again and then uninstalled; either way your skill and your file come back as they were.
+for stop_at in skills rules; do
+  for then in uninstall rerun; do
+    home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+    echo "codex project, install stopped after the $stop_at step, then $then"
+    printf '# mine' > "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
+    mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
+    set +e; MAKKOV_HARNESS_TEST_STOP=$stop_at bash "$inst" codex "$proj" >/dev/null 2>&1; set -e
+    check "a manifest is there after the interruption" "[ -f '$proj/.makkov-harness/install-codex.txt' ]"
+    [ "$then" = rerun ] && bash "$inst" codex "$proj" >/dev/null
+    bash "$uninst" codex "$proj" >/dev/null
+    check "your animate is back" "grep -qx mine '$proj/.agents/skills/animate/SKILL.md'"
+    check "your file is back byte for byte" "cmp -s '$home/expected' '$proj/AGENTS.md'"
+    check "nothing of the harness left" "[ ! -e '$proj/.makkov-harness' ] && [ \"\$(ls '$proj/.agents/skills')\" = animate ]"
+    rm -rf "$home" "$proj"
+  done
+done
+
+# Your file's bytes pass through as they are: another encoding, a byte order mark, edited after the install.
+# A UTF-16 file is not rewritten at all.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a Windows-1251 file and a UTF-8 file with a BOM, edited after the install"
+for kind in cp1251 bom; do
+  if [ "$kind" = cp1251 ]; then printf '# \xcf\xf0\xe8\xe2\xe5\xf2\r\n' > "$proj/AGENTS.md"; else printf '\xef\xbb\xbf# notes \xe2\x80\x94 mine\n' > "$proj/AGENTS.md"; fi
+  cp "$proj/AGENTS.md" "$home/expected"
+  bash "$inst" codex "$proj" >/dev/null; bash "$inst" codex "$proj" --scope design >/dev/null
+  check "$kind: your bytes are unchanged at the top of the file" "[ \"\$(head -c \$(wc -c < '$home/expected') '$proj/AGENTS.md' | od -An -tx1)\" = \"\$(od -An -tx1 < '$home/expected')\" ]"
+  printf 'added\n' >> "$proj/AGENTS.md"
+  bash "$uninst" codex "$proj" >/dev/null
+  check "$kind: after the uninstall your bytes and your edit are there" "[ \"\$(od -An -tx1 < '$proj/AGENTS.md')\" = \"\$( { cat '$home/expected'; printf 'added\n'; } | od -An -tx1)\" ]"
+  rm -rf "$proj/.makkov-harness"
+done
+printf '\xff\xfe#\x00 \x00m\x00\n\x00' > "$proj/AGENTS.md"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "a UTF-16 file: install stops with exit code 1 and says why" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'UTF-16'"
+check "and changes nothing" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+
+# A manifest is not trusted: one that points outside the folder, or names paths the installer would not use,
+# stops install and uninstall before any change.
+for tamper in rules skill created backup empty; do
+  home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+  echo "codex project, manifest edited: $tamper"
+  echo PRECIOUS > "$home/precious.txt"; mkdir -p "$home/outside/keep"
+  bash "$inst" codex "$proj" >/dev/null
+  mf="$proj/.makkov-harness/install-codex.txt"
+  case "$tamper" in
+    rules)   sed "s#^rules=.*#rules=$home/precious.txt#" "$mf" > "$home/m" ;;
+    skill)   { cat "$mf"; echo "skill=../../../outside 123"; } > "$home/m" ;;
+    created) { cat "$mf"; echo "created_dir=../outside"; } > "$home/m" ;;
+    backup)  { cat "$mf"; echo "backup=$home/outside"; } > "$home/m" ;;
+    empty)   : > "$home/m" ;;
+  esac
+  cat "$home/m" > "$mf"
+  before="$(tree "$proj")"
+  runs bash "$uninst" codex "$proj"
+  check "uninstall stops with exit code 1 and says the manifest is not one it wrote" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'does not look like a manifest'"
+  check "nothing changed in the project or outside it" "[ \"\$(tree '$proj')\" = \"\$before\" ] && grep -qx PRECIOUS '$home/precious.txt' && [ -d '$home/outside/keep' ]"
+  runs bash "$inst" codex "$proj"
+  check "install stops too" "[ $code = 1 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+  rm -rf "$home" "$proj"
+done
+
+# A file that already holds a marked block (an example in your notes, or a teammate's committed file) is kept as
+# it was before the install, and the copy stays after the uninstall, since the file then differs from it.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, your file already has a marked block"
+printf '# doc\n<!-- makkov-harness:start -->\nMY EXAMPLE TEXT\n<!-- makkov-harness:end -->\nafter\n' > "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
+bash "$inst" codex "$proj" >/dev/null
+check "a copy of your file as it was, block and all" "cmp -s '$home/expected' '$proj/.makkov-harness/backups/original/AGENTS.md'"
+runs bash "$uninst" codex "$proj"
+check "the copy stays after the uninstall, and the uninstall says where" "cmp -s '$home/expected' '$proj/.makkov-harness/backups/original/AGENTS.md' && printf '%s' \"\$out\" | grep -q 'is kept in'"
+rm -rf "$home" "$proj"
+
+# A symlink to a file that does not exist: nothing is created outside the project, and the link is not deleted.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, AGENTS.md is a dangling symlink"
+ln -s "$home/target.md" "$proj/AGENTS.md"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops with exit code 1 and says why" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'does not exist'"
+check "nothing changed, and no target created" "[ \"\$(tree '$proj')\" = \"\$before\" ] && [ ! -e '$home/target.md' ]"
+rm -rf "$home" "$proj"
+
+# A file of blank lines and spaces comes back as it was.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a file of whitespace only"
+printf '  \n\n\t\n' > "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
+bash "$inst" codex "$proj" >/dev/null; bash "$uninst" codex "$proj" >/dev/null
+check "put back byte for byte" "cmp -s '$home/expected' '$proj/AGENTS.md' && [ ! -e '$proj/.makkov-harness' ]"
+rm -rf "$home" "$proj"
+
+# An uninstall that cannot finish stops before it changes anything, and works once it can.
+if [ "$root" = 1 ]; then echo "codex project, uninstall with a read-only AGENTS.md"; echo "  skip (running as root, which can write a read-only file)"; else
+  home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+  echo "codex project, uninstall with a read-only AGENTS.md"
+  printf '# mine\n' > "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
+  mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
+  bash "$inst" codex "$proj" >/dev/null; chmod 444 "$proj/AGENTS.md"; before="$(tree "$proj")"
+  runs bash "$uninst" codex "$proj"
+  check "uninstall stops with exit code 1 and changes nothing" "[ $code = 1 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+  chmod 644 "$proj/AGENTS.md"; bash "$uninst" codex "$proj" >/dev/null
+  check "once writable, the uninstall puts back your file and your animate" "cmp -s '$home/expected' '$proj/AGENTS.md' && grep -qx mine '$proj/.agents/skills/animate/SKILL.md' && [ ! -e '$proj/.makkov-harness' ]"
+  rm -rf "$home" "$proj"
+fi
+
+# A skill another agent's newer install updated is still the harness's own when the older agent goes last.
+src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex from an older copy, copilot from a newer one, uninstalled copilot first"
+bash "$src/install/install.sh" codex "$proj" >/dev/null
+echo "newer" > "$src/skills/animate/CHANGES.md"
+bash "$src/install/install.sh" copilot "$proj" >/dev/null
+bash "$src/install/uninstall.sh" copilot "$proj" >/dev/null
+bash "$inst" codex "$proj" --dry-run >/dev/null
+bash "$uninst" codex "$proj" >/dev/null
+check "nothing taken for yours, nothing left" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj" "$src"
+
+# Agents without skills (Aider) next to agents with them; and a project path that is your home folder.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "aider and codex in one project"
+bash "$inst" aider "$proj" >/dev/null
+runs bash "$inst" codex "$proj"
+check "codex installs next to aider" "[ $code = 0 ] && [ -d '$proj/.agents/skills/design-score' ]"
+bash "$uninst" codex "$proj" >/dev/null; bash "$uninst" aider "$proj" >/dev/null
+check "both uninstall, nothing left" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
+echo "codex with the home folder as the project path"
+runs bash "$inst" codex "$home"
+check "install stops with exit code 2 and says why" "[ $code = 2 ] && printf '%s' \"\$out\" | grep -q 'home folder'"
+check "nothing written" "[ -z \"\$(find '$home' -mindepth 1)\" ]"
 rm -rf "$home" "$proj"
 
 echo

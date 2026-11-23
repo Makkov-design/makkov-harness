@@ -8,6 +8,11 @@
 #   --scope design   route design work only: research reports, third-party installs and general coding
 #                    plugins are left out of the routing map (the skills are still copied). An update keeps
 #                    the scope of the earlier install unless you pass --scope again.
+#
+# The order is the safety: everything that can fail is checked before the first change; the manifest
+# (.makkov-harness/install-<agent>.txt) records what the run is about to do before it does it, so an
+# interrupted run can be run again or uninstalled; the instructions file is kept once, as it was, before the
+# harness first changes it; and a manifest is read as untrusted input (install/lib.sh, mh_valid_manifest).
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
@@ -40,31 +45,34 @@ case "$agent" in
   cursor|copilot|windsurf|aider)
     if [ -z "$project" ]; then echo "$agent has no user-level instructions file this installer can edit. Pass a project path." >&2; exit 2; fi ;;
 esac
+if [ -n "$project" ] && [ "$project" = "$(cd "$HOME" && pwd)" ]; then
+  echo "The project path is your home folder, where a user-level install keeps its manifest. Leave the project path out for a user-level install, or pass a project folder." >&2
+  exit 2
+fi
 base="${project:-$HOME}"
-
-case "$agent" in
-  cline) skills_dir="$base/.cline/skills" ;;
-  aider) skills_dir="" ;;
-  *)     skills_dir="$base/.agents/skills" ;;
-esac
-case "$agent" in
-  codex)    rules="${project:+$project/AGENTS.md}";  rules="${rules:-$HOME/.codex/AGENTS.md}" ;;
-  gemini)   rules="${project:+$project/GEMINI.md}";  rules="${rules:-$HOME/.gemini/GEMINI.md}" ;;
-  opencode) rules="${project:+$project/AGENTS.md}";  rules="${rules:-$HOME/.config/opencode/AGENTS.md}" ;;
-  cline)    rules="${project:+$project/AGENTS.md}";  rules="${rules:-$HOME/.agents/AGENTS.md}" ;;
-  cursor)   rules="$project/.cursor/rules/makkov-harness.mdc" ;;
-  aider)    rules="$project/CONVENTIONS.md" ;;
-  *)        rules="$project/AGENTS.md" ;;
-esac
+mh_paths "$agent" "$project"
+skills_dir="$MH_SKILLS" rules="$MH_RULES"
 
 stamp="$(date +%Y%m%d-%H%M%S)"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
 backup_root="$state/backups/$stamp"
+rel_rules="$(mh_rel "$rules" "$base")"
+original="$state/backups/original/$rel_rules"
 [ "$dry" = 1 ] && echo "Dry run: nothing will be written."
+stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
+# Test only: stop the run at a named point, as an interruption would (see install/test/test-install.sh).
+checkpoint() { if [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
 
-# 0. Before anything is written: the earlier install of this agent (its manifest, read with its paths moved
-#    onto this folder if the folder was moved or renamed since), and markers the rewrite can trust.
+# 0. Before anything is written.
+# Every manifest in this folder must be one the installer wrote for this folder.
+if [ -d "$state" ]; then
+  for m in "$state"/install-*.txt; do
+    [ -f "$m" ] || continue
+    why="$(mh_valid_manifest "$m" "$base" "$project")" || stop "$m does not look like a manifest this installer wrote: $why. Move it out of $state and run this again."
+  done
+fi
+# The earlier install of this agent, with its paths moved onto this folder if the folder was moved or renamed.
 rules_existed=0 rules_backup="" old_backups="" old_created="" old_skills=""
 if [ -f "$manifest" ]; then
   rules_existed="$(mh_raw "$manifest" rules_existed)"; rules_backup="$(mh_get "$manifest" rules_backup "$base")"
@@ -77,7 +85,7 @@ if [ -f "$manifest" ]; then
 fi
 case "$scope" in all|design) ;; *) scope=all ;; esac
 # Another agent installed into the same instructions file (Codex, Copilot, Windsurf, Cline and OpenCode all use
-# <project>/AGENTS.md): this install shares its record of whether the file was yours before the harness.
+# <project>/AGENTS.md): this install shares its record of the file as it was before the harness.
 if [ ! -f "$manifest" ] && [ -d "$state" ]; then
   for m in "$state"/install-*.txt; do
     [ -f "$m" ] || continue
@@ -86,93 +94,159 @@ if [ ! -f "$manifest" ] && [ -d "$state" ]; then
     fi
   done
 fi
-if [ ! -f "$manifest" ] && [ -z "$rules_backup" ] && [ -f "$rules" ] && ! grep -q "$MH_START" "$rules"; then rules_existed=1; fi
-[ "$agent" = cursor ] || mh_check_markers "$rules" || exit 1
+# A file that is there at the first install is kept, as it was, whatever it holds (a marked block too). A copy
+# an interrupted earlier run left in backups/original/ is the file as it was, so it is used, never replaced.
+need_copy=0
+if [ ! -f "$manifest" ] && [ -z "$rules_backup" ]; then
+  if [ -f "$original" ]; then rules_existed=1; rules_backup="$original"
+  elif [ -f "$rules" ]; then rules_existed=1; rules_backup="$original"; need_copy=1; fi
+fi
+[ "$rules_backup" = "$original" ] && [ ! -f "$original" ] && [ -f "$rules" ] && need_copy=1
+# Files and folders it is about to change: they must be there to change, or creatable.
+why="$(mh_writable_file "$rules")" || stop "$why."
+if [ "$agent" != cursor ]; then
+  mh_check_markers "$rules" || exit 1
+  if mh_wide_text "$rules"; then stop "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again."; fi
+fi
+if [ -n "$skills_dir" ]; then why="$(mh_writable_dir "$skills_dir")" || stop "$why."; fi
+why="$(mh_writable_dir "$state")" || stop "$why."
 
 # What earlier installs into this skills folder put there, from every manifest that points at it.
 earlier=""
 if [ -n "$skills_dir" ] && [ -d "$state" ]; then
   for m in "$state"/install-*.txt; do
     [ -f "$m" ] || continue
-    [ "$(mh_get "$m" skills_dir "$base")" = "$skills_dir" ] && earlier="$earlier$(grep '^skill=' "$m")
+    if [ "$(mh_get "$m" skills_dir "$base")" = "$skills_dir" ]; then earlier="$earlier$(grep '^skill=' "$m" || true)
+"; fi
+  done
+fi
+# This version's skills (rich-report needs Claude Artifacts, so it is skipped here) and their fingerprints.
+names="" manifest_skills=""
+if [ -n "$skills_dir" ]; then
+  for d in "$repo"/skills/*/; do
+    name="$(basename "$d")"
+    [ "$name" = "rich-report" ] && continue
+    names="$names $name"
+    manifest_skills="${manifest_skills}skill=$name $(mh_fingerprint "${d%/}")
 "
   done
 fi
+fp_of() { printf '%s' "$manifest_skills" | sed -n "s/^skill=$1 //p"; }
+
 # Folders this install creates, so the uninstaller can take them away again once they are empty.
 created="$old_created"
 add_created() { local d; while IFS= read -r d; do [ -n "$d" ] && ! printf '%s\n' "$created" | grep -qxF "created_dir=$d" && created="${created}created_dir=$d
 "; done < <(mh_missing_dirs "$1" "$base"); return 0; }
+[ -n "$skills_dir" ] && add_created "$skills_dir"
+add_created "$(dirname "$rules")"
 
-# 1. Skills (rich-report needs Claude Artifacts, so it is skipped here).
+# The manifest: what this install puts where, so install/uninstall.sh removes exactly that. Paths are
+# absolute; base= says which folder they were written for, so a moved folder can still be read.
+write_manifest() {   # $1: skill lines, $2: backup lines
+  mkdir -p "$state"
+  {
+    echo "agent=$agent"
+    echo "installed=$stamp"
+    echo "base=$base"
+    echo "skills_dir=$skills_dir"
+    echo "rules=$rules"
+    echo "rules_existed=${rules_existed:-0}"
+    echo "rules_backup=$rules_backup"
+    echo "scope=$scope"
+    printf '%s' "$2"
+    printf '%s' "$created" | grep -v -e '^created_dir=\.makkov-harness$' -e '^created_dir=\.makkov-harness/' || true
+    printf '%s\n' "$1" | grep '^skill=' | awk '!seen[$0]++' || true
+  } > "$manifest.new"
+  mv "$manifest.new" "$manifest"
+}
+
+if [ "$dry" = 1 ]; then
+  for name in $names; do
+    dst="$skills_dir/$name"
+    if [ ! -e "$dst" ]; then echo "  would copy $name to $dst"; continue; fi
+    fp_old="$(mh_fingerprint "$dst")"
+    if [ "$fp_old" = "$(fp_of "$name")" ]; then :
+    elif printf '%s' "$earlier" | grep -qx "skill=$name $fp_old"; then echo "  would update $dst (a copy this harness put there)"
+    elif printf '%s' "$earlier" | grep -qx "skill=$name"; then echo "  would move $dst (from an install before 0.5.0) to $backup_root/earlier-harness/$name"
+    else echo "  would move your $dst to $backup_root/skills/$name, then copy ours"; fi
+  done
+  [ "$need_copy" = 1 ] && echo "  would keep a copy of $rules as it is now in $original"
+  if [ -f "$rules" ]; then
+    if [ "$agent" = "cursor" ]; then echo "  would rewrite $rules with the routing rule"
+    elif grep -q "$MH_START" "$rules"; then echo "  would update the marked routing block in $rules"
+    else echo "  would append the marked routing block to $rules"; fi
+  else
+    echo "  would create $rules with the routing block"
+  fi
+  echo "Dry run done for $agent. Run again without --dry-run to install."
+  exit 0
+fi
+
+# The journal: before the first change, the manifest already lists everything this run may leave behind.
+write_manifest "$old_skills
+$manifest_skills" "${old_backups}backup=$backup_root/skills
+"
+
+# 1. Skills.
 # - a copy that is already exactly ours is left as it is;
 # - the copy an earlier install of this harness put there is replaced;
 # - a folder an install from before 0.5.0 put there (no fingerprint recorded, so it may have been edited) is
 #   moved to backups/<date>/earlier-harness/ and left there;
 # - anything else (your own skill, or ours that you edited) is moved to backups/<date>/skills/ and put back
 #   by the uninstaller. Nothing is deleted that might be yours.
+# Each copy goes to a temporary name first and is then renamed, so an interrupted copy is never taken for yours.
 copied="" backed="" older="" dropped=""
-manifest_skills=""
 if [ -n "$skills_dir" ]; then
-  if [ "$dry" = 0 ]; then add_created "$skills_dir"; mkdir -p "$skills_dir"; fi
-  for d in "$repo"/skills/*/; do
-    name="$(basename "$d")"
-    [ "$name" = "rich-report" ] && continue
-    fp_new="$(mh_fingerprint "${d%/}")"
+  mkdir -p "$skills_dir"
+  for t in "$skills_dir"/.mh-tmp-*; do [ -e "$t" ] && rm -rf "${t:?}"; done
+  for name in $names; do
     dst="$skills_dir/$name"
     copy=1
-    if [ -e "$dst" ]; then
+    if [ -e "$dst" ] || [ -L "$dst" ]; then
       fp_old="$(mh_fingerprint "$dst")"
-      if [ "$fp_old" = "$fp_new" ]; then
+      if [ "$fp_old" = "$(fp_of "$name")" ]; then
         copy=0
       elif printf '%s' "$earlier" | grep -qx "skill=$name $fp_old"; then
-        [ "$dry" = 1 ] && echo "  would update $dst (a copy this harness put there)" || rm -rf "${dst:?}"
+        rm -rf "${dst:?}"
       elif printf '%s' "$earlier" | grep -qx "skill=$name"; then
-        if [ "$dry" = 1 ]; then echo "  would move $dst (from an install before 0.5.0) to $backup_root/earlier-harness/$name"
-        else mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"; fi
+        mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"
         older="$older $name"
       else
-        if [ "$dry" = 1 ]; then echo "  would move your $dst to $backup_root/skills/$name, then copy ours"
-        else mkdir -p "$backup_root/skills"; mv "$dst" "$backup_root/skills/$name"; fi
+        mkdir -p "$backup_root/skills"; mv "$dst" "$backup_root/skills/$name"
         backed="$backed $name"
       fi
-    else
-      [ "$dry" = 1 ] && echo "  would copy $name to $dst"
     fi
-    [ "$dry" = 1 ] || [ "$copy" = 0 ] || cp -R "${d%/}" "$dst"
+    if [ "$copy" = 1 ]; then cp -R "$repo/skills/$name" "$skills_dir/.mh-tmp-$name"; mv "$skills_dir/.mh-tmp-$name" "$dst"; fi
     copied="$copied $name"
-    manifest_skills="${manifest_skills}skill=$name $fp_new
-"
   done
 
   # Skills the earlier install of this agent put there that this version no longer has (removed or renamed):
   # removed while still exactly as installed, moved to backups/<date>/removed/ if you changed them,
   # to backups/<date>/earlier-harness/ if the install was from before 0.5.0. Another agent's copy stays.
-  old_skills_dir="$( [ -f "$manifest" ] && mh_get "$manifest" skills_dir "$base" || true)"
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     entry="${line#skill=}"; name="${entry%% *}"; fp=""; [ "$entry" != "$name" ] && fp="${entry#* }"
     printf '%s' "$manifest_skills" | grep -q "^skill=$name " && continue
-    [ "$old_skills_dir" = "$skills_dir" ] || continue
+    case " $dropped " in *" $name "*) continue ;; esac
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
     other=0
     for m in "$state"/install-*.txt; do
       [ "$m" = "$manifest" ] || [ ! -f "$m" ] && continue
-      [ "$(mh_get "$m" skills_dir "$base")" = "$skills_dir" ] && grep -q "^skill=$name\( \|$\)" "$m" && other=1
+      [ "$(mh_get "$m" skills_dir "$base")" = "$skills_dir" ] && grep -Eq "^skill=$name( |$)" "$m" && other=1
     done
     if [ "$other" = 1 ]; then echo "  keep $dst (no longer part of the harness, but another installed agent lists it)"; continue; fi
-    if [ -n "$fp" ] && [ "$(mh_fingerprint "$dst")" = "$fp" ]; then
-      if [ "$dry" = 1 ]; then echo "  would remove $dst (no longer part of the harness)"; else rm -rf "${dst:?}"; fi
+    if [ -n "$fp" ] && printf '%s\n' "$old_skills" | grep -qxF "skill=$name $(mh_fingerprint "$dst")"; then
+      rm -rf "${dst:?}"
     elif [ -n "$fp" ]; then
-      if [ "$dry" = 1 ]; then echo "  would move $dst (no longer part of the harness; you changed it) to $backup_root/removed/$name"
-      else mkdir -p "$backup_root/removed"; mv "$dst" "$backup_root/removed/$name"; fi
+      mkdir -p "$backup_root/removed"; mv "$dst" "$backup_root/removed/$name"
     else
-      if [ "$dry" = 1 ]; then echo "  would move $dst (no longer part of the harness, from an install before 0.5.0) to $backup_root/earlier-harness/$name"
-      else mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"; fi
+      mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"
     fi
     dropped="$dropped $name"
   done < <(printf '%s\n' "$old_skills")
 fi
+checkpoint skills
 
 # 2. Routing block.
 routing="$(sed 's/`rich-report` (Claude with Artifacts) or `html-report` (any agent)/`html-report`/' "$repo/ROUTING.md")"
@@ -186,23 +260,6 @@ fi
 MH_BLOCK="$MH_START
 $routing
 $MH_END"
-# The file before the harness first changed it is kept once, as .makkov-harness/backups/original/<path>.
-# The uninstaller uses it to put the file back exactly as it was.
-rel_rules="$(mh_rel "$rules" "$base")"
-original="$state/backups/original/$rel_rules"
-if [ "$dry" = 1 ]; then
-  if [ -f "$rules" ]; then
-    [ "$rules_existed" = 1 ] && [ -z "$rules_backup" ] && echo "  would keep a copy of $rules as it is now in $original"
-    if [ "$agent" = "cursor" ]; then echo "  would rewrite $rules with the routing rule"
-    elif grep -q "$MH_START" "$rules"; then echo "  would update the marked routing block in $rules"
-    else echo "  would append the marked routing block to $rules"; fi
-  else
-    echo "  would create $rules with the routing block"
-  fi
-  echo "Dry run done for $agent. Run again without --dry-run to install."
-  exit 0
-fi
-add_created "$(dirname "$rules")"
 mkdir -p "$(dirname "$rules")"
 new="$(mktemp)"
 if [ "$agent" = "cursor" ]; then
@@ -218,31 +275,18 @@ fi
 if [ -f "$rules" ] && cmp -s "$new" "$rules"; then
   :   # already up to date: the file is not touched
 else
-  if [ -f "$rules" ] && [ "$rules_existed" = 1 ] && [ -z "$rules_backup" ]; then
-    add_created "$(dirname "$original")"; mkdir -p "$(dirname "$original")"; cp -p "$rules" "$original"; rules_backup="$original"
+  if [ "$need_copy" = 1 ]; then
+    mkdir -p "$(dirname "$original")"; cat "$rules" > "$original"   # a plain copy: not read-only, even if the file is
   fi
   if [ -f "$rules" ]; then mh_write_through "$rules" < "$new"; else cat "$new" > "$rules"; fi
 fi
 rm -f "$new"
+checkpoint rules
 
-# 3. Manifest: what this install put where, so install/uninstall.sh removes exactly that.
-# Paths are absolute; base= says which folder they were written for, so a moved folder can still be read.
-add_created "$state"
-mkdir -p "$state"
-{
-  echo "agent=$agent"
-  echo "installed=$stamp"
-  echo "base=$base"
-  echo "skills_dir=$skills_dir"
-  echo "rules=$rules"
-  echo "rules_existed=${rules_existed:-0}"
-  echo "rules_backup=$rules_backup"
-  echo "scope=$scope"
-  printf '%s' "$old_backups"
-  [ -n "$backed" ] && echo "backup=$backup_root/skills"
-  printf '%s' "$created" | grep -v -e '^created_dir=\.makkov-harness$' -e '^created_dir=\.makkov-harness/' || true
-  printf '%s' "$manifest_skills"
-} > "$manifest"
+# 3. The manifest, as it now stands.
+final_backups="$old_backups"; [ -n "$backed" ] && final_backups="${final_backups}backup=$backup_root/skills
+"
+write_manifest "$manifest_skills" "$final_backups"
 
 echo "makkov-harness installed for $agent"
 [ -n "$skills_dir" ] && echo "Skills -> $skills_dir :$copied"
