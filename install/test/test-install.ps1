@@ -324,4 +324,5 @@ try {
 } finally { $env:USERPROFILE = $realHome }
 
 Write-Output ''
-if ($script:fails -eq 0) { Write-Output 'installer tests: all passed' } else { Write-Output "installer tests: $($script:fails) failed"; exit 1 }
+# exit 0 explicitly: $LASTEXITCODE still holds the code of the last child run (the marker scenario's 1).
+if ($script:fails -eq 0) { Write-Output 'installer tests: all passed'; exit 0 } else { Write-Output "installer tests: $($script:fails) failed"; exit 1 }
