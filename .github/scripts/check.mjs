@@ -3,17 +3,23 @@
 //    plugin's version is the same in plugin.json, its marketplace entry and the newest CHANGELOG.md entry
 //    (and, where this clone has tags, a warning for a CHANGELOG.md link to a tag that does not exist yet)
 // 2. the SessionStart hook prints valid JSON under 10,000 characters of context
-// 3. every skill folder has a SKILL.md whose name matches the folder and whose description fits the spec
+// 3. every skill folder has a SKILL.md whose name matches the folder and whose description (one line or several) fits
+//    the spec
 // 4. Design Score: the generated bundle, console snippet and bookmarklets are up to date (build.mjs --check),
-//    the agent's loader carries the built bundle's SRI hash,
+//    the agent's loader carries the built bundle's SRI hash and fetches the versioned copy, score/<version>/, and every
+//    published version in docs/score/versions.json is still there, unchanged,
 //    the two copies of mh-score.js are identical, and what SECURITY.md promises holds: the bundle uses no
 //    network or storage API, and the loader bookmarklet loads only the bundle from this site, with the referrer
 //    SECURITY.md describes
 // 5. the website: local links, scripts, stylesheets and images exist; in-page anchors and icon references point
 //    at an id; section numbers (data-hud) run 00, 01, 02…; every page is in sitemap.xml; every "N situations"
 //    matches the rows in situations-data.js; every script parses
-// 6. links between the Markdown files resolve (a missing README picture is a warning: screenshots come separately)
+// 6. links between the Markdown files (every one in the repository) resolve (a missing README picture is a warning: screenshots come separately)
 // 7. no file, tracked or new and not ignored, contains something that looks like a key or token
+// 8. what is written down twice agrees: companion pins in marketplace.json and SECURITY.md; the vendored sources and
+//    npm packages in .github/upstream-watch.json and SECURITY.md; the reviewed hyperframes and puppeteer-core versions
+//    in every file that repeats them; ROUTING.md and skills/; every CHANGELOG.md version heading and its link
+// 9. the chat pack (adapters/chat-pack/files/) is built from the current skills and no two files share a name
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -73,12 +79,30 @@ try {
 } catch (e) { fail(`hooks/session-start: ${e.message.split("\n")[0]}`); }
 
 /* 3. skills */
+// One value from YAML front matter, as a string: a plain or quoted scalar on one line, a plain scalar continued on
+// indented lines, or a block scalar (| or >, with optional chomping and indent indicators). Enough for SKILL.md files;
+// not a YAML parser.
+function frontmatterValue(head, key) {
+  const lines = head.split("\n");
+  const at = lines.findIndex((l) => l.startsWith(`${key}:`));
+  if (at < 0) return "";
+  const first = lines[at].slice(key.length + 1).trim();
+  const more = [];
+  for (const l of lines.slice(at + 1)) { if (l.trim() && !/^\s/.test(l)) break; more.push(l); }
+  while (more.length && !more[more.length - 1].trim()) more.pop();
+  if (/^[|>][+-]?\d*$/.test(first)) {
+    const body = more.map((l) => l.trim());
+    return (first[0] === "|" ? body.join("\n") : body.join(" ").replace(/ {2,}/g, " ")).trim();
+  }
+  const text = [first, ...more.map((l) => l.trim())].filter(Boolean).join(" ");
+  return text.replace(/^"([\s\S]*)"$/, "$1").replace(/^'([\s\S]*)'$/, "$1").trim();
+}
 for (const dir of fs.readdirSync("skills", { withFileTypes: true }).filter((d) => d.isDirectory())) {
   const file = path.join("skills", dir.name, "SKILL.md");
   if (!fs.existsSync(file)) { fail(`${file} is missing`); continue; }
-  const head = fs.readFileSync(file, "utf8").split(/^---\s*$/m)[1] || "";
-  const name = (head.match(/^name:\s*(.+)$/m) || [])[1]?.trim().replace(/^["']|["']$/g, "");
-  const desc = (head.match(/^description:\s*(.+)$/m) || [])[1]?.trim() || "";
+  const head = read(file).split(/^---\s*$/m)[1] || "";
+  const name = frontmatterValue(head, "name");
+  const desc = frontmatterValue(head, "description");
   if (name !== dir.name) fail(`${file}: name "${name}" does not match the folder`);
   if (!desc || desc.length > 1024) fail(`${file}: description is empty or over 1024 characters`);
 }
@@ -127,6 +151,30 @@ if (fs.existsSync(`${DS}/build.mjs`)) {
     }
     if (!pinned) fail(`${DS}: no loader carries the bundle's integrity hash (${sri})`);
     else if (!bad) ok(`design-score: the agent's loader pins the bundle with its SRI hash (${plural(pinned, "place")})`);
+
+    // Each version is published once at score/<version>/mh-score.js and never changes, so an install that pinned it
+    // keeps loading it. The agent's loader must fetch the versioned copy, not score/mh-score.js, which moves on.
+    const version = (read(ship).match(/^\/\*! Design Score (\S+)/) || [])[1];
+    let vbad = 0, loaders = 0;
+    for (const f of docs) {
+      for (const m of read(f).matchAll(/\.src\s*=\s*'(https:\/\/makkov-design\.github\.io[^']*mh-score\.js[^']*)'/g)) {
+        loaders++;
+        if (m[1] !== `${BASE}score/${version}/mh-score.js`) { vbad++; fail(`${f}: the loader fetches ${m[1]}; it must fetch ${BASE}score/${version}/mh-score.js, which never changes`); }
+      }
+    }
+    let published = {};
+    try { published = JSON.parse(read("docs/score/versions.json")); } catch (e) { vbad++; fail(`docs/score/versions.json: ${e.code === "ENOENT" ? "missing" : e.message}; run node ${DS}/build.mjs`); }
+    if (published[version] !== sri) { vbad++; fail(`docs/score/versions.json does not record Design Score ${version} as ${sri}; run node ${DS}/build.mjs`); }
+    for (const [v, hash] of Object.entries(published)) {
+      const f = `docs/score/${v}/mh-score.js`;
+      if (!fs.existsSync(f)) { vbad++; fail(`${f} is missing: a published version must stay on the site`); continue; }
+      const got = "sha384-" + createHash("sha384").update(fs.readFileSync(f)).digest("base64");
+      if (got !== hash) { vbad++; fail(`${f} changed since it was published (${hash}); a published version never changes`); }
+    }
+    for (const d of fs.readdirSync("docs/score", { withFileTypes: true })) {
+      if (d.isDirectory() && !(d.name in published)) { vbad++; fail(`docs/score/${d.name}/ is not recorded in docs/score/versions.json`); }
+    }
+    if (!vbad) ok(`design-score: ${plural(Object.keys(published).length, "published version")} unchanged; the agent's loader fetches score/${version}/mh-score.js (${plural(loaders, "place")})`);
   }
   const page = path.join(SITE, "score.html");
   if (fs.existsSync(page)) {
@@ -228,10 +276,13 @@ try {
 
 /* 6. links between the Markdown files */
 {
-  const docs = fs.readdirSync(".").filter((f) => f.endsWith(".md"));
+  // every Markdown file in the repository, tracked or new and not ignored, not only the ones at the root
+  const docs = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "*.md"], { encoding: "utf8" })
+    .split("\n").filter((f, i, all) => f && all.indexOf(f) === i && fs.existsSync(f))
+    .filter((f) => !f.startsWith("adapters/chat-pack/files/")); // generated copies; their sources are checked in skills/
   let refs = 0, bad = 0;
   for (const f of docs) {
-    const text = read(f).replace(/^```[\s\S]*?^```/gm, "");
+    const text = read(f).replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, "").replace(/`[^`\n]*`/g, "");
     const urls = [...text.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g), ...text.matchAll(/\s(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
     for (const url of urls) {
       if (isExternal(url) || url.startsWith("#")) continue;
@@ -243,6 +294,111 @@ try {
     }
   }
   if (!bad) ok(`${plural(docs.length, "Markdown file")}: ${refs} local links checked`);
+}
+
+/* 8. what is written down in more than one place agrees */
+// SECURITY.md's verdict table, one row per component: [component, version reviewed, date, verdict, notes]
+const SEC = fs.existsSync("SECURITY.md") ? read("SECURITY.md").split("\n").filter((l) => /^\| /.test(l) && !/^\|\s*(Component|---)/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim())) : [];
+const key = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const secRow = (name) => SEC.find((r) => key(r[0]).startsWith(key(name)));
+// a. the companion pins in marketplace.json are the ones SECURITY.md reviewed
+try {
+  const market = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
+  let bad = 0, n = 0;
+  for (const p of market.plugins) {
+    if (typeof p.source !== "object") continue;
+    n++;
+    const row = secRow(p.name);
+    if (!row) { bad++; fail(`SECURITY.md has no verdict row for the companion ${p.name} (marketplace.json pins it)`); continue; }
+    if (/\bown\b/i.test(row[3])) continue; // the author's own project: pinned, not reviewed as third-party
+    const sha = (p.source.sha || "").slice(0, 7);
+    if (!sha || !row[1].includes(sha)) { bad++; fail(`${p.name}: marketplace.json pins ${sha || "no commit"}, SECURITY.md reviewed "${row[1]}"`); }
+    const version = (p.source.ref || "").replace(/^v/, "") || ((p.description || "").match(/\((\d+\.\d+\.\d+)\)/) || [])[1];
+    if (version && !row[1].includes(version)) { bad++; fail(`${p.name}: marketplace.json says version ${version}, SECURITY.md reviewed "${row[1]}"`); }
+  }
+  if (!bad) ok(`the ${plural(n, "companion pin")} in marketplace.json match SECURITY.md`);
+} catch (e) { fail(`marketplace.json against SECURITY.md: ${e.message}`); }
+// b. the vendored sources and npm packages upstream-watch follows are the ones SECURITY.md reviewed
+try {
+  const watch = JSON.parse(fs.readFileSync(".github/upstream-watch.json", "utf8"));
+  let bad = 0;
+  for (const v of watch.vendored || []) {
+    const row = secRow(v.security);
+    if (!row) { bad++; fail(`.github/upstream-watch.json: SECURITY.md has no row "${v.security}"`); }
+    else if (!row[1].includes(v.sha.slice(0, 7))) { bad++; fail(`.github/upstream-watch.json: ${v.name} is at ${v.sha.slice(0, 7)}, SECURITY.md reviewed "${row[1]}"`); }
+  }
+  for (const pkg of watch.npm || []) {
+    const row = secRow(pkg.security);
+    if (!row) { bad++; fail(`.github/upstream-watch.json: SECURITY.md has no row "${pkg.security}"`); }
+    else if (row[1] !== pkg.version) { bad++; fail(`.github/upstream-watch.json: ${pkg.name} ${pkg.version}, SECURITY.md reviewed "${row[1]}"`); }
+  }
+  if (!bad) ok(`.github/upstream-watch.json: ${plural((watch.vendored || []).length, "vendored source")} and ${plural((watch.npm || []).length, "npm package")} match SECURITY.md`);
+} catch (e) { fail(`.github/upstream-watch.json: ${e.code === "ENOENT" ? "missing" : e.message}`); }
+// c. the reviewed hyperframes and puppeteer-core versions, repeated in several files, are the same everywhere
+{
+  const hf = (() => { try { return JSON.parse(fs.readFileSync("skills/hyperframes/scripts/cli-version.json", "utf8")).version; } catch { return null; } })();
+  const pp = secRow("puppeteer-core")?.[1];
+  const PINS = [
+    { pkg: "hyperframes", want: hf, from: "skills/hyperframes/scripts/cli-version.json", re: /\bhyperframes(?:@|\s+CLI\s+|\s+)v?(\d+\.\d+\.\d+)\b/g,
+      files: ["cloud/setup-design-tools.sh", ".github/upstream-watch.json"], also: [["SECURITY.md", () => secRow("hyperframes CLI")?.[1]], ["skills/media-use/scripts/lib/hyperframes-pin.mjs", (t) => (t.match(/const REVIEWED = "([^"]+)"/) || [])[1]]] },
+    { pkg: "puppeteer-core", want: pp, from: "SECURITY.md", re: /\bpuppeteer-core(?:@|\s+)v?(\d+\.\d+\.\d+)\b|\breviewed (\d+\.\d+\.\d+)\b/g,
+      files: ["cloud/setup-design-tools.sh", ".github/workflows/check.yml", ".github/upstream-watch.json", "skills/design-score/SKILL.md", "skills/design-score/scripts/score.mjs"], also: [] },
+  ];
+  for (const { pkg, want, from, re, files, also } of PINS) {
+    if (!want) { fail(`${from}: no reviewed ${pkg} version found`); continue; }
+    let bad = 0;
+    for (const f of files) {
+      if (!fs.existsSync(f)) { bad++; fail(`${f} is missing (it repeats the reviewed ${pkg} version)`); continue; }
+      const text = read(f).replace(/"name":\s*"([^"]+)",\s*"security":\s*"[^"]*",\s*"version":\s*"([^"]+)"/g, (m, n, v) => `${n}@${v}`);
+      const found = [...text.matchAll(re)].map((m) => m[1] || m[2]);
+      if (!found.length) { bad++; fail(`${f} no longer names a ${pkg} version; check.mjs expects ${want} there`); }
+      for (const v of found) if (v !== want) { bad++; fail(`${f} says ${pkg} ${v}, ${from} says ${want}`); }
+    }
+    for (const [f, get] of also) {
+      const v = fs.existsSync(f) ? get(read(f)) : null;
+      if (v !== want) { bad++; fail(`${f} says ${pkg} ${v ?? "nothing"}, ${from} says ${want}`); }
+    }
+    if (!bad) ok(`${pkg} ${want} is the same in ${plural(files.length + also.length + 1, "file")}`);
+  }
+}
+// d. every skill in ROUTING.md exists in skills/, and every skill folder is in ROUTING.md
+try {
+  const routing = read("ROUTING.md");
+  const section = (routing.split(/^## /m).find((s) => s.startsWith("Skills in this repository")) || "");
+  const named = new Set(section.split("\n").filter((l) => /^\| /.test(l) && !/^\|\s*(Situation|---)/.test(l))
+    .flatMap((l) => [...(l.split("|")[2] || "").matchAll(/`([a-z0-9-]+)`/g)].map((m) => m[1])));
+  const folders = new Set(fs.readdirSync("skills", { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name));
+  let bad = 0;
+  if (!named.size) { bad++; fail('ROUTING.md: no skills found under "## Skills in this repository"'); }
+  for (const s of named) if (!folders.has(s)) { bad++; fail(`ROUTING.md routes to \`${s}\`, which is not a folder in skills/`); }
+  for (const s of folders) if (!named.has(s)) { bad++; fail(`skills/${s} is not in ROUTING.md's "Skills in this repository" table, so no request is routed to it`); }
+  if (!bad) ok(`ROUTING.md and skills/ list the same ${plural(folders.size, "skill")}`);
+} catch (e) { fail(`ROUTING.md: ${e.message}`); }
+// e. every version heading in CHANGELOG.md has a link definition at the foot
+if (fs.existsSync("CHANGELOG.md")) {
+  const log = read("CHANGELOG.md");
+  const heads = [...log.matchAll(/^## \[([^\]]+)\]/gm)].map((m) => m[1]);
+  const defs = new Set([...log.matchAll(/^\[([^\]]+)\]:\s*\S+/gm)].map((m) => m[1]));
+  const missing = heads.filter((h) => !defs.has(h));
+  missing.forEach((h) => fail(`CHANGELOG.md: "## [${h}]" has no link definition; add "[${h}]: https://github.com/Makkov-design/makkov-harness/compare/…" at the foot`));
+  if (!missing.length) ok(`CHANGELOG.md: ${plural(heads.length, "version heading")}, each with its link`);
+}
+
+/* 9. the chat pack is built from the current skills, and every file in it has its own name */
+try {
+  const out = execFileSync(process.execPath, [".github/scripts/chat-pack.mjs", "--check"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60000 });
+  ok(out.trim());
+} catch (e) {
+  fail(String(e.stderr || e.stdout || e.message).trim().replace(/\s*\n\s*/g, " ") || "chat-pack --check failed");
+}
+{
+  const dir = "adapters/chat-pack/files";
+  const names = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  const lower = names.map((n) => n.toLowerCase());
+  const dupes = names.filter((n, i) => lower.indexOf(n.toLowerCase()) !== i);
+  if (!names.length) fail(`${dir} is empty or missing; run node .github/scripts/chat-pack.mjs`);
+  else if (dupes.length || lower.includes("skill.md")) fail(`${dir}: file names must be unique and none may be SKILL.md (chat apps drop folders): ${[...dupes, ...names.filter((n) => n.toLowerCase() === "skill.md")].join(", ")}`);
+  else ok(`${dir}: ${plural(names.length, "file")}, every name unique`);
 }
 
 /* 7. nothing that looks like a key */

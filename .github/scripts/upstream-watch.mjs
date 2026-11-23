@@ -1,71 +1,193 @@
-// Weekly check: has any pinned companion plugin moved on since its reviewed commit?
-// Reads .claude-plugin/marketplace.json, asks the GitHub API (read-only) for each upstream's latest commit,
-// and keeps one issue up to date. It never changes a pin: bumping one needs a new security review.
+// Weekly check: has anything the harness pinned moved on since the version that was reviewed?
+// Follows the pinned companion plugins in .claude-plugin/marketplace.json, and the vendored sources and npm packages
+// in .github/upstream-watch.json. Asks the GitHub API and the npm registry (read-only) and keeps one issue up to date.
+// It never changes a pin: bumping one needs a new security review.
+//
+// What "moved on" means:
+// - A pin that is a release (a "ref" in marketplace.json, or a commit some tag points at) is compared with the
+//   upstream's latest release, so new commits on the default branch after that release are not news.
+// - Any other pin is compared with the default branch's latest commit.
+// - For a plugin or source in a subfolder ("path"), only changes inside that folder count. GitHub's compare API
+//   lists at most 300 files, so a bigger diff can hide the folder's files: such a row is marked "review needed"
+//   instead of being dropped.
+// - One upstream failing (a 404, a force-pushed commit) is reported in the issue; the others are still checked, and
+//   the run exits 1 at the end so the failure shows in Actions.
+//
 // Env: GITHUB_TOKEN, GITHUB_REPOSITORY (owner/name). DRY_RUN=1 prints the issue instead of writing it.
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 
-const TITLE = "Companion plugins: updates to review";
-const token = process.env.GITHUB_TOKEN;
-const self = process.env.GITHUB_REPOSITORY || "Makkov-design/makkov-harness";
-const dry = process.env.DRY_RUN === "1";
+export const TITLE = "Companion plugins: updates to review";
+export const COMPARE_FILE_LIMIT = 300; // GitHub's compare API returns at most this many files
+const CODE = /(^|\/)(hooks?|scripts?|bin)\/|\.(sh|ps1|js|mjs|cjs|py)$|package\.json$/;
 
-async function gh(path, init = {}) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", ...(token ? { authorization: `Bearer ${token}` } : {}), ...init.headers },
-  });
-  if (!res.ok) throw new Error(`${init.method || "GET"} ${path}: ${res.status} ${await res.text()}`);
-  return res.status === 204 ? null : res.json();
+export function makeGh(token, fetchImpl = fetch) {
+  return async function gh(path, init = {}) {
+    const res = await fetchImpl(`https://api.github.com${path}`, {
+      ...init,
+      headers: { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", ...(token ? { authorization: `Bearer ${token}` } : {}), ...init.headers },
+    });
+    if (!res.ok) {
+      const err = new Error(`${init.method || "GET"} ${path}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.status === 204 ? null : res.json();
+  };
+}
+
+export function makeNpmLatest(fetchImpl = fetch) {
+  return async function npmLatest(name) {
+    const res = await fetchImpl(`https://registry.npmjs.org/${name.replace("/", "%2f")}/latest`, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`npm registry ${name}: ${res.status}`);
+    return (await res.json()).version;
+  };
 }
 
 const repoOf = (src) => src.repo || src.url.replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
+const short = (sha) => sha.slice(0, 7);
+const notFound = (e) => e && e.status === 404;
 
-const market = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
-const rows = [];
-for (const p of market.plugins) {
-  const src = p.source;
-  if (typeof src !== "object" || !src.sha) continue; // local plugin or unpinned (own project)
-  const repo = repoOf(src);
-  const meta = await gh(`/repos/${repo}`);
-  const head = await gh(`/repos/${repo}/commits/${meta.default_branch}`);
-  if (head.sha === src.sha) continue;
-  const cmp = await gh(`/repos/${repo}/compare/${src.sha}...${head.sha}`);
-  // For a plugin that lives in a subfolder, only changes inside that folder matter.
-  const files = (cmp.files || []).filter((f) => !src.path || f.filename.startsWith(src.path + "/"));
-  if (src.path && files.length === 0) continue;
-  let release = "";
-  try { release = (await gh(`/repos/${repo}/releases/latest`)).tag_name; } catch {}
-  const hooks = files.filter((f) => /(^|\/)(hooks?|scripts?|bin)\/|\.(sh|ps1|js|mjs|cjs|py)$|package\.json$/.test(f.filename));
-  rows.push({ name: p.name, repo, pinned: src.sha.slice(0, 7), head: head.sha.slice(0, 7), headFull: head.sha, ahead: cmp.ahead_by, files: files.length, hooks: hooks.length, release, compare: cmp.html_url });
+// One pinned GitHub source: { name, kind, repo, sha, path?, ref? }. Returns a row when there is something to review,
+// or null when the pin is current.
+export async function checkSource(gh, s) {
+  const { repo, sha, path } = s;
+  let release = null;
+  try { release = await gh(`/repos/${repo}/releases/latest`); } catch (e) { if (!notFound(e)) throw e; }
+  let pinnedTag = s.ref || null;
+  if (!pinnedTag && release) {
+    const tags = await gh(`/repos/${repo}/tags?per_page=100`);
+    pinnedTag = (tags || []).find((t) => t.commit && t.commit.sha.startsWith(sha))?.name || null;
+  }
+  let target, against;
+  if (pinnedTag && release) {
+    target = (await gh(`/repos/${repo}/commits/${encodeURIComponent(release.tag_name)}`)).sha;
+    against = `release ${release.tag_name}`;
+  } else {
+    const meta = await gh(`/repos/${repo}`);
+    target = (await gh(`/repos/${repo}/commits/${encodeURIComponent(meta.default_branch)}`)).sha;
+    against = `${meta.default_branch} (latest commit)`;
+  }
+  if (target.startsWith(sha)) return null;
+  const cmp = await gh(`/repos/${repo}/compare/${sha}...${target}`);
+  if (cmp.status === "identical" || cmp.status === "behind") return null; // the pin is at or past the target
+  const listed = cmp.files || [];
+  const truncated = listed.length >= COMPARE_FILE_LIMIT;
+  const files = listed.filter((f) => !path || f.filename.startsWith(path + "/"));
+  const notes = [];
+  if (truncated) notes.push(`review needed: the diff has more than ${COMPARE_FILE_LIMIT} files and GitHub lists only the first ${COMPARE_FILE_LIMIT}${path ? `, so changes in \`${path}/\` may be hidden` : ""}; read the full compare`);
+  if (path) {
+    try { await gh(`/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${target}`); }
+    catch (e) { if (!notFound(e)) throw e; notes.push(`review needed: \`${path}/\` no longer exists upstream`); }
+  }
+  if (path && files.length === 0 && !notes.length) return null; // nothing inside the plugin's folder changed
+  const code = files.filter((f) => CODE.test(f.filename)).length;
+  return {
+    name: s.name, kind: s.kind, repo, pinned: short(sha), against, target: short(target), ahead: cmp.ahead_by,
+    files: truncated ? `${files.length}+` : String(files.length), code: truncated ? `${code}+` : String(code),
+    compare: cmp.html_url, note: notes.join("; "),
+  };
 }
 
-const lines = [
-  "Pinned companion plugins whose upstream has new commits since the reviewed version. Pins are not changed automatically: each new version needs the `third-party-install-guard` review first.",
-  "",
-  "| Plugin | Pinned | Upstream now | Commits | Files changed | Of them code/hooks | Latest release | Diff |",
-  "|---|---|---|---|---|---|---|---|",
-  ...rows.map((r) => `| ${r.name} | \`${r.pinned}\` | \`${r.head}\` | ${r.ahead} | ${r.files} | ${r.hooks} | ${r.release || "—"} | [compare](${r.compare}) |`),
-  "",
-  "**To review and bump**, open a Claude session in this repository and paste:",
-  "",
-  "```",
-  `Review the companion updates in the issue "${TITLE}". For each plugin: run third-party-install-guard on the upstream commit listed there, and only if the verdict is green or yellow update its sha in .claude-plugin/marketplace.json and its row in SECURITY.md (version, date, verdict). Show me the verdicts before committing.`,
-  "```",
-  "",
-  `_Checked ${new Date().toISOString().slice(0, 10)} by the weekly upstream-watch workflow._`,
-];
-const body = lines.join("\n");
-
-if (dry) {
-  console.log(rows.length ? body : "No pinned companion has new upstream commits.");
-  process.exit(0);
+// Everything to follow, from the two files.
+export function sources(market, watch) {
+  const list = [];
+  for (const p of market.plugins || []) {
+    const src = p.source;
+    if (typeof src !== "object" || !src.sha) continue; // the harness itself (a local path)
+    list.push({ name: p.name, kind: "companion", repo: repoOf(src), sha: src.sha, path: src.path, ref: src.ref });
+  }
+  for (const v of (watch && watch.vendored) || []) list.push({ name: v.name, kind: "vendored", repo: v.repo, sha: v.sha, path: v.path, ref: v.ref });
+  return list;
 }
 
-const open = (await gh(`/repos/${self}/issues?state=open&per_page=100`)).find((i) => i.title === TITLE && !i.pull_request);
-if (rows.length && open) await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ body }) });
-else if (rows.length) await gh(`/repos/${self}/issues`, { method: "POST", body: JSON.stringify({ title: TITLE, body }) });
-else if (open) {
-  await gh(`/repos/${self}/issues/${open.number}/comments`, { method: "POST", body: JSON.stringify({ body: "All pinned companions match their upstream again. Closing." }) });
-  await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ state: "closed" }) });
+export async function collect({ market, watch, gh, npmLatest }) {
+  const rows = [], npmRows = [], errors = [];
+  for (const s of sources(market, watch)) {
+    try { const row = await checkSource(gh, s); if (row) rows.push(row); }
+    catch (e) { errors.push({ name: s.name, repo: s.repo, error: String(e.message || e).split("\n")[0].slice(0, 240) }); }
+  }
+  for (const pkg of (watch && watch.npm) || []) {
+    try {
+      const latest = await npmLatest(pkg.name);
+      if (latest !== pkg.version) npmRows.push({ name: pkg.name, pinned: pkg.version, latest });
+    } catch (e) { errors.push({ name: `${pkg.name} (npm)`, repo: "registry.npmjs.org", error: String(e.message || e).slice(0, 240) }); }
+  }
+  return { rows, npmRows, errors };
 }
-console.log(rows.length ? `${rows.length} companion(s) with updates: ${rows.map((r) => r.name).join(", ")}` : "No updates.");
+
+export function render({ rows, npmRows, errors }, date = new Date().toISOString().slice(0, 10)) {
+  const cell = (s) => String(s ?? "").replace(/\|/g, "\\|");
+  const lines = [
+    "Pinned sources whose upstream has moved on since the reviewed version. Pins are not changed automatically: each new version needs the `third-party-install-guard` review first.",
+    "",
+  ];
+  if (rows.length) lines.push(
+    "| Source | Kind | Pinned | Compared with | Commits | Files changed | Of them code/hooks | Diff | Note |",
+    "|---|---|---|---|---|---|---|---|---|",
+    ...rows.map((r) => `| ${cell(r.name)} | ${r.kind} | \`${r.pinned}\` | ${cell(r.against)} \`${r.target}\` | ${r.ahead} | ${r.files} | ${r.code} | [compare](${r.compare}) | ${cell(r.note) || "—"} |`),
+    "",
+  );
+  if (npmRows.length) lines.push(
+    "| npm package | Pinned | Latest |",
+    "|---|---|---|",
+    ...npmRows.map((r) => `| ${cell(r.name)} | ${r.pinned} | ${r.latest} |`),
+    "",
+  );
+  if (errors.length) lines.push(
+    "**Could not check** (the run went on with the others; fix the cause or the pin, then run the workflow again):",
+    "",
+    ...errors.map((e) => `- ${cell(e.name)} (${e.repo}): ${e.error}`),
+    "",
+  );
+  lines.push(
+    "**To review and bump**, open a Claude session in this repository and paste:",
+    "",
+    "```",
+    `Review the updates in the issue "${TITLE}". For each row: run third-party-install-guard on the upstream version listed there, and only if the verdict is green or yellow update the pin (companions: its sha in .claude-plugin/marketplace.json; vendored skills: copy the new version into skills/ and update .github/upstream-watch.json; npm: the version in every file check.mjs lists) and its row in SECURITY.md (version, date, verdict). Show me the verdicts before committing.`,
+    "```",
+    "",
+    `_Checked ${date} by the weekly upstream-watch workflow._`,
+  );
+  return lines.join("\n");
+}
+
+// What to do with the issue: "update" (or "create"), "close" when everything is current, "none" otherwise.
+export function decide({ rows, npmRows, errors }, openIssue) {
+  const work = rows.length + npmRows.length + errors.length > 0;
+  if (work) return openIssue ? "update" : "create";
+  return openIssue ? "close" : "none";
+}
+
+async function main() {
+  const token = process.env.GITHUB_TOKEN;
+  const self = process.env.GITHUB_REPOSITORY || "Makkov-design/makkov-harness";
+  const dry = process.env.DRY_RUN === "1";
+  const gh = makeGh(token);
+  const market = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
+  const watch = JSON.parse(fs.readFileSync(".github/upstream-watch.json", "utf8"));
+  const result = await collect({ market, watch, gh, npmLatest: makeNpmLatest() });
+  const body = render(result);
+  const summary = [
+    result.rows.length ? `${result.rows.length} source(s) moved on: ${result.rows.map((r) => r.name).join(", ")}` : "",
+    result.npmRows.length ? `${result.npmRows.length} npm package(s) have a newer release: ${result.npmRows.map((r) => r.name).join(", ")}` : "",
+    result.errors.length ? `${result.errors.length} could not be checked: ${result.errors.map((e) => e.name).join(", ")}` : "",
+  ].filter(Boolean).join("; ") || "No updates.";
+
+  if (dry) console.log(decide(result, null) === "none" ? "Everything pinned matches its upstream." : body);
+  else {
+    const open = (await gh(`/repos/${self}/issues?state=open&per_page=100`)).find((i) => i.title === TITLE && !i.pull_request);
+    const action = decide(result, open);
+    if (action === "update") await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ body }) });
+    else if (action === "create") await gh(`/repos/${self}/issues`, { method: "POST", body: JSON.stringify({ title: TITLE, body }) });
+    else if (action === "close") {
+      await gh(`/repos/${self}/issues/${open.number}/comments`, { method: "POST", body: JSON.stringify({ body: "Everything pinned matches its upstream again. Closing." }) });
+      await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ state: "closed" }) });
+    }
+  }
+  console.log(summary);
+  for (const e of result.errors) console.log(`::error::upstream-watch: ${e.name} (${e.repo}): ${e.error}`);
+  if (result.errors.length) process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

@@ -1,8 +1,9 @@
 name: check
 
 # Validates the plugin, the hook, the skills and scans for keys on every push to main and every pull request,
-# runs the unit tests and the Design Score fixtures, and installs then uninstalls the harness for
-# every agent on Linux, macOS and Windows.
+# runs the unit tests (Node and Python) and the Design Score fixtures, and, on Linux, macOS and Windows, runs both
+# hooks with the system's own bash and installs then uninstalls the harness for every agent.
+# Node 24 is an LTS line (security support into 2028); the installers job uses each runner's own Node.
 on:
   push:
     branches: [main]
@@ -19,7 +20,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 24
       - run: node .github/scripts/check.mjs
 
   tests:
@@ -29,7 +30,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 24
       # The Design Score fixture test drives the runner's Chrome through puppeteer-core: the version
       # reviewed in SECURITY.md, installed without scripts into a temp folder, never into the repo.
       - name: puppeteer-core for the Design Score fixtures
@@ -38,8 +39,19 @@ jobs:
           npm install --no-save --ignore-scripts --no-audit --no-fund puppeteer-core@25.16.0
           echo "PUPPETEER_DIR=$RUNNER_TEMP/pp/node_modules/puppeteer-core" >> "$GITHUB_ENV"
           echo "CHROME_PATH=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
+      # DESIGN_SCORE_FIXTURES=required: the fixtures fail instead of skipping when Chrome or puppeteer-core is missing,
+      # so a broken setup step cannot leave this job green with the fixtures never run.
       - name: unit tests and Design Score fixtures
-        run: node --test --test-concurrency=2 $(find skills hooks -name '*.test.mjs' -not -path '*/node_modules/*' | sort)
+        env:
+          DESIGN_SCORE_FIXTURES: required
+        run: node --test --test-concurrency=2 $(find skills hooks .github -name '*.test.mjs' -not -path '*/node_modules/*' | sort)
+      # Python tests are named *_test.py; the runner's python3 runs them with the standard library only.
+      - name: Python unit tests
+        run: |
+          set -e
+          files=$(git ls-files '*_test.py')
+          test -n "$files" || { echo "::error::no *_test.py files found"; exit 1; }
+          for f in $files; do echo "== $f"; python3 -m unittest -v "$f"; done
 
   installers:
     name: installers (${{ matrix.os }})
@@ -51,9 +63,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: install gate hook (the system's own bash; macOS ships bash 3.2)
+      - name: both hooks (the system's own bash; macOS ships bash 3.2, Windows runs Git Bash)
         shell: bash
-        run: node --test hooks/install-gate.test.mjs
+        run: node --test hooks/install-gate.test.mjs hooks/session-start.test.mjs
       - name: install.sh / uninstall.sh, every agent
         if: runner.os != 'Windows'
         run: bash install/test/test-install.sh

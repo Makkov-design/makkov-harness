@@ -6,7 +6,7 @@ Exact snippets for every way to run Design Score: a browser tool that evaluates 
 
 | Piece | Where |
 |---|---|
-| Bundle (probe and panel) | `mh-score.js` in the skill folder; hosted at `https://makkov-design.github.io/makkov-harness/score/mh-score.js`, loaded only when it matches the skill's copy (Step 1A) |
+| Bundle (probe and panel) | `mh-score.js` in the skill folder; hosted for each version at `https://makkov-design.github.io/makkov-harness/score/<version>/mh-score.js` (this skill: `score/1.0.0/`), loaded only when it matches the skill's copy (Step 1A) |
 | Console snippet | `https://makkov-design.github.io/makkov-harness/score/console.txt`, or the copy button next to it on the score page |
 | Bookmarklets (loader and offline) | https://makkov-design.github.io/makkov-harness/score.html |
 | Node runner | `scripts/score.mjs` in the skill folder |
@@ -24,7 +24,7 @@ window.MHScoreNoAuto = true;
 new Promise((resolve, reject) => {
   try {
     const s = document.createElement('script');
-    s.src = 'https://makkov-design.github.io/makkov-harness/score/mh-score.js?v=1.0.0';
+    s.src = 'https://makkov-design.github.io/makkov-harness/score/1.0.0/mh-score.js';
     s.integrity = 'sha384-GEi7mc6J171ytPzTlPDl1Uru7P++eiAXhODJaXEBYUNYIFCh7MKppYpIdOg/TsFM';   // the bundle this skill ships; any other file is refused
     s.crossOrigin = 'anonymous';
     s.onload = () => resolve(window.MHScore ? 'Design Score ' + window.MHScore.version + ' loaded' : 'loaded, but MHScore is missing');
@@ -36,7 +36,7 @@ new Promise((resolve, reject) => {
 });
 ```
 
-The page fetches the bundle from this repository's GitHub Pages, and the browser runs it only if it matches the `integrity` hash: the exact `mh-score.js` in this skill folder. Anything else on Pages at that moment (a newer release, or a changed file) is refused and the loader rejects with "Blocked": then use the Node runner or a local copy ("Strict or offline pages"). Never remove the `integrity` line to get past a refusal. The bundle itself sends nothing. The `?v=` query only refreshes caches. If the tool does not wait for promises, run this, then check with the line below.
+The page fetches the bundle from this repository's GitHub Pages, and the browser runs it only if it matches the `integrity` hash: the exact `mh-score.js` in this skill folder. Every version is published at its own address, `score/<version>/mh-score.js`, and never changes there, so a newer release on the site does not break this loader. If the file does not match anyway, the browser refuses it and the loader rejects with "Blocked": then use the Node runner or a local copy ("Strict or offline pages"). Never remove the `integrity` line to get past a refusal. The bundle itself sends nothing. If the tool does not wait for promises, run this, then check with the line below.
 
 Then confirm it loaded:
 

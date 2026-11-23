@@ -1,7 +1,12 @@
 #!/usr/bin/env node
-// Design Score build. Bundles src/probe.js and src/ui.js into one file, mh-score.js, written to this skill folder
-// and to docs/score/ (identical copies); writes docs/score/console.txt and docs/score/offline-bookmarklet.txt;
-// refreshes the bookmarklet links in docs/score.html between <!-- bookmarklet:start --> and <!-- bookmarklet:end -->.
+// Design Score build. Bundles src/probe.js and src/ui.js into one file, mh-score.js, written to this skill folder,
+// to docs/score/ (the latest, for the bookmarklets) and to docs/score/<version>/ (identical copies); writes
+// docs/score/console.txt and docs/score/offline-bookmarklet.txt; refreshes the bookmarklet links in docs/score.html
+// between <!-- bookmarklet:start --> and <!-- bookmarklet:end -->.
+// docs/score/<version>/mh-score.js is what the agent's loader fetches, pinned by its SRI hash. A published version
+// never changes: docs/score/versions.json records each version's hash, and the build refuses to publish a different
+// bundle under a version that is already there (bump VERSION in src/probe.js and src/ui.js instead), so an install
+// that pinned an older bundle keeps loading it after the site moves on.
 // Node only, no dependencies, no network. Deterministic: the same sources always give byte-identical files.
 //
 // Usage
@@ -27,6 +32,7 @@ const SRC = { probe: path.join(SKILL_DIR, 'src', 'probe.js'), ui: path.join(SKIL
 const OUT = {
   skillBundle: path.join(SKILL_DIR, 'mh-score.js'),
   docsBundle: path.join(DOCS, 'score', 'mh-score.js'),
+  versions: path.join(DOCS, 'score', 'versions.json'),
   console: path.join(DOCS, 'score', 'console.txt'),
   offline: path.join(DOCS, 'score', 'offline-bookmarklet.txt'),
   page: path.join(DOCS, 'score.html'),
@@ -293,9 +299,23 @@ const page = updatePage(pageBefore);
 
 /* -------------------------------------------------------------- write / check */
 
+// The versioned copy and its record. versions.json: { "<version>": "sha384-…" }, oldest first.
+const SRI = 'sha384-' + crypto.createHash('sha384').update(Buffer.from(bundle, 'utf8')).digest('base64');
+const versionedBundle = path.join(DOCS, 'score', VERSION, 'mh-score.js');
+let published = {};
+if (fs.existsSync(OUT.versions)) {
+  try { published = JSON.parse(read(OUT.versions)); } catch (e) { die(`${rel(OUT.versions)} is not valid JSON: ${e.message}`); }
+}
+if (published[VERSION] && published[VERSION] !== SRI) {
+  die(`the bundle changed, but Design Score ${VERSION} is already published (${rel(OUT.versions)}) and a published version never changes: installs pin it by hash. Bump VERSION in src/probe.js and src/ui.js, then build again.`);
+}
+const versionsJson = JSON.stringify({ ...published, [VERSION]: SRI }, null, 2) + '\n';
+
 const outputs = [
   [OUT.skillBundle, bundle],
   [OUT.docsBundle, bundle],
+  [versionedBundle, bundle],
+  [OUT.versions, versionsJson],
   [OUT.console, consoleTxt],
   [OUT.offline, offlineTxt],
   [OUT.page, page.html],
@@ -321,7 +341,7 @@ for (const [p, text] of outputs) {
 
 const row = (label, s, extra = '') => console.log(`  ${label.padEnd(22)} ${kb(Buffer.byteLength(s, 'utf8')).padStart(9)}  gzip ${kb(gz(s)).padStart(8)}${extra}`);
 console.log(`Design Score ${VERSION}: ${wrote ? `wrote ${wrote} file(s)` : 'everything was up to date'}`);
-row('mh-score.js', bundle, `  ${rel(OUT.skillBundle)} = ${rel(OUT.docsBundle)}`);
+row('mh-score.js', bundle, `  ${rel(OUT.skillBundle)} = ${rel(OUT.docsBundle)} = ${rel(versionedBundle)}`);
 row('console.txt', consoleTxt, `  ${rel(OUT.console)}`);
 row('loader bookmarklet', LINKS.loader, `  ${LINKS.loader.length} characters`);
 row('offline bookmarklet', LINKS.offline, `  ${rel(OUT.offline)}, ${packNote}`);
