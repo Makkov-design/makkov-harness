@@ -1,0 +1,12 @@
+{
+  "_comment": "What upstream-watch follows besides the pinned companions in .claude-plugin/marketplace.json. Each sha and version must equal its row in SECURITY.md (check.mjs holds them to it). Changing one means a new third-party-install-guard review first.",
+  "vendored": [
+    { "name": "Emil Kowalski skills", "security": "Emil Kowalski skills", "repo": "emilkowalski/skills", "sha": "f1090be", "copiedTo": "skills/animate, animate-expo, animation-performance, improve-animations, find-animation-opportunities" },
+    { "name": "Hyperframes skills", "security": "Hyperframes skills", "repo": "heygen-com/hyperframes", "path": "skills", "sha": "d21877e", "copiedTo": "skills/hyperframes, hyperframes-cli, hyperframes-registry, media-use, slideshow, style-sampling" },
+    { "name": "awesome-design-md", "security": "awesome-design-md", "repo": "VoltAgent/awesome-design-md", "path": "design-md", "sha": "fcc70284932276d085f01ef9f83edde90b1258cb", "copiedTo": "fetched by skills/design-md-library at this commit" }
+  ],
+  "npm": [
+    { "name": "hyperframes", "security": "hyperframes CLI", "version": "0.9.9" },
+    { "name": "puppeteer-core", "security": "puppeteer-core", "version": "25.16.0" }
+  ]
+}

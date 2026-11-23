@@ -9,7 +9,7 @@ Lighthouse for design. A probe runs inside a real page, measures what code can m
 
 | File in this folder | What it is |
 |---|---|
-| `mh-score.js` | The bundle: the probe (`window.MHScore`) and the overlay panel (`window.MHScoreUI`). Also hosted at `https://makkov-design.github.io/makkov-harness/score/mh-score.js` |
+| `mh-score.js` | The bundle: the probe (`window.MHScore`) and the overlay panel (`window.MHScoreUI`). Also hosted, one unchanging copy per version, at `https://makkov-design.github.io/makkov-harness/score/<version>/mh-score.js` (the latest also at `score/mh-score.js`, for the bookmarklets) |
 | `rubric.md` | The method: every check, weight and threshold, and the judged criteria. Explain points from it, never from memory |
 | `reference/running-the-probe.md` | Exact snippets for each browser tool, the Node runner, the console and the bookmarklet |
 | `scripts/score.mjs` | Optional Node runner for agents with a shell |
