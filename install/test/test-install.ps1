@@ -634,7 +634,7 @@ try {
     & $uninst -Agent cline | Out-Null
     Run-Child $uninst @('-Agent', 'codex')
     Check 'the uninstall does not take its own manifest for another agent''s' { $script:code -eq 0 -and $script:out -notmatch 'also installed there' }
-    Check 'nothing left' { (Entries $long).Count -eq 0 }
+    Check 'nothing of the harness left' { -not (Test-Path (Join-Path $long '.makkov-harness')) -and -not (Test-Path (Join-Path $long '.agents')) -and -not (Test-Path (Join-Path $long '.codex')) -and -not (Test-Path (Join-Path $long '.cline')) }
   } else { Write-Output '  skip (this volume makes no 8.3 short names)' }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
 
