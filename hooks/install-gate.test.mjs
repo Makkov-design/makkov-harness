@@ -76,7 +76,7 @@ test("stays fast on large and adversarial input (asks, never times out)", () => 
     'git commit -m "' + rep("word ", 100000) + '"',
   ];
   for (const s of ["curl x ", "npm -x ", "env A=1 ", "$(curl ", "npm i -w a ", '"a" ', "'a' ", "| a=b ", "git clone x ", '-m "a" ', "sudo -E "]) {
-    cases.push(rep(s, 7900));
+    cases.push(rep(s, 3900), rep(s, 7900));
   }
   for (const command of cases) {
     const t = Date.now();
@@ -87,8 +87,8 @@ test("stays fast on large and adversarial input (asks, never times out)", () => 
   }
 });
 
-test("a command over 20,000 characters, or 8,000 once long words are cut, is asked about", () => {
-  assert.equal(gate("echo " + "ab ".repeat(3000)), "ask");
+test("a command over 20,000 characters, or 4,000 once long words are cut, is asked about", () => {
+  assert.equal(gate("echo " + "ab ".repeat(1500)), "ask");
   assert.equal(gate("cat > a.txt <<'EOF'\n" + "A".repeat(15000) + "\nEOF"), "allow"); // one long word, cut
   assert.equal(gate("cat > a.txt <<'EOF'\n" + "A".repeat(25000) + "\nEOF"), "ask"); // over 20,000 as sent
   assert.equal(gate("cat > a.txt <<'EOF'\n" + "line\n".repeat(700) + "EOF"), "ask"); // 700 escapes as sent
