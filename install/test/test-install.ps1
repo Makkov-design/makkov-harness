@@ -163,7 +163,9 @@ try {
     & $inst -Agent codex -Project $proj -Scope design | Out-Null
     Check 'still a symlink after an update that rewrites the block' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and [bool]((Get-Content $target) | Where-Object { $_ -like 'Scope: design*' }) }
     & $uninst -Agent codex -Project $proj | Out-Null
-    Check 'still a symlink after the uninstall, the file back as it was' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Same $exp $target) }
+    Check 'still a symlink after the uninstall' { (Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint }
+    Check 'the file back as it was after the uninstall' { Same $exp $target }
+    if (-not (Same $exp $target)) { Write-Output ('    expected: ' + (Bytes $exp)); Write-Output ('    got:      ' + (Bytes $target)); Write-Output ('    link:     ' + (Get-Item $link -Force).Attributes) }
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
@@ -174,7 +176,8 @@ try {
   [IO.File]::WriteAllText($agentsMd, "# a`n<!-- makkov-harness:start -->`nold routing`n# keep me`n"); Copy-Item $agentsMd $exp
   # Windows PowerShell 5.1 turns a child's stderr into errors, which 'Stop' would throw.
   $ErrorActionPreference = 'Continue'
-  $out = & $exe -NoProfile -ExecutionPolicy Bypass -File $inst -Agent codex -Project $proj 2>&1 | Out-String; $code = $LASTEXITCODE
+  # Each line as plain text: Out-String would wrap a long error record across lines.
+  $out = (& $exe -NoProfile -ExecutionPolicy Bypass -File $inst -Agent codex -Project $proj 2>&1 | ForEach-Object { "$_" }) -join ' '; $code = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   Check 'install stops with exit code 1' { $code -eq 1 }
   Check 'and says the markers are not paired' { $out -match 'not paired' }
