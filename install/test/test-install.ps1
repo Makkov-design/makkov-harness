@@ -163,10 +163,12 @@ try {
     Check 'still a symlink after the install' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Markers $target) -eq 1 }
     & $inst -Agent codex -Project $proj -Scope design | Out-Null
     Check 'still a symlink after an update that rewrites the block' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and [bool]((Get-Content $target) | Where-Object { $_ -like 'Scope: design*' }) }
-    & $uninst -Agent codex -Project $proj | Out-Null
+    $bk = Join-Path $proj '.makkov-harness\backups\original\AGENTS.md'
+    $bkBytes = if (Test-Path $bk) { Bytes $bk } else { '(none)' }; $before = Bytes $target
+    $said = @(& $uninst -Agent codex -Project $proj)
     Check 'still a symlink after the uninstall' { (Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint }
     Check 'the file back as it was after the uninstall' { Same $exp $target }
-    if (-not (Same $exp $target)) { Write-Output ('    expected: ' + (Bytes $exp)); Write-Output ('    got:      ' + (Bytes $target)); Write-Output ('    link:     ' + (Get-Item $link -Force).Attributes) }
+    if (-not (Same $exp $target)) { Write-Output ('    expected: ' + (Bytes $exp)); Write-Output ('    got:      ' + (Bytes $target)); Write-Output ('    link:     ' + (Get-Item $link -Force).Attributes); Write-Output ('    backup before uninstall: ' + $bkBytes); Write-Output ('    file before uninstall: ' + $before.Length + ' base64 chars'); $said | ForEach-Object { Write-Output ('    said: ' + $_) } }
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
