@@ -37,7 +37,8 @@ run_cmd() {
 }
 runs_total="${1:-20}" seed="${2:-1}"
 RANDOM="$seed"
-pick() { local a=("$@"); printf '%s' "${a[$((RANDOM % ${#a[@]}))]}"; }
+# pick sets $picked (not $(pick …): a subshell's $RANDOM does not advance the sequence, and newer bash reseeds it).
+pick() { local a=("$@"); picked="${a[$((RANDOM % ${#a[@]}))]}"; }
 # Everything under a folder, with checksums of files and targets of links.
 tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
 # On a failure: the steps, then what each run printed.
@@ -45,8 +46,8 @@ fail() { echo "FAIL (sequence $n, seed $seed): $*"; echo "steps:"; printf '%s' "
 
 for n in $(seq 1 "$runs_total"); do
   parent="$(mktemp -d)"
-  name="$(pick plain 'My Project' 'design [v2]')"
-  level="$(pick project home)"
+  pick plain 'My Project' 'design [v2]'; name="$picked"
+  pick project home; level="$picked"
   if [ "$level" = project ]; then
     home="$parent/home"; base="$parent/$name"; p="$base"
     pool=(codex copilot cline cursor gemini windsurf aider)
@@ -56,7 +57,7 @@ for n in $(seq 1 "$runs_total"); do
   fi
   mkdir -p "$home" "$base"; export HOME="$home"
   # Three agents from the pool.
-  agents=(); while [ "${#agents[@]}" -lt 3 ]; do a="$(pick "${pool[@]}")"; case " ${agents[*]-} " in *" $a "*) ;; *) agents+=("$a") ;; esac; done
+  agents=(); while [ "${#agents[@]}" -lt 3 ]; do pick "${pool[@]}"; a="$picked"; case " ${agents[*]-} " in *" $a "*) ;; *) agents+=("$a") ;; esac; done
   # What the person had before: maybe an AGENTS.md (with or without a final newline, maybe CRLF), maybe a skill
   # of their own with one of the harness's names, maybe a GEMINI.md.
   rules_dir="$base"; [ "$level" = home ] && rules_dir="$home/.codex"
@@ -72,10 +73,10 @@ for n in $(seq 1 "$runs_total"); do
   start="$(tree "$base")"; outside="$(cd "$parent" && ls -la | grep -v -e '^total' -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
   log="" said=""
   for step in 1 2 3 4 5 6 7 8; do
-    a="$(pick "${agents[@]}")"
+    pick "${agents[@]}"; a="$picked"
     case "$a" in cursor|copilot|windsurf|aider) [ -n "$p" ] || continue ;; esac
-    im="$(pick "${impls[@]}")"
-    op="$(pick install install update uninstall uninstall)"
+    pick "${impls[@]}"; im="$picked"
+    pick install install update uninstall uninstall; op="$picked"
     stop=""; [ $((RANDOM % 4)) = 0 ] && stop=yes
     sc=""
     if [ "$op" = uninstall ]; then run_cmd "$im" uninstall "$a" "$p" ""; points=(u-skills u-rules)
@@ -92,7 +93,7 @@ for n in $(seq 1 "$runs_total"); do
       set -m; "${cmd[@]}" >/dev/null 2>&1 & pid=$!; set +m
       sleep "0.$(printf '%02d' $((RANDOM % 60)))"; kill -9 -- "-$pid" 2>/dev/null; wait "$pid" 2>/dev/null; code=0
     elif [ -n "$stop" ]; then
-      pt="$(pick "${points[@]}")"; how="stopped after $pt"
+      pick "${points[@]}"; pt="$picked"; how="stopped after $pt"
       out="$(MAKKOV_HARNESS_TEST=1 MAKKOV_HARNESS_TEST_STOP="$pt" "${cmd[@]}" 2>&1)"; code=0
     else
       out="$("${cmd[@]}" 2>&1)"; code=$?
@@ -110,7 +111,7 @@ ${out:-}
     for m in "$base"/.makkov-harness/install-*.txt; do
       [ -f "$m" ] || continue
       a="$(basename "$m" .txt)"; a="${a#install-}"
-      im="$(pick "${impls[@]}")"; run_cmd "$im" uninstall "$a" "$p" ""
+      pick "${impls[@]}"; im="$picked"; run_cmd "$im" uninstall "$a" "$p" ""
       out="$("${cmd[@]}" 2>&1)" || fail "final uninstall of $a ($im) failed: $out"
       said="$said--- uninstall $a ($im, final): ${cmd[*]}
 $out

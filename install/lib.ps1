@@ -20,12 +20,15 @@ function Get-MhId([string]$Text) {
   $sha = [Security.Cryptography.SHA256]::Create()
   (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text)) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
 }
+# The files are listed with .NET, which writes every path as the folder's path exactly as given plus the rest, so
+# cutting the folder off is exact (Get-ChildItem's FullName can spell a short 8.3 name such as RUNNER~1 out in full,
+# and the cut then fell in the wrong place).
 function Get-MhTreeIds([string]$Dir) {
   $root = (Resolve-Path -LiteralPath $Dir).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
-  $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force)
-  $hash = @{}; foreach ($f in $files) { $hash[$f.FullName] = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash }
-  $ordinal = [string[]]@($files | ForEach-Object { $_.FullName }); [Array]::Sort($ordinal, [StringComparer]::Ordinal)
-  $legacy = @($files | Sort-Object FullName | ForEach-Object { $_.FullName })
+  $paths = @([IO.Directory]::EnumerateFiles($root, '*', [IO.SearchOption]::AllDirectories))
+  $hash = @{}; foreach ($f in $paths) { $hash[$f] = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
+  $ordinal = [string[]]$paths; [Array]::Sort($ordinal, [StringComparer]::Ordinal)
+  $legacy = @($paths | Sort-Object)
   $line = { param($p) $p.Substring($root.Length) + ':' + $hash[$p] }
   @((Get-MhId (($ordinal | ForEach-Object { & $line $_ }) -join "`n")), (Get-MhId (($legacy | ForEach-Object { & $line $_ }) -join "`n"))) | Select-Object -Unique
 }

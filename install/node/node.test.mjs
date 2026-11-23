@@ -162,3 +162,21 @@ test("the npm package holds the installer, the routing map and the skills, and n
   for (const f of files) assert.ok(!/^(\.github|docs|hooks|adapters|cloud|install\/test)\/|\.test\.mjs$|^install\/[^/]+\.(sh|ps1)$/.test(f) || f.startsWith('skills/'), `not in the package: ${f}`);
   assert.ok(pkg.unpackedSize < 10 * 1024 * 1024, `unpacked ${pkg.unpackedSize} bytes`);
 });
+
+// install.ps1's own fingerprint code (lib.ps1), where PowerShell is installed: for this repository's skills and for a
+// copy under a temporary path with a space in it (on Windows that path holds 8.3 short names, RUNNER~1 and the like).
+const pwsh = ['pwsh', ...(process.platform === 'win32' ? ['powershell'] : [])].find((c) => spawnSync(c, ['-NoProfile', '-Command', 'exit 0'], { stdio: 'ignore' }).status === 0);
+test("the PowerShell fingerprint equals install.ps1's", { skip: !pwsh && 'no PowerShell here', timeout: 300000 }, () => {
+  const t = tmp(), copy = path.join(t, 'My Project', '.agents', 'skills');
+  fs.mkdirSync(copy, { recursive: true });
+  const names = fs.readdirSync(path.join(repo, 'skills')).filter((n) => n !== 'rich-report');
+  for (const n of ['animate', 'media-use', 'design-score']) fs.cpSync(path.join(repo, 'skills', n), path.join(copy, n), { recursive: true });
+  const dirs = [...names.map((n) => path.join(repo, 'skills', n)), ...['animate', 'media-use', 'design-score'].map((n) => path.join(copy, n))];
+  const script = `. '${path.join(repo, 'install', 'lib.ps1').replace(/'/g, "''")}'; foreach ($d in $input) { (@(Get-MhTreeIds $d))[0] }`;
+  const r = spawnSync(pwsh, ['-NoProfile', '-NonInteractive', '-Command', script], { input: dirs.join('\n'), encoding: 'utf8', env: { ...process.env, HOME: t } });
+  assert.equal(r.status, 0, r.stderr);
+  const ids = r.stdout.split(/\r?\n/).filter(Boolean);
+  assert.equal(ids.length, dirs.length, r.stdout + r.stderr);
+  dirs.forEach((d, i) => assert.equal(L.fingerprintPs(d), ids[i], d));
+  fs.rmSync(t, { recursive: true, force: true });
+});
