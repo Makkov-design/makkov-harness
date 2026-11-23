@@ -58,6 +58,7 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 - A hard-linked instructions file was replaced by a new file, so its other names kept the old content; it is now written in place, in all three installers.
 - The install checks that the instructions file's folder can be written to before its first change (the file is replaced through a temporary file next to it), as the uninstall already did.
 - Windows PowerShell 5.1: removing a skill folder that is a junction (or a link left under a temporary name) could delete the files of the folder it points to; links are now removed as links.
+- `install.ps1` / `uninstall.ps1` with a home or project folder given by its 8.3 short name (`C:\Users\RUNNER~1\…`, as `%TEMP%` and Git Bash's paths often are): the skills the harness had copied were not recognised as its own, so an update moved them aside as yours, and an uninstall took its own manifest for another agent's and left the routing block and the skills in place. Found by the random sequences that mix the three installers on Windows.
 
 ## [0.5.0] - 2026-11-09
 
