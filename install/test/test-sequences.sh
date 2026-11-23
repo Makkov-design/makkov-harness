@@ -69,7 +69,7 @@ for n in $(seq 1 "$runs_total"); do
   [ "$level" = project ] && [ $((RANDOM % 3)) = 0 ] && printf 'gemini notes\n' > "$base/GEMINI.md"
   # Files outside the folder that a split or globbed path would hit.
   printf 'outside\n' > "$parent/${name%% *}x"; printf 'outside\n' > "$parent/My"
-  start="$(tree "$base")"; outside="$(cd "$parent" && ls -la | grep -v -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
+  start="$(tree "$base")"; outside="$(cd "$parent" && ls -la | grep -v -e '^total' -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
   log="" said=""
   for step in 1 2 3 4 5 6 7 8; do
     a="$(pick "${agents[@]}")"
@@ -122,7 +122,7 @@ $out
   now="$(tree "$base")"
   [ "$now" = "$start" ] || fail "the folder is not as it was:
 $(diff <(printf '%s\n' "$start") <(printf '%s\n' "$now") || true)"
-  now_out="$(cd "$parent" && ls -la | grep -v -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
+  now_out="$(cd "$parent" && ls -la | grep -v -e '^total' -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
   [ "$now_out" = "$outside" ] || fail "something outside the folder changed:
 $(diff <(printf '%s\n' "$outside") <(printf '%s\n' "$now_out") || true)"
   rm -rf "$parent"
