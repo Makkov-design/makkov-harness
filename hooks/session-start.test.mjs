@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "session-start");
 function context(env = {}) {
-  const r = spawnSync("bash", [HOOK], { encoding: "utf8", env: { ...process.env, MAKKOV_HARNESS_SCOPE: "", CLAUDE_CODE_REMOTE: "", ...env } });
+  const r = spawnSync("bash", [HOOK], { encoding: "utf8", env: { ...process.env, MAKKOV_HARNESS_SCOPE: "", CLAUDE_CODE_REMOTE: "", ...env }, timeout: 10000 });
   assert.equal(r.status, 0, r.stderr);
   const out = JSON.parse(r.stdout);
   assert.equal(out.hookSpecificOutput.hookEventName, "SessionStart");
