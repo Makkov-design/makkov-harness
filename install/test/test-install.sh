@@ -149,6 +149,7 @@ echo "codex project, AGENTS.md is a symlink"
 mkdir "$proj/shared"; printf '# shared notes\n' > "$proj/shared/notes.md"; chmod 644 "$proj/shared/notes.md"; ln -s shared/notes.md "$proj/AGENTS.md"
 cp "$proj/shared/notes.md" "$home/expected"
 bash "$inst" codex "$proj" >/dev/null
+check "your notes are still in the file after the install" "grep -qx '# shared notes' '$proj/shared/notes.md'"
 check "still a symlink after the install" "[ -L '$proj/AGENTS.md' ] && grep -q 'makkov-harness:start' '$proj/shared/notes.md'"
 echo "update" > "$home/marker"; sed 's/x/x/' "$repo/ROUTING.md" >/dev/null
 bash "$inst" codex "$proj" --scope design >/dev/null

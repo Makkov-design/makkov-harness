@@ -196,7 +196,8 @@ if ($Agent -eq 'cursor') {
   $content = "---`ndescription: makkov-harness routing - which skill fits which situation`nalwaysApply: true`n---`n$block`n"
 } elseif ($rulesIsFile -and [IO.File]::ReadAllText($rules).Contains($MhStart)) {
   $content = Get-MhReplacedBlock $rules $block
-} elseif ($rulesIsFile -and (Get-Item -LiteralPath $rules).Length -gt 0) {
+} elseif ($rulesIsFile -and [IO.File]::ReadAllText($rules).Length -gt 0) {
+  # (Read through the file, not Get-Item's Length: for a symlink that is the link's own size, 0.)
   # Appended after one blank line; a file that does not end in a newline gets one first.
   $old = [IO.File]::ReadAllText($rules)
   if (-not $old.EndsWith("`n")) { $old += "`n" }

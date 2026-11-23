@@ -28,5 +28,12 @@ Short records of what a change taught, so the next change does not relearn it. N
   shared logic sits in `lib.sh` / `lib.ps1`, side by side.
 - **Test the fix against the old code.** Running the new scenarios against the scripts on `main` gave 64
   failures before the fix and none after, which shows the tests catch the bugs they name.
+- **On Windows, `Get-Item` describes the link, not the file.** `(Get-Item link).Length` is 0 for a symlink, so
+  `install.ps1` took a symlinked, non-empty `AGENTS.md` for an empty one and replaced its content with the routing
+  block; the uninstall then left an empty file. Decide on content by reading the file (`ReadAllText`), and keep a
+  check right after the install that the person's own lines are still there, not only at the end of the scenario.
+- **When CI is the only place a platform runs, make the failing test print its evidence.** Four rounds of guessing
+  at write APIs went nowhere; one run that printed the manifest, the resolved link and the intermediate result
+  found the real cause at once.
 - **A safety hook blocks `rm -rf "$HOME"`** even when HOME points at a temp folder. In ad hoc checks, keep the
   temp folder in its own variable and never remove through `$HOME`.

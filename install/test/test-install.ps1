@@ -160,22 +160,13 @@ try {
   if ($linked) {
     & $inst -Agent codex -Project $proj | Out-Null
     Check 'a copy of the file the link points to, as it was' { Same $exp (Join-Path $proj '.makkov-harness\backups\original\AGENTS.md') }
+    Check 'your notes are still in the file after the install' { (Get-Content $target) -contains '# shared notes' }
     Check 'still a symlink after the install' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Markers $target) -eq 1 }
     & $inst -Agent codex -Project $proj -Scope design | Out-Null
     Check 'still a symlink after an update that rewrites the block' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and [bool]((Get-Content $target) | Where-Object { $_ -like 'Scope: design*' }) }
-    $bk = Join-Path $proj '.makkov-harness\backups\original\AGENTS.md'
-    $bkBytes = if (Test-Path $bk) { Bytes $bk } else { '(none)' }; $before = Bytes $target
-    . (Join-Path $repo 'install\lib.ps1')
-    $probe = @()
-    $probe += 'manifest: ' + ((Get-Content (Join-Path $proj '.makkov-harness\install-codex.txt') | Where-Object { $_ -like 'rules*' -or $_ -like 'base=*' }) -join ' | ')
-    $probe += 'resolved: ' + (Resolve-MhLink $link) + ' target prop: ' + (@((Get-Item -LiteralPath $link -Force).Target) -join ',')
-    $probe += 'lines via link: ' + @(Get-MhLines $link).Count
-    $nb = Get-MhRemovedBlocks $link
-    $probe += 'removed-blocks length: ' + $nb.Length + ' equal to backup: ' + ($nb.TrimEnd("`n") -ceq [IO.File]::ReadAllText($bk).TrimEnd("`n"))
-    $said = @(& $uninst -Agent codex -Project $proj)
+    & $uninst -Agent codex -Project $proj | Out-Null
     Check 'still a symlink after the uninstall' { (Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint }
     Check 'the file back as it was after the uninstall' { Same $exp $target }
-    if (-not (Same $exp $target)) { Write-Output ('    expected: ' + (Bytes $exp)); Write-Output ('    got:      ' + (Bytes $target)); Write-Output ('    link:     ' + (Get-Item $link -Force).Attributes); Write-Output ('    backup before uninstall: ' + $bkBytes); Write-Output ('    file before uninstall: ' + $before.Length + ' base64 chars'); $probe | ForEach-Object { Write-Output ('    probe: ' + $_) }; Get-ChildItem -LiteralPath (Join-Path $proj 'shared') -Force | ForEach-Object { Write-Output ('    shared: ' + $_.Name + ' ' + $_.Length) } }
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
