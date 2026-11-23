@@ -13,12 +13,22 @@ export LC_ALL=C   # bytes, not characters: regexes and ${x:i:n} stay linear on a
 [ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = off ] && exit 0
 
 IFS= read -r -d '' input || true
+reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+ask() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "${1:-$reason}"
+  exit 0
+}
+too_long="makkov-harness install gate: this command is too long to check quickly (over 20,000 characters as sent, or 8,000 once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+# Checked before decoding: bash 3.2 (macOS) rewrites a string slowly when it has many escapes to decode.
+[ ${#input} -gt 40000 ] && ask "$too_long"
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cmd ]] || exit 0
 cmd="${BASH_REMATCH[1]}"
 cwd=""
 re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
+
+[ ${#cmd} -gt 20000 ] && ask "$too_long"
 
 # Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
 # backslash-n stays text. A line ends a command unless it ends in a backslash, a pipe or && (then the command goes on);
@@ -34,19 +44,12 @@ nbsp=$'\xc2\xa0'; cmd="${cmd//$nbsp/ }"
 cwd="${cwd//\\\\/\\}"
 
 # Size limits keep a run well under the hook's 5-second timeout on any input (a timeout would let the command run):
-# over 100,000 characters it asks at once. A word longer than 400 characters (a data blob, a long URL) keeps its first
+# over 20,000 characters as sent it asks at once. A word longer than 400 characters (a data blob, a long URL) keeps its first
 # and last 200: no program name or option is that long. A cut word may hide a quote, so then no pass rule below
 # applies. Over 8,000 characters after that it asks without matching. Text is blanked only up to 4,000.
-reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
-ask() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "${1:-$reason}"
-  exit 0
-}
-too_long="makkov-harness install gate: this command is too long to check quickly (over 8,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
-[ ${#cmd} -gt 100000 ] && ask "$too_long"
 
 long=""
-re_long='[^[:space:]]{401}'
+re_long='[^[:space:]]{200}[^[:space:]]{201}'   # 401 in two parts: macOS allows at most 255 in {n}
 if [[ $cmd =~ $re_long ]]; then
   set -f
   # shellcheck disable=SC2206
