@@ -13,7 +13,28 @@ MH_END='<!-- makkov-harness:end -->'
 mh_fingerprint() { (cd "$1" && find . -type f -exec cksum {} + | LC_ALL=C sort) | cksum | cut -d' ' -f1; }
 
 # The first value of key=... in a manifest, as written.
-mh_raw() { sed -n "s/^$2=//p" "$1" | head -n 1; }
+# A manifest as the bash installer reads it: without a byte order mark or carriage returns, and with Windows
+# paths (C:\x, as install.ps1 writes them) in the form this shell uses (/c/x in Git Bash, /mnt/c/x in WSL; set
+# MH_DRV to /mnt/ for the second). So a manifest written by either installer is read by both.
+MH_DRV="/"
+mh_cat() {
+  sed "1s/^$(printf '\357\273\277')//" "$1" | tr -d '\r' | awk -v drv="$MH_DRV" '
+    /^(base|skills_dir|rules|rules_backup|backup)=/ {
+      i = index($0, "="); k = substr($0, 1, i); v = substr($0, i + 1)
+      if (v ~ /\\/ || v ~ /^[A-Za-z]:/) { gsub(/\\/, "/", v)
+        if (v ~ /^[A-Za-z]:\//) v = drv tolower(substr(v, 1, 1)) substr(v, 3) }
+      print k v; next }
+    { print }'
+}
+# Sets MH_DRV from the folder being worked on (call once the base is known).
+mh_drive_form() { case "$1" in /mnt/[a-z]/*) MH_DRV="/mnt/" ;; *) MH_DRV="/" ;; esac; }
+
+# Deletes a skill folder the harness put there: renamed first to a temporary name (.mh-tmp-old-<name>, which
+# install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
+mh_drop() { local t; t="$(dirname "$1")/.mh-tmp-old-$(basename "$1")"; rm -rf "${t:?}"; mv "$1" "$t" && rm -rf "${t:?}"; }
+
+# The first value of key=... in a manifest, as written (after mh_cat).
+mh_raw() { mh_cat "$1" | sed -n "s/^$2=//p" | head -n 1; }
 
 # The folder a manifest was written for. New manifests say it (base=); older ones are read back from the
 # skills folder (<base>/.agents/skills or <base>/.cline/skills) or, for Aider, from <base>/CONVENTIONS.md.
@@ -67,8 +88,17 @@ mh_check_markers() {
   return 1
 }
 
-# Writes stdin into an existing file in place, so a symlink stays a symlink and the file keeps its mode.
-mh_write_through() { local t; t="$(mktemp)"; cat > "$t"; cat "$t" > "$1"; rm -f "$t"; }
+# Writes stdin into a file. A regular file is replaced in one step: a copy of it (so it keeps its mode) takes the
+# new content as <file>.mh-tmp and is renamed over it, so an interruption leaves the old file or the new one,
+# never half of one (install and uninstall clear a .mh-tmp left behind). A symlink is written through in place,
+# so it stays a symlink.
+mh_write_through() {
+  local t
+  if [ -L "$1" ]; then t="$(mktemp)"; cat > "$t"; cat "$t" > "$1"; rm -f "$t"; return 0; fi
+  t="$1.mh-tmp"; rm -f "$t"
+  if [ -f "$1" ]; then cp -p "$1" "$t"; fi
+  cat > "$t" && mv -f "$t" "$1"
+}
 
 # The file with the routing block replaced by $MH_BLOCK (exported by the caller). Lines outside the block
 # are kept as they are.
@@ -149,7 +179,7 @@ mh_valid_manifest() {
   a="$(mh_raw "$m" agent)"
   case "$a" in codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;; *) echo "it names no agent"; return 1 ;; esac
   [ "$(basename "$m")" = "install-$a.txt" ] || { echo "it is for $a, not for its file name"; return 1; }
-  grep -q '^rules=.' "$m" || { echo "it names no instructions file"; return 1; }
+  mh_cat "$m" | grep -q '^rules=.' || { echo "it names no instructions file"; return 1; }
   mh_paths "$a" "$proj"
   ob="$(mh_old_base "$m")"
   [ "$(mh_rebase "$(mh_raw "$m" rules)" "$ob" "$base")" = "$MH_RULES" ] || { echo "its instructions file is not the one $a uses here"; return 1; }
@@ -169,21 +199,27 @@ mh_valid_manifest() {
     case "$v" in "$st/backups/"?*) ;; *) echo "a backup folder outside .makkov-harness/backups"; return 1 ;; esac
     mh_dotdot "$v" && { echo "a backup folder with .. in its path"; return 1; }
     mh_inside "$v" "$base" || { echo "a backup folder outside $base"; return 1; }
-  done < <(sed -n 's/^backup=//p' "$m")
+  done < <(mh_cat "$m" | sed -n 's/^backup=//p')
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     printf '%s\n' "$line" | grep -Eq '^[A-Za-z0-9._-]+( [0-9a-f]+)?$' || { echo "a skill entry that is not a plain folder name"; return 1; }
     case "${line%% *}" in .|..) echo "a skill entry that is not a plain folder name"; return 1 ;; esac
-  done < <(sed -n 's/^skill=//p' "$m")
+  done < <(mh_cat "$m" | sed -n 's/^skill=//p')
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     case "$rel" in /*) echo "a created folder given as an absolute path"; return 1 ;; esac
     mh_dotdot "$rel" && { echo "a created folder with .. in its path"; return 1; }
-    v="$base/$rel"
-    case "$MH_SKILLS/" in "$v"/*) continue ;; esac
-    case "$(dirname "$MH_RULES")/" in "$v"/*) continue ;; esac
-    echo "a created folder the installer would not create"; return 1
-  done < <(sed -n 's/^created_dir=//p' "$m")
+    # A folder on the way to any agent's skills or instructions folder here: an uninstall hands a folder still
+    # in use on to the other installs in the folder, whichever agent created it.
+    v="$base/$rel"; ok=0
+    for x in codex cursor gemini copilot windsurf cline opencode aider; do
+      [ -z "$proj" ] && case "$x" in cursor|copilot|windsurf|aider) continue ;; esac
+      mh_paths "$x" "$proj"
+      case "$MH_SKILLS/" in "$v"/*) ok=1 ;; esac
+      case "$(dirname "$MH_RULES")/" in "$v"/*) ok=1 ;; esac
+    done
+    [ "$ok" = 1 ] || { echo "a created folder the installer would not create"; return 1; }
+  done < <(mh_cat "$m" | sed -n 's/^created_dir=//p')
   return 0
 }
 
@@ -219,5 +255,6 @@ mh_wide_text() {
   return 1
 }
 
-# Two files say the same apart from trailing spaces and blank lines at the end.
-mh_same_text() { [ "$(sed 's/[[:space:]]*$//' "$1")" = "$(sed 's/[[:space:]]*$//' "$2")" ]; }
+# The file after the harness's blocks are taken out is the file as it was: the same bytes, or the same plus the
+# one newline the installer added to a file that did not end in one. Any other difference is an edit of yours.
+mh_same_text() { cmp -s "$1" "$2" || { [ -s "$2" ] && [ -n "$(tail -c 1 "$2")" ] && { cat "$2"; echo; } | cmp -s "$1" -; }; }

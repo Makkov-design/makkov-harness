@@ -14,6 +14,10 @@ markers() { grep -c '<!-- makkov-harness:start -->' "$1" 2>/dev/null || true; }
 tmp() { mktemp -d; }
 # Every file and link under a folder with its checksum: two equal snapshots mean nothing changed.
 snap() { (cd "$1" && find . \( -type f -o -type l \) ! -path './.makkov-harness/install-*' -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; else echo "$f $(cksum < "$f")"; fi; done' _ {} + | LC_ALL=C sort); }
+# Everything listed under a folder, with checksums: equal listings mean nothing changed, manifests included.
+tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
+runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
+root=0; [ "$(id -u)" = 0 ] && root=1
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
 harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$d/"; echo "$d"; }
 
@@ -270,6 +274,13 @@ for name in "My Project" "design [v2]"; do
   bash "$uninst" codex "$proj" >/dev/null
   check "your animate restored" "grep -qx mine \"$proj/.agents/skills/animate/SKILL.md\""
   check "our skills and block removed" "[ ! -e \"$proj/.agents/skills/design-score\" ] && [ ! -e \"$proj/AGENTS.md\" ]"
+  # Two agents sharing the skills folder and AGENTS.md, from a folder where a file named like the path's first word exists.
+  printf 'mine\n' > "$parent/${name%% *}"; cp "$parent/${name%% *}" "$home/word"
+  bash "$inst" codex "$proj" >/dev/null; bash "$inst" copilot "$proj" >/dev/null
+  runs bash -c "cd '$parent' && bash '$uninst' codex '$proj'"
+  check "codex uninstalls while copilot shares the folder" "[ $code = 0 ] && [ -d \"$proj/.agents/skills/design-score\" ]"
+  bash "$uninst" copilot "$proj" >/dev/null 2>&1 || true
+  check "then copilot; nothing outside the project touched" "cmp -s '$home/word' \"$parent/${name%% *}\" && [ ! -e \"$proj/.makkov-harness\" ] && [ ! -e \"$proj/AGENTS.md\" ]"
   rm -rf "$home" "$parent"
 done
 
@@ -292,10 +303,6 @@ check "a copy of it is kept aside" "ls '$proj'/.makkov-harness/backups/*/removed
 check "no empty .cursor folder left" "[ ! -e '$proj/.cursor' ]"
 rm -rf "$home" "$proj"
 
-# Everything listed under a folder, with checksums: equal listings mean nothing changed, manifests included.
-tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
-runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
-root=0; [ "$(id -u)" = 0 ] && root=1
 
 # A first install that cannot finish stops before it changes anything.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
@@ -328,7 +335,7 @@ for stop_at in skills rules; do
     echo "codex project, install stopped after the $stop_at step, then $then"
     printf '# mine' > "$proj/AGENTS.md"; cp "$proj/AGENTS.md" "$home/expected"
     mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
-    set +e; MAKKOV_HARNESS_TEST_STOP=$stop_at bash "$inst" codex "$proj" >/dev/null 2>&1; set -e
+    set +e; MAKKOV_HARNESS_TEST=1 MAKKOV_HARNESS_TEST_STOP=$stop_at bash "$inst" codex "$proj" >/dev/null 2>&1; set -e
     check "a manifest is there after the interruption" "[ -f '$proj/.makkov-harness/install-codex.txt' ]"
     [ "$then" = rerun ] && bash "$inst" codex "$proj" >/dev/null
     bash "$uninst" codex "$proj" >/dev/null
@@ -451,6 +458,103 @@ runs bash "$inst" codex "$home"
 check "install stops with exit code 2 and says why" "[ $code = 2 ] && printf '%s' \"\$out\" | grep -q 'home folder'"
 check "nothing written" "[ -z \"\$(find '$home' -mindepth 1)\" ]"
 rm -rf "$home" "$proj"
+
+# Several agents in one folder, uninstalled in any order: no later install or uninstall is refused, and a folder
+# that had no AGENTS.md has none afterwards (project and user level).
+for level in project home; do
+  for order in "codex copilot cline" "cline codex copilot" "copilot cline codex"; do
+    home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+    if [ "$level" = home ]; then set -- codex cline gemini; p=""; b="$home"; else set -- codex copilot cline; p="$proj"; b="$proj"; fi
+    agents="$*"
+    echo "$level: install $agents, uninstall in the order of: $order"
+    for a in $agents; do bash "$inst" "$a" $p >/dev/null; done
+    okall=1; i=0
+    for a in $order; do
+      case "$level:$a" in home:copilot) a=gemini ;; esac
+      runs bash "$uninst" "$a" $p; [ "$code" = 0 ] || okall=0
+      i=$((i + 1)); [ "$i" = 1 ] && { runs bash "$inst" "$a" $p; [ "$code" = 0 ] || okall=0; runs bash "$uninst" "$a" $p; [ "$code" = 0 ] || okall=0; }
+    done
+    check "every uninstall and the reinstall in between went through" "[ $okall = 1 ]"
+    check "nothing left, no AGENTS.md made up" "[ -z \"\$(find '$b' -mindepth 1)\" ]"
+    rm -rf "$home" "$proj"
+  done
+done
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex and copilot, no AGENTS.md before: the second install does not take the harness's file for yours"
+bash "$inst" codex "$proj" --scope design >/dev/null; bash "$inst" copilot "$proj" >/dev/null; bash "$inst" codex "$proj" >/dev/null
+check "no copy of a file you never had" "[ ! -e '$proj/.makkov-harness/backups/original' ]"
+bash "$uninst" copilot "$proj" >/dev/null; bash "$uninst" codex "$proj" >/dev/null
+check "nothing left" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+
+# Interrupted after the first skill is in place: a skill of yours the run did not reach is not taken for ours,
+# and no half-made copy is left behind.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, install stopped after the first skill, your style-sampling not reached yet"
+mkdir -p "$proj/.agents/skills/style-sampling"; echo MINE > "$proj/.agents/skills/style-sampling/SKILL.md"
+mkdir -p "$proj/.agents/skills/.mh-tmp-animate"; echo half > "$proj/.agents/skills/.mh-tmp-animate/x"
+set +e; MAKKOV_HARNESS_TEST=1 MAKKOV_HARNESS_TEST_STOP=skill bash "$inst" codex "$proj" >/dev/null 2>&1; set -e
+check "your style-sampling is still where it was" "grep -qx MINE '$proj/.agents/skills/style-sampling/SKILL.md'"
+bash "$uninst" codex "$proj" >/dev/null
+check "after the uninstall it is still yours and in place" "grep -qx MINE '$proj/.agents/skills/style-sampling/SKILL.md' && [ ! -e '$proj/.makkov-harness' ]"
+check "no half-made copies left" "[ \"\$(ls -A '$proj/.agents/skills')\" = style-sampling ]"
+echo "the test hook needs MAKKOV_HARNESS_TEST=1"
+rm -rf "$proj/.agents"
+MAKKOV_HARNESS_TEST_STOP=skills bash "$inst" codex "$proj" >/dev/null
+check "without it, the install runs to the end" "grep -q '^rules=' '$proj/.makkov-harness/install-codex.txt' && [ \"\$(grep -c '^skill=' '$proj/.makkov-harness/install-codex.txt')\" = $expected ]"
+bash "$uninst" codex "$proj" >/dev/null
+rm -rf "$home" "$proj"
+
+# An edit of only whitespace or line ends after the install is yours, and stays.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, you change only line ends and trailing spaces after the install"
+printf '# mine\r\nline  \r\n' > "$proj/AGENTS.md"
+bash "$inst" codex "$proj" >/dev/null
+sed 's/\r$//; s/line  $/line/' "$proj/AGENTS.md" > "$home/edited"; cat "$home/edited" > "$proj/AGENTS.md"
+bash "$uninst" codex "$proj" >/dev/null
+check "your LF line ends and trimmed line stay" "[ \"\$(od -An -tx1 < '$proj/AGENTS.md')\" = \"\$(printf '# mine\nline\n' | od -An -tx1)\" ]"
+rm -rf "$home" "$proj"
+
+# A file where a skill folder goes stops the install before any change.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a file named like a skill folder"
+mkdir -p "$proj/.agents/skills"; echo x > "$proj/.agents/skills/html-report"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops with exit code 1, names the file, changes nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'is a file' && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+
+# Two agents with different skills folders installed in the same second each keep their own backup folder: your
+# skill moved aside by one is put back into that one's skills folder, never into the other's.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"; shim="$(tmp)"
+printf '#!/bin/sh\necho 20260101-000000\n' > "$shim/date"; chmod +x "$shim/date"
+echo "two agents installed in the same second"
+mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
+before="$(tree "$proj")"
+PATH="$shim:$PATH" bash "$inst" codex "$proj" >/dev/null; PATH="$shim:$PATH" bash "$inst" cline "$proj" >/dev/null
+check "the backup folder is named for the agent" "[ -f '$proj/.makkov-harness/backups/20260101-000000-codex/skills/animate/SKILL.md' ]"
+PATH="$shim:$PATH" bash "$uninst" cline "$proj" >/dev/null; PATH="$shim:$PATH" bash "$uninst" codex "$proj" >/dev/null
+check "your animate is back where it was, nothing else left" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj" "$shim"
+
+# A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "a manifest in install.ps1's form"
+. "$repo/install/lib.sh"
+check "Windows paths read in Git Bash form" "[ \"\$(printf 'base=C:\\\\Users\\\\me\\\\p\r\nagent=codex\r\n' > '$home/m'; MH_DRV=/; mh_raw '$home/m' base)\" = /c/Users/me/p ]"
+check "and in WSL form" "[ \"\$(MH_DRV=/mnt/; mh_raw '$home/m' base)\" = /mnt/c/Users/me/p ]"
+check "agent read without its carriage return" "[ \"\$(mh_raw '$home/m' agent)\" = codex ]"
+bash "$inst" codex "$proj" >/dev/null
+mf="$proj/.makkov-harness/install-codex.txt"
+{ printf '\357\273\277'; sed 's/$/\r/' "$mf"; } > "$home/m2"; cat "$home/m2" > "$mf"
+runs bash "$uninst" codex "$proj"
+check "the uninstall accepts it and removes everything" "[ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+
+# Random sequences of install, update and uninstall for several agents, with interruptions: a bounded run here
+# (seeded by the day, printed, so a failure can be re-run with the same seed); run more locally.
+echo "random sequences"
+seq_seed="${MAKKOV_SEQ_SEED:-$(date +%j | sed 's/^0*//')}"
+if bash "$repo/install/test/test-sequences.sh" "${MAKKOV_SEQ_RUNS:-12}" "$seq_seed"; then ok "random sequences (seed $seq_seed)"; else bad "random sequences (seed $seq_seed)"; fi
 
 echo
 if [ "$fails" = 0 ]; then echo "installer tests: all passed"; else echo "installer tests: $fails failed"; exit 1; fi

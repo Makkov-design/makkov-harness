@@ -371,9 +371,9 @@ try {
       $agentsMd = Join-Path $proj 'AGENTS.md'; $exp = Join-Path $h 'expected'
       [IO.File]::WriteAllText($agentsMd, '# mine'); Copy-Item $agentsMd $exp
       New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null; Set-Content (Join-Path $proj '.agents\skills\animate\SKILL.md') 'mine'
-      $env:MAKKOV_HARNESS_TEST_STOP = $stopAt
+      $env:MAKKOV_HARNESS_TEST = '1'; $env:MAKKOV_HARNESS_TEST_STOP = $stopAt
       try { & $inst -Agent codex -Project $proj 2>$null | Out-Null } catch { }
-      Remove-Item Env:\MAKKOV_HARNESS_TEST_STOP
+      Remove-Item Env:\MAKKOV_HARNESS_TEST, Env:\MAKKOV_HARNESS_TEST_STOP
       Check 'a manifest is there after the interruption' { Test-Path (Join-Path $proj '.makkov-harness\install-codex.txt') }
       if ($then -eq 'rerun') { & $inst -Agent codex -Project $proj | Out-Null }
       & $uninst -Agent codex -Project $proj | Out-Null
@@ -505,7 +505,145 @@ try {
   # (The child PowerShell may write its own caches under the home folder: check what the harness would write.)
   Check 'nothing written' { -not (Test-Path (Join-Path $h '.makkov-harness')) -and -not (Test-Path (Join-Path $h '.agents')) -and -not (Test-Path (Join-Path $h 'AGENTS.md')) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # Two agents sharing the skills folder and AGENTS.md in a path with a space or [ ], with a file outside the
+  # project named like the path's first word: uninstalling one leaves the other working, and nothing outside.
+  foreach ($pname in 'My Project', 'design [v2]') {
+    $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent $pname; $env:USERPROFILE = $h
+    New-Item -ItemType Directory -Force -Path $proj | Out-Null
+    $word = Join-Path $parent ($pname -split ' ')[0]; [IO.File]::WriteAllText($word, "mine`n")
+    Write-Output "codex and copilot, project path '$pname'"
+    & $inst -Agent codex -Project $proj | Out-Null; & $inst -Agent copilot -Project $proj | Out-Null
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+    Check 'codex uninstalls while copilot shares the folder' { $script:code -eq 0 -and (Test-Path -LiteralPath (Join-Path $proj '.agents\skills\design-score')) }
+    & $uninst -Agent copilot -Project $proj | Out-Null
+    Check 'then copilot; nothing left, nothing outside the project touched' { (Entries $proj).Count -eq 0 -and [IO.File]::ReadAllText($word) -eq "mine`n" }
+    $env:USERPROFILE = $realHome; Remove-Item -LiteralPath $h, $parent -Recurse -Force
+  }
+
+  # Several agents in one folder, uninstalled in any order: no later install or uninstall is refused, and a folder
+  # that had no AGENTS.md has none afterwards (project and user level).
+  foreach ($level in 'project', 'home') {
+    foreach ($order in @('codex', 'copilot', 'cline'), @('cline', 'codex', 'copilot'), @('copilot', 'cline', 'codex')) {
+      $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+      $agents = if ($level -eq 'home') { 'codex', 'cline', 'gemini' } else { 'codex', 'copilot', 'cline' }
+      $pa = @{}; if ($level -eq 'project') { $pa.Project = $proj }
+      $b = if ($level -eq 'project') { $proj } else { $h }
+      Write-Output "${level}: install $($agents -join ' '), uninstall in the order of: $($order -join ' ')"
+      foreach ($a in $agents) { & $inst -Agent $a @pa | Out-Null }
+      $okall = $true; $i = 0
+      foreach ($a in $order) {
+        if ($level -eq 'home' -and $a -eq 'copilot') { $a = 'gemini' }
+        $args_ = @('-Agent', $a); if ($level -eq 'project') { $args_ += @('-Project', $proj) }
+        Run-Child $uninst $args_; if ($script:code -ne 0) { $okall = $false }
+        $i++
+        if ($i -eq 1) {
+          Run-Child $inst $args_; if ($script:code -ne 0) { $okall = $false }
+          Run-Child $uninst $args_; if ($script:code -ne 0) { $okall = $false }
+        }
+      }
+      Check 'every uninstall and the reinstall in between went through' { $okall }
+      # (At user level the child PowerShell may leave its own caches in the home folder: check the harness's paths.)
+      if ($level -eq 'project') { Check 'nothing left, no AGENTS.md made up' { (Entries $proj).Count -eq 0 } }
+      else { Check 'nothing left, no AGENTS.md made up' { -not (Test-Path (Join-Path $h '.makkov-harness')) -and -not (Test-Path (Join-Path $h '.agents')) -and -not (Test-Path (Join-Path $h '.codex')) -and -not (Test-Path (Join-Path $h '.cline')) -and -not (Test-Path (Join-Path $h '.gemini')) } }
+      $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+    }
+  }
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex and copilot, no AGENTS.md before: the second install does not take the harness''s file for yours'
+  & $inst -Agent codex -Project $proj -Scope design | Out-Null; & $inst -Agent copilot -Project $proj | Out-Null; & $inst -Agent codex -Project $proj | Out-Null
+  Check 'no copy of a file you never had' { -not (Test-Path (Join-Path $proj '.makkov-harness\backups\original')) }
+  & $uninst -Agent copilot -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'nothing left' { (Entries $proj).Count -eq 0 }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # Interrupted after the first skill is in place: a skill of yours the run did not reach is not taken for ours,
+  # and no half-made copy is left behind.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, install stopped after the first skill, your style-sampling not reached yet'
+  $sk = Join-Path $proj '.agents\skills'
+  New-Item -ItemType Directory -Force (Join-Path $sk 'style-sampling'), (Join-Path $sk '.mh-tmp-animate') | Out-Null
+  [IO.File]::WriteAllText((Join-Path $sk 'style-sampling\SKILL.md'), "MINE`n"); [IO.File]::WriteAllText((Join-Path $sk '.mh-tmp-animate\x'), "half`n")
+  $env:MAKKOV_HARNESS_TEST = '1'; $env:MAKKOV_HARNESS_TEST_STOP = 'skill'
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Remove-Item Env:\MAKKOV_HARNESS_TEST, Env:\MAKKOV_HARNESS_TEST_STOP
+  Check 'the run stopped there' { $script:code -eq 1 -and $script:out -match 'stopped after skill' }
+  Check 'your style-sampling is still where it was' { [IO.File]::ReadAllText((Join-Path $sk 'style-sampling\SKILL.md')) -eq "MINE`n" }
+  & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'after the uninstall it is still yours and in place' { [IO.File]::ReadAllText((Join-Path $sk 'style-sampling\SKILL.md')) -eq "MINE`n" -and -not (Test-Path (Join-Path $proj '.makkov-harness')) }
+  Check 'no half-made copies left' { ((@(Get-ChildItem -LiteralPath $sk -Force) | ForEach-Object Name) -join ',') -eq 'style-sampling' }
+  Write-Output 'the test hook needs MAKKOV_HARNESS_TEST=1'
+  Remove-Item (Join-Path $proj '.agents') -Recurse -Force
+  $env:MAKKOV_HARNESS_TEST_STOP = 'skills'
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Remove-Item Env:\MAKKOV_HARNESS_TEST_STOP
+  $mfl = @(Get-Content (Join-Path $proj '.makkov-harness\install-codex.txt'))
+  Check 'without it, the install runs to the end' { $script:code -eq 0 -and @($mfl | Where-Object { $_ -like 'rules=*' }).Count -eq 1 -and @($mfl | Where-Object { $_ -like 'skill=*' }).Count -eq $expected }
+  & $uninst -Agent codex -Project $proj | Out-Null
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # An edit of only whitespace or line ends after the install is yours, and stays.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, you change only line ends and trailing spaces after the install'
+  $agentsMd = Join-Path $proj 'AGENTS.md'
+  [IO.File]::WriteAllText($agentsMd, "# mine`r`nline  `r`n")
+  & $inst -Agent codex -Project $proj | Out-Null
+  [IO.File]::WriteAllText($agentsMd, ([IO.File]::ReadAllText($agentsMd) -replace "`r`n", "`n" -replace 'line  \n', "line`n"))
+  & $uninst -Agent codex -Project $proj | Out-Null
+  Check 'your LF line ends and trimmed line stay' { [Convert]::ToBase64String([IO.File]::ReadAllBytes($agentsMd)) -eq [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("# mine`nline`n")) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A file where a skill folder goes stops the install before any change.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a file named like a skill folder'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills') | Out-Null; Set-Content (Join-Path $proj '.agents\skills\html-report') 'x'
+  $before = Tree $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops with exit code 1, names the file, changes nothing' { $script:code -eq 1 -and $script:out -match 'is a file' -and (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # Two agents with different skills folders installed in the same second each keep their own backup folder: your
+  # skill moved aside by one is put back into that one's skills folder, never into the other's.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'two agents installed in the same second'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\animate') | Out-Null; [IO.File]::WriteAllText((Join-Path $proj '.agents\skills\animate\SKILL.md'), "mine`n")
+  $before = Tree $proj
+  function global:Get-Date { '20260101-000000' }   # (a function goes before the cmdlet: every run gets the same second)
+  try {
+    & $inst -Agent codex -Project $proj | Out-Null; & $inst -Agent cline -Project $proj | Out-Null
+    Check 'the backup folder is named for the agent' { Test-Path -LiteralPath (Join-Path $proj '.makkov-harness\backups\20260101-000000-codex\skills\animate\SKILL.md') }
+    & $uninst -Agent cline -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+  } finally { Remove-Item Function:\Get-Date }
+  Check 'your animate is back where it was, nothing else left' { (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A manifest written by install.sh (LF line ends; on Windows, Git Bash /c/x or WSL /mnt/c/x paths) is read by
+  # the PowerShell installer.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output "a manifest in install.sh's form"
+  . (Join-Path $repo 'install\lib.ps1')
+  if ([IO.Path]::DirectorySeparatorChar -eq '\') {
+    Check 'Git Bash paths read as Windows paths' { (ConvertFrom-MhShellPath '/c/Users/me/p') -eq 'C:\Users\me\p' }
+    Check 'and WSL paths' { (ConvertFrom-MhShellPath '/mnt/d/work') -eq 'D:\work' }
+  }
+  & $inst -Agent codex -Project $proj | Out-Null
+  $mf = Join-Path $proj '.makkov-harness\install-codex.txt'
+  $ml = @(Get-Content $mf | ForEach-Object {
+    if ($_ -match '^(base|skills_dir|rules|rules_backup|backup)=([A-Za-z]):\\(.*)$') { $Matches[1] + '=/' + $Matches[2].ToLowerInvariant() + '/' + ($Matches[3] -replace '\\', '/') } else { $_ }
+  })
+  [IO.File]::WriteAllText($mf, (($ml -join "`n") + "`n"))
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'the uninstall accepts it and removes everything' { $script:code -eq 0 -and (Entries $proj).Count -eq 0 }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 } finally { $env:USERPROFILE = $realHome }
+
+# Random sequences of install, update and uninstall for several agents, with interruptions: a bounded run here
+# (seeded by the day, printed, so a failure can be re-run with the same seed); run more locally.
+Write-Output 'random sequences'
+$seqSeed = if ($env:MAKKOV_SEQ_SEED) { [int]$env:MAKKOV_SEQ_SEED } else { (Get-Date).DayOfYear }
+$seqRuns = if ($env:MAKKOV_SEQ_RUNS) { [int]$env:MAKKOV_SEQ_RUNS } else { 4 }
+& (Join-Path $PSScriptRoot 'test-sequences.ps1') -Runs $seqRuns -Seed $seqSeed
+if ($LASTEXITCODE -eq 0) { Write-Output "  ok   random sequences (seed $seqSeed)" } else { Write-Output "  FAIL random sequences (seed $seqSeed)"; $script:fails++ }
 
 Write-Output ''
 # exit 0 explicitly: $LASTEXITCODE still holds the code of the last child run (the marker scenario's 1).

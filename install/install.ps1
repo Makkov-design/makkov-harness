@@ -45,12 +45,16 @@ $skillsDir = $paths.Skills; $rules = $paths.Rules
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $state = Join-Path $base '.makkov-harness'
 $manifest = Join-Path $state "install-$Agent.txt"
-$backupRoot = Join-Path (Join-Path $state 'backups') $stamp
+# One folder per run and agent: two agents installed in the same second never share a backup folder (each
+# uninstall puts back what its own folder holds, into its own skills folder).
+$backupRoot = Join-Path (Join-Path $state 'backups') "$stamp-$Agent"
 $original = Join-Path (Join-Path (Join-Path $state 'backups') 'original') ((Get-MhRel $rules $base) -replace '/', [IO.Path]::DirectorySeparatorChar)
 if ($DryRun) { Write-Output 'Dry run: nothing will be written.' }
 function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
-# Test only: stop the run at a named point, as an interruption would (see install\test\test-install.ps1).
-function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
+# Test hook, inert in normal use: with both MAKKOV_HARNESS_TEST=1 and MAKKOV_HARNESS_TEST_STOP=<point> set, the
+# run stops at that point (skill = after the first skill is in place, skills, rules), as an interruption would.
+# install\test\ uses it to check that an interrupted run can be run again or uninstalled.
+function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
 function Get-Manifests { if (Test-Path -LiteralPath $state) { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File) } else { @() } }
 
 # 0. Before anything is written.
@@ -77,19 +81,21 @@ if ($haveManifest) {
 if ($Scope -ne 'design') { $Scope = 'all' }
 # Another agent installed into the same instructions file (Codex, Copilot, Windsurf, Cline and OpenCode all use
 # <project>\AGENTS.md): this install shares its record of the file as it was before the harness.
+$sharedRules = $false
 if (-not $haveManifest) {
   foreach ($m in Get-Manifests) {
     $o = Read-MhManifest $m.FullName
     if (Test-MhSamePath (Get-MhPath $o 'rules' $base) $rules) {
-      $rulesExisted = Get-MhRaw $o 'rules_existed'; $rulesBackup = Get-MhPath $o 'rules_backup' $base; break
+      $rulesExisted = Get-MhRaw $o 'rules_existed'; $rulesBackup = Get-MhPath $o 'rules_backup' $base; $sharedRules = $true; break
     }
   }
 }
 # A file that is there at the first install is kept, as it was, whatever it holds (a marked block too). A copy
 # an interrupted earlier run left in backups\original\ is the file as it was, so it is used, never replaced.
+# When another agent's install already names the file, its record stands: the harness made the file or kept it.
 $rulesIsFile = [IO.File]::Exists($rules) -and -not [IO.Directory]::Exists($rules)
 $needCopy = $false
-if (-not $haveManifest -and -not $rulesBackup) {
+if (-not $haveManifest -and -not $sharedRules -and -not $rulesBackup) {
   if ([IO.File]::Exists($original)) { $rulesExisted = '1'; $rulesBackup = $original }
   elseif ($rulesIsFile) { $rulesExisted = '1'; $rulesBackup = $original; $needCopy = $true }
 }
@@ -115,7 +121,14 @@ if ($skillsDir) {
 $sources = @(); $manifestSkills = @(); $idOf = @{}
 if ($skillsDir) {
   $sources = @(Get-ChildItem -LiteralPath (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' } | Sort-Object Name)
-  foreach ($src in $sources) { $id = Get-MhTreeId $src.FullName; $idOf[$src.Name] = $id; $manifestSkills += "skill=$($src.Name) $id" }
+  foreach ($src in $sources) {
+    $id = Get-MhTreeId $src.FullName; $idOf[$src.Name] = $id; $manifestSkills += "skill=$($src.Name) $id"
+    # A file (not a folder) where a skill folder goes: stop now rather than half way.
+    $dst = Join-Path $skillsDir $src.Name
+    if (([IO.File]::Exists($dst) -or (Test-MhLink $dst)) -and -not [IO.Directory]::Exists($dst)) {
+      Stop-Mh "$dst is a file, where the $($src.Name) skill folder goes. Move it away, then run this again."
+    }
+  }
 }
 
 # Folders this install creates, so the uninstaller can take them away again once they are empty.
@@ -159,8 +172,12 @@ if ($DryRun) {
   return
 }
 
-# The journal: before the first change, the manifest already lists everything this run may leave behind.
-Write-Manifest ($oldSkills + $manifestSkills) ($oldBackups + @('backup=' + (Join-Path $backupRoot 'skills')))
+# The journal: before the first change, the manifest already lists the folders and backups this run may leave
+# behind and the earlier install's skills. Each skill of this version is added to it once it is in place, so
+# a skill of yours the run did not reach is never taken for the harness's.
+Write-Manifest $oldSkills ($oldBackups + @('backup=' + (Join-Path $backupRoot 'skills')))
+foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+foreach ($t in "$rules.mh-tmp", "$original.mh-tmp") { if ([IO.File]::Exists($t)) { Remove-Item -LiteralPath $t -Force } }
 
 # 1. Skills.
 # - a copy that is already exactly ours is left as it is;
@@ -183,7 +200,7 @@ if ($skillsDir) {
       if ($ids -contains $idOf[$name]) {
         $copy = $false
       } elseif (@($ids | Where-Object { $earlier -contains "skill=$name $_" }).Count) {
-        Remove-Item -LiteralPath $dst -Recurse -Force
+        Remove-MhSkill $dst
       } elseif ($earlier -contains "skill=$name") {
         $keep = Join-Path (Join-Path $backupRoot 'earlier-harness') $name
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-Item -LiteralPath $dst -Destination $keep
@@ -194,12 +211,15 @@ if ($skillsDir) {
         $backed += $name
       }
     }
+    # Recorded before the copy goes in (your folder, if any, is already aside): a copy in place is always listed.
+    [IO.File]::AppendAllText($manifest, "skill=$name $($idOf[$name])" + [Environment]::NewLine, $MhUtf8)
     if ($copy) {
       $tmp = Join-Path $skillsDir ".mh-tmp-$name"
       Copy-Item -LiteralPath $src.FullName -Destination $tmp -Recurse
       Move-Item -LiteralPath $tmp -Destination $dst
     }
     $copied += $name
+    Test-Checkpoint 'skill'
   }
 
   # Skills the earlier install of this agent put there that this version no longer has (removed or renamed):
@@ -219,7 +239,7 @@ if ($skillsDir) {
     if ($other) { Write-Output "  keep $dst (no longer part of the harness, but another installed agent lists it)"; continue }
     $ids = Get-MhTreeIds $dst
     if ($id -and @($ids | Where-Object { $oldSkills -contains "skill=$name $_" }).Count) {
-      Remove-Item -LiteralPath $dst -Recurse -Force
+      Remove-MhSkill $dst
     } else {
       $keep = if ($id) { Join-Path (Join-Path $backupRoot 'removed') $name } else { Join-Path (Join-Path $backupRoot 'earlier-harness') $name }
       New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-Item -LiteralPath $dst -Destination $keep

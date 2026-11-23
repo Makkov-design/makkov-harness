@@ -41,6 +41,7 @@ if [ -n "$project" ] && [ "$project" = "$(cd "$HOME" && pwd)" ]; then
   echo "The project path is your home folder. For a user-level install, leave the project path out." >&2; exit 2
 fi
 base="${project:-$HOME}"
+mh_drive_form "$base"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
 if [ ! -f "$manifest" ]; then
@@ -49,6 +50,8 @@ if [ ! -f "$manifest" ]; then
   exit 1
 fi
 stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
+# Test hook, inert in normal use (see install.sh): u-skills = after the skills, u-rules = after the file.
+checkpoint() { if [ "${MAKKOV_HARNESS_TEST:-}" = 1 ] && [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
 
 # 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
 #    files to change must be changeable.
@@ -96,32 +99,37 @@ if [ -n "$skills_dir" ]; then
     [ -n "$name" ] || continue
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
+    # The other installs that list this skill, one path per line (paths may hold spaces or [ ]).
     shared=""
     while IFS= read -r m; do
-      [ -n "$m" ] && same_skills "$m" && grep -Eq "^skill=$name( |$)" "$m" && shared="$shared $m"
+      [ -n "$m" ] && same_skills "$m" && mh_cat "$m" | grep -Eq "^skill=$name( |$)" && shared="$shared$m
+"
     done < <(others)
     if [ -n "$shared" ]; then
       say "keep $dst (another installed agent uses it)"
       # Hand on the fingerprints recorded here, so the last uninstall still knows this copy is the harness's.
-      for m in $shared; do
-        while IFS= read -r line; do grep -qxF "$line" "$m" || { [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }; done \
-          < <(grep -E "^skill=$name [0-9a-f]+$" "$manifest" || true)
-      done
+      while IFS= read -r m; do
+        [ -n "$m" ] || continue
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          mh_cat "$m" | grep -qxF "$line" || { [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }
+        done < <(mh_cat "$manifest" | grep -E "^skill=$name [0-9a-f]+$" || true)
+      done < <(printf '%s' "$shared")
       continue
     fi
     fp_now="$(mh_fingerprint "$dst")" ours=0
-    { grep -qxF "skill=$name $fp_now" "$manifest" ||
+    { mh_cat "$manifest" | grep -qxF "skill=$name $fp_now" ||
       { [ -d "$repo/skills/$name" ] && [ "$(mh_fingerprint "$repo/skills/$name")" = "$fp_now" ]; }; } && ours=1
     if [ "$ours" = 0 ]; then
-      while IFS= read -r m; do [ -n "$m" ] && same_skills "$m" && grep -qxF "skill=$name $fp_now" "$m" && ours=1; done < <(others)
+      while IFS= read -r m; do [ -n "$m" ] && same_skills "$m" && mh_cat "$m" | grep -qxF "skill=$name $fp_now" && ours=1; done < <(others)
     fi
     if [ "$ours" = 1 ]; then
-      say "remove $dst"; do_ rm -rf "${dst:?}"
+      say "remove $dst"; do_ mh_drop "$dst"
     else
-      say "move $dst to $state/backups/$stamp/removed/$name (you changed it)"
-      do_ mkdir -p "$state/backups/$stamp/removed"; do_ mv "$dst" "$state/backups/$stamp/removed/$name"
+      say "move $dst to $state/backups/$stamp-$agent/removed/$name (you changed it)"
+      do_ mkdir -p "$state/backups/$stamp-$agent/removed"; do_ mv "$dst" "$state/backups/$stamp-$agent/removed/$name"
     fi
-  done < <(sed -n 's/^skill=//p' "$manifest" | cut -d' ' -f1 | awk '!seen[$0]++')
+  done < <(mh_cat "$manifest" | sed -n 's/^skill=//p' | cut -d' ' -f1 | awk '!seen[$0]++')
   # 2. Put back the skills the install moved aside. While another agent still uses this skills folder,
   #    hand the record of those backups on to its manifest, so its uninstall restores them.
   while IFS= read -r m; do
@@ -130,8 +138,8 @@ if [ -n "$skills_dir" ]; then
     while IFS= read -r b; do
       [ -n "$b" ] || continue
       line="backup=$(mh_rebase "$b" "$ob" "$base")"
-      grep -qxF "$line" "$m" || { say "hand the backup record on to $(basename "$m")"; [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }
-    done < <(sed -n 's/^backup=//p' "$manifest")
+      mh_cat "$m" | grep -qxF "$line" || { say "hand the backup record on to $(basename "$m")"; [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }
+    done < <(mh_cat "$manifest" | sed -n 's/^backup=//p')
   done < <(others)
   while IFS= read -r b; do
     b="$(mh_rebase "$b" "$ob" "$base")"
@@ -142,13 +150,18 @@ if [ -n "$skills_dir" ]; then
       if [ -e "$skills_dir/$name" ]; then say "leave your earlier $name in $b ($skills_dir/$name exists)"
       else say "restore your $name to $skills_dir/$name"; do_ mv "${d%/}" "$skills_dir/$name"; fi
     done
-  done < <(sed -n 's/^backup=//p' "$manifest")
+  done < <(mh_cat "$manifest" | sed -n 's/^backup=//p')
+  # Copies an interrupted install left half made under a temporary name are the harness's own.
+  if [ -d "$skills_dir" ]; then
+    for t in "$skills_dir"/.mh-tmp-*; do [ -e "$t" ] && { say "remove $t (left by an interrupted install)"; do_ rm -rf "${t:?}"; }; done
+  fi
   # The skills are done: a run after an interruption from here on does not take them up again.
-  if [ "$dry" = 0 ]; then grep -v -e '^skill=' -e '^backup=' "$manifest" > "$manifest.new" || true; mv "$manifest.new" "$manifest"; fi
+  if [ "$dry" = 0 ]; then mh_cat "$manifest" | grep -v -e '^skill=' -e '^backup=' > "$manifest.new" || true; mv "$manifest.new" "$manifest"; fi
 fi
+checkpoint u-skills
 
 # 3. Routing, and the personal layer harness-onboarding wrote next to it.
-kept="$state/backups/$stamp/removed"
+kept="$state/backups/$stamp-$agent/removed"
 personal_rule="$(dirname "$rules")/makkov-harness-personal.mdc"
 if [ "$agent" = "cursor" ] && [ -f "$personal_rule" ]; then
   say "delete $personal_rule (a copy stays in $kept/)"
@@ -185,6 +198,8 @@ elif [ "$edit_rules" = 1 ]; then
     rm -f "$new"
   fi
 fi
+checkpoint u-rules
+[ "$dry" = 1 ] || rm -f "$rules.mh-tmp"
 # The copy of the file as it was goes once the file is back as it was; otherwise it stays, and you are told.
 if [ -z "$rules_users" ] && [ "$ours_backup" = 1 ] && [ "$have_backup" = 1 ]; then
   if [ -f "$rules" ] && cmp -s "$rules" "$rules_backup"; then do_ rm -f "$rules_backup"
@@ -193,7 +208,7 @@ fi
 
 # 4. The manifest, then the folders the install created, once empty (deepest first). A folder still in use is
 # handed on to another install in the same place, so the last uninstall takes it away.
-created_dirs="$(sed -n 's/^created_dir=//p' "$manifest" | awk '{ print length($0) "\t" $0 }' | sort -rn | cut -f2-)"
+created_dirs="$(mh_cat "$manifest" | sed -n 's/^created_dir=//p' | awk '{ print length($0) "\t" $0 }' | sort -rn | cut -f2-)"
 do_ rm -f "$manifest"
 left=""
 while IFS= read -r rel; do
@@ -207,11 +222,13 @@ if [ -n "$left" ]; then
   while IFS= read -r m; do
     [ -n "$m" ] || continue
     while IFS= read -r line; do
-      [ -n "$line" ] && ! grep -qxF "$line" "$m" && { [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }
+      [ -n "$line" ] && ! mh_cat "$m" | grep -qxF "$line" && { [ "$dry" = 1 ] || printf '%s\n' "$line" >> "$m"; }
     done < <(printf '%s' "$left")
   done < <(others)
 fi
 if [ "$dry" = 0 ] && [ -d "$state" ]; then
+  rm -f "$state"/install-*.txt.new
+  find "$state" -type f -name '*.mh-tmp' -exec rm -f {} + 2>/dev/null || true
   find "$state" -depth -mindepth 1 -type d -empty -exec rmdir {} \; 2>/dev/null || true
   rmdir "$state" 2>/dev/null || true
 fi

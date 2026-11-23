@@ -48,3 +48,14 @@ Short records of what a change taught, so the next change does not relearn it. N
   found the real cause at once.
 - **A safety hook blocks `rm -rf "$HOME"`** even when HOME points at a temp folder. In ad hoc checks, keep the
   temp folder in its own variable and never remove through `$HOME`.
+- **Word splitting hides in lists of paths.** `for m in $shared` worked until a project path had a space; then it
+  read `My` and `Project` as two manifests. Keep lists of paths one per line and read them with `while IFS= read -r`.
+  No shellcheck was available; every unquoted `for x in $var` in `install/` was reviewed by hand.
+- **Write the journal entry at the moment the state changes.** Listing every skill before copying any meant an
+  interrupted run claimed folders it never reached. Each entry now goes in just before its copy, after your folder
+  is set aside.
+- **Random sequences find what scenarios miss.** A seeded fuzz of install, update and uninstall over three agents
+  found two agents sharing a backup folder when installed in the same second, and half-deleted skill folders after
+  a kill: neither was in any hand-written scenario. Keep the seed in the failure message so it can be re-run.
+- **Kill the process group, not the shell.** `kill -9` on the script's PID left its `cp` running into the next step;
+  run the target in its own process group (`set -m`) and kill the group, as closing a terminal does.

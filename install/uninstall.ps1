@@ -41,6 +41,8 @@ if (-not (Test-Path -LiteralPath $manifest)) {
   exit 1
 }
 function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
+# Test hook, inert in normal use (see install.ps1): u-skills = after the skills, u-rules = after the file.
+function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
 
 # 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
 #    files to change must be changeable.
@@ -114,9 +116,9 @@ if ($skillsDir) {
       }
     }
     if ($ours) {
-      Write-Output "  remove $dst"; if (-not $DryRun) { Remove-Item -LiteralPath $dst -Recurse -Force }
+      Write-Output "  remove $dst"; if (-not $DryRun) { Remove-MhSkill $dst }
     } else {
-      $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') $stamp) 'removed') $name
+      $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed') $name
       Write-Output "  move $dst to $to (you changed it)"
       if (-not $DryRun) { New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null; Move-Item -LiteralPath $dst -Destination $to }
     }
@@ -142,15 +144,22 @@ if ($skillsDir) {
       else { Write-Output "  restore your $($d.Name) to $dst"; if (-not $DryRun) { Move-Item -LiteralPath $d.FullName -Destination $dst } }
     }
   }
+  # Copies an interrupted install left half made under a temporary name are the harness's own.
+  if (Test-Path -LiteralPath $skillsDir -PathType Container) {
+    foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) {
+      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-Item -LiteralPath $t.FullName -Recurse -Force }
+    }
+  }
   # The skills are done: a run after an interruption from here on does not take them up again.
   if (-not $DryRun) {
     $lines = @($lines | Where-Object { -not $_.StartsWith('skill=') -and -not $_.StartsWith('backup=') })
     [IO.File]::WriteAllLines("$manifest.new", [string[]]$lines, $MhUtf8); Move-Item -LiteralPath "$manifest.new" -Destination $manifest -Force
   }
 }
+Test-Checkpoint 'u-skills'
 
 # 3. Routing, and the personal layer harness-onboarding wrote next to it.
-$kept = Join-Path (Join-Path (Join-Path $state 'backups') $stamp) 'removed'
+$kept = Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed'
 $personalRule = Join-Path (Split-Path -Parent $rules) 'makkov-harness-personal.mdc'
 if ($Agent -eq 'cursor' -and (Test-Path -LiteralPath $personalRule)) {
   Write-Output "  delete $personalRule (a copy stays in $kept)"
@@ -187,6 +196,8 @@ if ($rulesUsers.Count) {
     Remove-Item -LiteralPath $tmp -Force
   }
 }
+Test-Checkpoint 'u-rules'
+if (-not $DryRun -and [IO.File]::Exists("$rules.mh-tmp")) { Remove-Item -LiteralPath "$rules.mh-tmp" -Force }
 # The copy of the file as it was goes once the file is back as it was; otherwise it stays, and you are told.
 if (-not $rulesUsers.Count -and $oursBackup -and $haveBackup) {
   if ([IO.File]::Exists($rules) -and ([Convert]::ToBase64String((Read-MhBytes $rules)) -ceq [Convert]::ToBase64String((Read-MhBytes $rulesBackup)))) {
@@ -212,6 +223,9 @@ if ($left.Count -and -not $DryRun) {
   }
 }
 if (-not $DryRun -and (Test-Path -LiteralPath $state)) {
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'removed-*.tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Recurse -Force -Filter '*.mh-tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
   foreach ($d in @(Get-ChildItem -LiteralPath $state -Recurse -Directory -Force | Sort-Object { $_.FullName.Length } -Descending)) {
     if (@(Get-ChildItem -LiteralPath $d.FullName -Force).Count -eq 0) { Remove-Item -LiteralPath $d.FullName -Force }
   }

@@ -37,4 +37,15 @@ no GNU-only `grep` syntax). PowerShell code must run in 5.1 and 7.
 temporary home and project. `install/test/legacy-0.5.0/` holds the released 0.5.0 installers, so a manifest
 written by a released version is checked to still update and uninstall cleanly.
 
+`install/test/test-sequences.sh` and `test-sequences.ps1` run seeded random sequences of install, update and
+uninstall for three agents at once (project or user level, paths with spaces and `[ ]`, with or without files of
+the person's own, runs stopped half way), and check that after the last uninstall the folder is byte for byte as it
+was and nothing outside it changed. The test files run a few of them (seeded by the day, printed); run more
+locally: `bash install/test/test-sequences.sh 300 <seed>`, with `MAKKOV_TEST_KILL=1` to also kill runs at random
+moments. `MAKKOV_SEQ_RUNS` and `MAKKOV_SEQ_SEED` set the count and the seed inside the test files.
+
+Runs are stopped half way through a test hook that is inert in normal use: only with both
+`MAKKOV_HARNESS_TEST=1` and `MAKKOV_HARNESS_TEST_STOP=<point>` set does a run stop at that point (install:
+`skill`, `skills`, `rules`; uninstall: `u-skills`, `u-rules`).
+
 Lessons from past changes: [lessons.md](lessons.md).

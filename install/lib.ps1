@@ -32,8 +32,30 @@ function Get-MhTreeIds([string]$Dir) {
 # The id recorded in a new manifest.
 function Get-MhTreeId([string]$Dir) { @(Get-MhTreeIds $Dir)[0] }
 
-# Always an array (an empty file gives an empty one, not $null, which a pipeline would pass on as one item).
-function Read-MhManifest([string]$Path) { ,@([IO.File]::ReadAllLines($Path, $MhUtf8)) }
+# A manifest's lines, always as an array (an empty file gives an empty one, not $null, which a pipeline would pass
+# on as one item). Any line end is read (LF from install.sh, CRLF from this one; a byte order mark is skipped), and
+# on Windows the paths install.sh writes from Git Bash (/c/x) or WSL (/mnt/c/x) are read as C:\x, so a manifest
+# written by either installer is read by both.
+function ConvertFrom-MhShellPath([string]$Value) {
+  if ([IO.Path]::DirectorySeparatorChar -ne '\') { return $Value }
+  if ($Value -cmatch '^/mnt/([a-zA-Z])(/.*)?$' -or $Value -cmatch '^/([a-zA-Z])(/.*)?$') {
+    return $Matches[1].ToUpperInvariant() + ':' + $(if ($Matches[2]) { $Matches[2] -replace '/', '\' } else { '\' })
+  }
+  $Value
+}
+function Read-MhManifest([string]$Path) {
+  ,@([IO.File]::ReadAllLines($Path, $MhUtf8) | ForEach-Object {
+    if ($_ -cmatch '^(base|skills_dir|rules|rules_backup|backup)=(.*)$') { $Matches[1] + '=' + (ConvertFrom-MhShellPath $Matches[2]) } else { $_ }
+  })
+}
+
+# Deletes a skill folder the harness put there: renamed first to a temporary name (.mh-tmp-old-<name>, which
+# install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
+function Remove-MhSkill([string]$Dir) {
+  $t = Join-Path (Split-Path -Parent $Dir) ('.mh-tmp-old-' + (Split-Path -Leaf $Dir))
+  if (Test-Path -LiteralPath $t) { Remove-Item -LiteralPath $t -Recurse -Force }
+  Move-Item -LiteralPath $Dir -Destination $t; Remove-Item -LiteralPath $t -Recurse -Force
+}
 
 # The first value of key=... in a manifest's lines, as written.
 function Get-MhRaw([string[]]$Lines, [string]$Key) {
@@ -159,10 +181,16 @@ function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [s
     if (-not $rel) { continue }
     if ([IO.Path]::IsPathRooted($rel) -or $rel.StartsWith('/') -or $rel.StartsWith('\')) { return 'a created folder given as an absolute path' }
     if (Test-MhDotDot $rel) { return 'a created folder with .. in its path' }
-    $v = Join-Path $Base $rel
-    if (($p.Skills -and ((Test-MhSamePath $p.Skills $v) -or (Test-MhUnder $p.Skills $v))) -or
-        (Test-MhSamePath (Split-Path -Parent $p.Rules) $v) -or (Test-MhUnder (Split-Path -Parent $p.Rules) $v)) { continue }
-    return 'a created folder the installer would not create'
+    # A folder on the way to any agent's skills or instructions folder here: an uninstall hands a folder still in
+    # use on to the other installs in the folder, whichever agent created it.
+    $v = Join-Path $Base $rel; $ok = $false
+    foreach ($x in 'codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider') {
+      if (-not $Project -and @('cursor', 'copilot', 'windsurf', 'aider') -contains $x) { continue }
+      $q = Get-MhPaths $x $Project $HomeDir
+      if (($q.Skills -and ((Test-MhSamePath $q.Skills $v) -or (Test-MhUnder $q.Skills $v))) -or
+          (Test-MhSamePath (Split-Path -Parent $q.Rules) $v) -or (Test-MhUnder (Split-Path -Parent $q.Rules) $v)) { $ok = $true }
+    }
+    if (-not $ok) { return 'a created folder the installer would not create' }
   }
   ''
 }
@@ -209,9 +237,20 @@ function Read-MhBytes([string]$File) {
   $in = [IO.File]::Open($File, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
   try { $ms = New-Object IO.MemoryStream; $in.CopyTo($ms); ,$ms.ToArray() } finally { $in.Dispose() }
 }
-function Write-MhBytes([string]$File, [byte[]]$Bytes) {
+# A regular file is replaced in one step: the new bytes go to <file>.mh-tmp, which then takes the file's place
+# (File.Replace keeps its attributes), so an interruption leaves the old file or the new one, never half of one
+# (install and uninstall clear a .mh-tmp left behind). A symlink is written through in place, so it stays one.
+function Write-MhInPlace([string]$File, [byte[]]$Bytes) {
   $out = [IO.File]::Open((Resolve-MhLink $File), [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
   try { $out.Write($Bytes, 0, $Bytes.Length) } finally { $out.Dispose() }
+}
+function Write-MhBytes([string]$File, [byte[]]$Bytes) {
+  if (Test-MhLink $File) { Write-MhInPlace $File $Bytes; return }
+  $t = "$File.mh-tmp"
+  Write-MhInPlace $t $Bytes
+  if (-not [IO.File]::Exists($File)) { [IO.File]::Move($t, $File); return }
+  try { [IO.File]::Replace($t, $File, [NullString]::Value) }
+  catch { Write-MhInPlace $File $Bytes; Remove-Item -LiteralPath $t -Force -ErrorAction SilentlyContinue }   # a file system without File.Replace
 }
 function Copy-MhBytes([string]$From, [string]$To) { Write-MhBytes $To (Read-MhBytes $From) }
 # A file as text, one character per byte; and text written back the same way.
@@ -228,11 +267,11 @@ function Test-MhWideText([string]$File) {
   ($b.Length -ge 4 -and $b[0] -eq 0 -and $b[1] -eq 0 -and $b[2] -eq 0xFE -and $b[3] -eq 0xFF)
 }
 
-# Two files say the same apart from trailing spaces and blank lines at the end.
+# The file after the harness's blocks are taken out is the file as it was: the same bytes, or the same plus the
+# one newline the installer added to a file that did not end in one. Any other difference is an edit of yours.
 function Test-MhSameText([string]$A, [string]$B) {
-  $na = ((Read-MhText $A) -replace '(?m)[ \t\r\f\v]+$', '').TrimEnd("`n")
-  $nb = ((Read-MhText $B) -replace '(?m)[ \t\r\f\v]+$', '').TrimEnd("`n")
-  $na -ceq $nb
+  $ta = Read-MhText $A; $tb = Read-MhText $B
+  ($ta -ceq $tb) -or ($tb.Length -gt 0 -and -not $tb.EndsWith("`n") -and $ta -ceq ($tb + "`n"))
 }
 
 # A file's lines without their line ends ("`r" of a CRLF file stays on the line, as in awk).
