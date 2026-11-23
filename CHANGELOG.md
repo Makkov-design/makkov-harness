@@ -2,6 +2,22 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [Unreleased]
+
+### Fixed
+
+- The install gate let common forms through and asked about harmless ones. It now asks before `curl … | sudo -E bash -`, `sh -c "$(curl …)"`, `eval "$(curl …)"`, `bash <(curl …)`, `iex (irm …)`, a program with a path (`/usr/bin/npm`, `venv/bin/pip`), options before the verb (`apt-get -y install`, `pip --quiet install`), `yarn global add`, `npm create`, `npm init <pkg>`, `pnpm create`, `docker run`, `go get`, `gh extension install` and more package managers, and across a backslash line continuation. It no longer asks about `npm install --prefix app` (the app's lockfile) or install words in a commit or PR message (`git commit -m "docs: pip install note"`). SECURITY.md lists exactly what is and is not matched. Still pure bash 3.2, no other program started.
+- The install guard's scanner reported a leading UTF-8 byte order mark and emoji joined with a zero-width joiner as HIGH hidden Unicode, and missed `sh -c "$(curl …)"`, `bash <(curl …)` and a `curl … \` / `| sh` split over two lines. It now skips those two harmless cases (real hidden and bidi characters are still caught), knows the substitution forms and reads continued lines whole. It has tests now.
+- The session-start hook printed the cloud-session rule in every session; it now prints it only when `CLAUDE_CODE_REMOTE=true`. An unknown `MAKKOV_HARNESS_SCOPE` value (such as `Design`) silently meant the whole map; it still does, and the agent is now told in one line.
+
+### Changed
+
+- With `MAKKOV_HARNESS_SCOPE=design` the install gate is off too, as the design scope leaves installs to you as without the harness. `MAKKOV_HARNESS_INSTALL_GATE=on` keeps it on; `MAKKOV_HARNESS_INSTALL_GATE=off` is now documented for headless `claude -p` runs, where nobody can answer the gate's question.
+
+### Added
+
+- One shared test corpus, `hooks/install-corpus.json`: real commands, each marked with what the install gate (ask or pass) and the scanner (flag or clean) must say. Both test suites read it, and a command the scanner flags must make the gate ask, so the two cannot drift apart.
+
 ## [0.5.0] - 2026-11-09
 
 Hardened: the install gate catches the commands people really type, updates and uninstalls know the harness's own copies, the Hyperframes CLI runs only as reviewed (pinned, its telemetry and npm install scripts off), the Design Score loader is pinned by hash, and the docs claim no more than what ships. Prompted by an independent review of 0.4.0.

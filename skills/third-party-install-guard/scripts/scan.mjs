@@ -19,7 +19,9 @@ const TEXT_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.jsx', 
 
 // [severity, id, description, regex]
 const RULES = [
-  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
+  // curl … | sh (sudo with options, env, a path, more pipes between; python/node/perl/ruby only when they read a script
+  // from stdin), sh -c "$(curl …)", eval "$(curl …)", bash <(curl …), source <(curl …), iex (irm …), PowerShell downloaders.
+  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b([^\n;&]*[^\n|;&])?\|\s*((sudo(\s+-\S+)*|env(\s+\w+=\S*)*)\s+)*(\S*[\/\\])?(((ba|z|da|k|fi)?sh|pwsh|powershell)\b(?!-)|(python[0-9.]*|py|node|perl|ruby)(\.exe)?(\s+-)?\s*($|["')`;&|]))|\b((ba|z|da|k|fi)?sh\b[^\n;&|]*?\s-[a-z]*c|eval)\s+["']?(\$\(|`)\s*(\S*\/)?(curl|wget)\b|(\b(ba|z|da|k|fi)?sh\b[^\n;&|<]*|\bsource|(^|[\s;&|])\.)\s+(<\s*)?<\(\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object|\[?(System\.)?Net\.WebClient)|\[scriptblock\]::Create[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
   ['HIGH', 'encoded-shell', 'Encoded/hidden PowerShell or shell payload', /powershell[^\n]*-(e|enc|encodedcommand)\s+[A-Za-z0-9+/=]{20,}|-WindowStyle\s+Hidden|base64\s+(-d|--decode)[^\n]*\|\s*(ba)?sh/i],
   ['HIGH', 'eval-decoded', 'Evaluates decoded/obfuscated data', /\b(eval|new\s+Function|exec|execSync|spawn)\s*\(\s*(atob|Buffer\.from|unescape|decodeURIComponent|String\.fromCharCode|zlib\.|base64\.b64decode|bytes\.fromhex|codecs\.decode)|\bexec\s*\(\s*(compile|base64|zlib|marshal)|marshal\.loads|pickle\.loads\s*\(\s*(base64|requests|urllib)/i],
   ['HIGH', 'credential-access', 'Reads credentials, keys, browser or wallet data', /\.ssh[\/\\](id_|authorized_keys|known_hosts)|\.aws[\/\\]credentials|\.docker[\/\\]config\.json|\.kube[\/\\]config|\.npmrc|\.pypirc|\.git-credentials|\.netrc|\.claude[\/\\](\.credentials|credentials)|\.claude\.json|Login Data|Local State|Cookies\b.*(Chrome|Edge|Brave)|User Data[\/\\]Default|Local Extension Settings|nkbihfbeogaeaoehlefnkodbefgpgknn|exodus|electrum|metamask|phantom|solana[\/\\]id\.json|keychain|Keychains|discord[^\n]*(Local Storage|leveldb)|wallet\.dat/i],
@@ -52,6 +54,26 @@ const AUTO_RUN_NAMES = [
 const INSTALL_SCRIPT_KEYS = ['preinstall', 'install', 'postinstall'];
 // Run only when installed from git or a local path, not from the registry tarball.
 const SOURCE_INSTALL_SCRIPT_KEYS = ['prepare', 'preprepare', 'postprepare'];
+
+// Not hidden text: a zero-width joiner between two emoji (woman + laptop, flag + rainbow) and the tag letters of a
+// subdivision flag (Scotland, Wales).
+// Removed before the hidden-unicode rule, which still catches the same characters anywhere else.
+const BENIGN_UNICODE = /(?<=\p{Extended_Pictographic}[\u{FE0F}\u{1F3FB}-\u{1F3FF}]?)\u200D(?=\p{Extended_Pictographic})|\u{1F3F4}[\u{E0030}-\u{E0039}\u{E0061}-\u{E007A}]{1,6}\u{E007F}/gu;
+
+// A line ending in a backslash continues on the next one (shell, Dockerfile, Makefile): join them so a command split
+// over lines is read whole. Returns [first line number, joined text] pairs.
+function logicalLines(text) {
+  const out = [];
+  let start = 0, buf = null;
+  text.split(/\r?\n/).forEach((line, i) => {
+    if (buf === null) { start = i; buf = ''; }
+    if (/\\$/.test(line) && !/\\\\$/.test(line)) { buf += line.slice(0, -1) + ' '; return; }
+    out.push([start + 1, buf + line]);
+    buf = null;
+  });
+  if (buf !== null) out.push([start + 1, buf]);
+  return out;
+}
 
 const findings = [];
 const autoRunFiles = [];
@@ -99,19 +121,22 @@ function scanFile(p, size) {
   if (ext === '.map' || (!TEXT_EXT.has(ext) && size > 512 * 1024)) return;
   filesScanned++;
 
-  const text = buf.toString('utf8');
+  // A UTF-8 byte order mark at the very start is how some editors save files, not hidden text.
+  let text = buf.toString('utf8');
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   if (size > MAX_FILE_BYTES) add('LOW', 'truncated', `File larger than ${MAX_FILE_BYTES} bytes, only the start was scanned`, r, 0);
 
   const lines = text.split(/\r?\n/);
   const isMinifiedSource = /\.(m|c)?js$/.test(ext) && lines.some((l) => l.length > 5000) && !/(^|\/)(dist|build|min|vendor)\//.test(r) && !/\.min\./.test(r);
   if (isMinifiedSource) add('MEDIUM', 'minified-source', 'Very long lines in a non-dist source file (possible hidden payload)', r, 0);
 
-  lines.forEach((line, i) => {
+  for (const [n, line] of logicalLines(text)) {
     for (const [sev, id, desc, re] of RULES) {
-      const m = re.exec(line);
-      if (m) add(sev, id, desc, r, i + 1, line.length > 160 ? line.slice(Math.max(0, m.index - 50), m.index + 110) : line);
+      const subject = id === 'hidden-unicode' ? line.replace(BENIGN_UNICODE, '') : line;
+      const m = re.exec(subject);
+      if (m) add(sev, id, desc, r, n, subject.length > 160 ? subject.slice(Math.max(0, m.index - 50), m.index + 110) : subject);
     }
-  });
+  }
 
   if (path.basename(p) === 'package.json') checkPackageJson(text, r);
 }

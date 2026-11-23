@@ -2,14 +2,25 @@
 # SessionStart hook: injects ROUTING.md so the agent knows which skill fits which situation,
 # even when skill descriptions are trimmed from a long skill list. Reads one local file, prints JSON, nothing else.
 # The plugin path is added so the agent can find cloud/setup-design-tools.sh when the user agrees to run it.
-# MAKKOV_HARNESS_SCOPE=design keeps the design rows only, like the installers' --scope design.
+# The cloud-session rule is kept only in a Claude cloud session (CLAUDE_CODE_REMOTE=true).
+# MAKKOV_HARNESS_SCOPE=design keeps the design rows only, like the installers' --scope design; empty or "all" keeps
+# everything, and any other value keeps everything with a one-line warning.
 set -u
 root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 routing="$(cat "$root/ROUTING.md" 2>/dev/null || printf 'makkov-harness: ROUTING.md not found.')"
-if [ "${MAKKOV_HARNESS_SCOPE:-}" = design ]; then
-  routing="$(printf '%s\n' "$routing" | grep -v -e '^| Research, analysis' -e '^| Installing, adding' -e '^| Any new feature or creative work' -e '^| Whole-project security review')"
-  routing="$routing"$'\n\n'"Scope: design work only (MAKKOV_HARNESS_SCOPE=design). For research, installs and general coding, work as you would without this harness."
-fi
+drop() { routing="$(printf '%s\n' "$routing" | grep -v "$@")"; }
+[ "${CLAUDE_CODE_REMOTE:-}" = true ] || drop -e '^- Claude cloud session (`CLAUDE_CODE_REMOTE=true`)'
+scope="${MAKKOV_HARNESS_SCOPE:-}"
+case "$scope" in
+  design)
+    drop -e '^| Research, analysis' -e '^| Installing, adding' -e '^| Any new feature or creative work' -e '^| Whole-project security review'
+    routing="$routing"$'\n\n'"Scope: design work only (MAKKOV_HARNESS_SCOPE=design). For research, installs and general coding, work as you would without this harness."
+    ;;
+  ''|all) ;;
+  *)
+    s="${scope//[^A-Za-z0-9._-]/?}"
+    routing="$routing"$'\n\n'"makkov-harness: MAKKOV_HARNESS_SCOPE=${s:0:40} is not a known scope (design or all), so the whole routing map applies. Tell the user in one line." ;;
+esac
 routing="$routing"$'\n\n'"Plugin path: $root"
 esc() {
   local s="$1"
