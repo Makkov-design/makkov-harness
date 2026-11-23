@@ -159,6 +159,7 @@ try {
   try { New-Item -ItemType SymbolicLink -Path $link -Target $target | Out-Null } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
   if ($linked) {
     & $inst -Agent codex -Project $proj | Out-Null
+    Check 'a copy of the file the link points to, as it was' { Same $exp (Join-Path $proj '.makkov-harness\backups\original\AGENTS.md') }
     Check 'still a symlink after the install' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and (Markers $target) -eq 1 }
     & $inst -Agent codex -Project $proj -Scope design | Out-Null
     Check 'still a symlink after an update that rewrites the block' { ((Get-Item $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and [bool]((Get-Content $target) | Where-Object { $_ -like 'Scope: design*' }) }

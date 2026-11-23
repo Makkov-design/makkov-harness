@@ -209,7 +209,7 @@ if ($rulesIsFile -and [IO.File]::ReadAllText($rules) -ceq $content) {
 } else {
   if ($rulesIsFile -and $rulesExisted -eq '1' -and -not $rulesBackup) {
     Add-Created (Split-Path -Parent $original); New-Item -ItemType Directory -Force -Path (Split-Path -Parent $original) | Out-Null
-    [IO.File]::WriteAllBytes($original, [IO.File]::ReadAllBytes($rules)); $rulesBackup = $original
+    Copy-MhBytes $rules $original; $rulesBackup = $original
   }
   Write-MhText $rules $content
 }

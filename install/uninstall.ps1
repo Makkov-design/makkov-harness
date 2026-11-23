@@ -135,7 +135,7 @@ if ($rulesUsers.Count) {
         if ($rulesExisted -ne '1' -and -not $new.Trim()) {
           Remove-Item -LiteralPath $rules -Force
           Write-Output "  delete $rules (the install created it and it is now empty)"
-        } elseif ($exact) { [IO.File]::WriteAllBytes($rules, [IO.File]::ReadAllBytes($rulesBackup)) }
+        } elseif ($exact) { Copy-MhBytes $rulesBackup $rules }
         else { Write-MhText $rules $new }
       }
     }

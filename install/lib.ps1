@@ -145,6 +145,16 @@ function Get-MhPersonalLayer([string]$File) {
   Join-MhLines $out.ToArray()
 }
 
+# Copies a file's bytes into another file, in place: through a symlink at either end, and read to the end of
+# the stream rather than to the length the file system reports (which can be the link's own, 0).
+function Copy-MhBytes([string]$From, [string]$To) {
+  $in = [IO.File]::Open($From, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  try {
+    $out = [IO.File]::Open($To, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try { $in.CopyTo($out) } finally { $out.Dispose() }
+  } finally { $in.Dispose() }
+}
+
 # Writes text into a file in place (through a symlink, keeping the file's attributes), as UTF-8 without a BOM.
 function Write-MhText([string]$File, [string]$Text) { [IO.File]::WriteAllText($File, $Text, $MhUtf8) }
 
