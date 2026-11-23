@@ -49,9 +49,9 @@ for n in $(seq 1 "$runs_total"); do
     case "$a" in cursor|copilot|windsurf|aider) [ -n "$p" ] || continue ;; esac
     op="$(pick install install update uninstall uninstall)"
     stop=""; [ $((RANDOM % 4)) = 0 ] && stop=yes
-    if [ "$op" = uninstall ]; then cmd=(bash "$uninst" "$a" "${pa[@]}"); points=(u-skills u-rules)
+    if [ "$op" = uninstall ]; then cmd=(bash "$uninst" "$a" ${pa[@]+"${pa[@]}"}); points=(u-skills u-rules)
       [ -f "$base/.makkov-harness/install-$a.txt" ] || continue
-    else cmd=(bash "$inst" "$a" "${pa[@]}"); points=(skill skills rules)
+    else cmd=(bash "$inst" "$a" ${pa[@]+"${pa[@]}"}); points=(skill skills rules)
       [ "$op" = update ] && [ $((RANDOM % 2)) = 0 ] && cmd+=(--scope design)
     fi
     how="normal"
@@ -79,7 +79,7 @@ for n in $(seq 1 "$runs_total"); do
       [ -f "$m" ] || continue
       a="$(basename "$m" .txt)"; a="${a#install-}"
       pa=(); [ -n "$p" ] && pa=("$p")
-      out="$(bash "$uninst" "$a" "${pa[@]}" 2>&1)" || fail "final uninstall of $a failed: $out"
+      out="$(bash "$uninst" "$a" ${pa[@]+"${pa[@]}"} 2>&1)" || fail "final uninstall of $a failed: $out"
       log="$log  uninstall $a (final)
 "
     done
