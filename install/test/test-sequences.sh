@@ -40,7 +40,8 @@ RANDOM="$seed"
 pick() { local a=("$@"); printf '%s' "${a[$((RANDOM % ${#a[@]}))]}"; }
 # Everything under a folder, with checksums of files and targets of links.
 tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
-fail() { echo "FAIL (sequence $n, seed $seed): $*"; echo "steps:"; printf '%s' "$log"; exit 1; }
+# On a failure: the steps, then what each run printed.
+fail() { echo "FAIL (sequence $n, seed $seed): $*"; echo "steps:"; printf '%s' "$log"; echo "what each run printed:"; printf '%s\n' "$said"; exit 1; }
 
 for n in $(seq 1 "$runs_total"); do
   parent="$(mktemp -d)"
@@ -69,33 +70,37 @@ for n in $(seq 1 "$runs_total"); do
   # Files outside the folder that a split or globbed path would hit.
   printf 'outside\n' > "$parent/${name%% *}x"; printf 'outside\n' > "$parent/My"
   start="$(tree "$base")"; outside="$(cd "$parent" && ls -la | grep -v -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
-  log=""
+  log="" said=""
   for step in 1 2 3 4 5 6 7 8; do
     a="$(pick "${agents[@]}")"
     case "$a" in cursor|copilot|windsurf|aider) [ -n "$p" ] || continue ;; esac
     im="$(pick "${impls[@]}")"
     op="$(pick install install update uninstall uninstall)"
     stop=""; [ $((RANDOM % 4)) = 0 ] && stop=yes
+    sc=""
     if [ "$op" = uninstall ]; then run_cmd "$im" uninstall "$a" "$p" ""; points=(u-skills u-rules)
       [ -f "$base/.makkov-harness/install-$a.txt" ] || continue
-    else sc=""; [ "$op" = update ] && [ $((RANDOM % 2)) = 0 ] && sc=design
+    else [ "$op" = update ] && [ $((RANDOM % 2)) = 0 ] && sc=design
       run_cmd "$im" install "$a" "$p" "$sc"; points=(skill skills rules)
     fi
     how="normal"
     set +e
     if [ -n "$stop" ] && [ "${MAKKOV_TEST_KILL:-}" = 1 ] && [ $((RANDOM % 2)) = 0 ]; then
-      how="kill -9 after ${RANDOM: -1}0 ms"
+      how="kill -9 after ${RANDOM: -1}0 ms"; out="(killed)"
       # In a process group of its own (job control on), so the kill takes the cp or awk it is running too, as
       # closing the terminal would.
       set -m; "${cmd[@]}" >/dev/null 2>&1 & pid=$!; set +m
       sleep "0.$(printf '%02d' $((RANDOM % 60)))"; kill -9 -- "-$pid" 2>/dev/null; wait "$pid" 2>/dev/null; code=0
     elif [ -n "$stop" ]; then
       pt="$(pick "${points[@]}")"; how="stopped after $pt"
-      MAKKOV_HARNESS_TEST=1 MAKKOV_HARNESS_TEST_STOP="$pt" "${cmd[@]}" >/dev/null 2>&1; code=0
+      out="$(MAKKOV_HARNESS_TEST=1 MAKKOV_HARNESS_TEST_STOP="$pt" "${cmd[@]}" 2>&1)"; code=0
     else
       out="$("${cmd[@]}" 2>&1)"; code=$?
     fi
     set -e
+    said="$said--- $op $a ($im): ${cmd[*]}
+${out:-}
+"
     log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)
 "
     [ "$code" = 0 ] || fail "step $step: $op $a failed: $out"
@@ -107,6 +112,9 @@ for n in $(seq 1 "$runs_total"); do
       a="$(basename "$m" .txt)"; a="${a#install-}"
       im="$(pick "${impls[@]}")"; run_cmd "$im" uninstall "$a" "$p" ""
       out="$("${cmd[@]}" 2>&1)" || fail "final uninstall of $a ($im) failed: $out"
+      said="$said--- uninstall $a ($im, final): ${cmd[*]}
+$out
+"
       log="$log  uninstall $a ($im, final)
 "
     done
