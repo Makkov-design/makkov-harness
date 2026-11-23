@@ -2,6 +2,22 @@
 
 Every notable change to makkov-harness, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version is the one in `.claude-plugin/plugin.json`.
 
+## [Unreleased]
+
+### Fixed
+
+- Installers, update and uninstall ([install/](install/)), each with a scenario in `install/test/` for bash and PowerShell:
+  - Uninstalling one agent took the routing block (and the personal layer) out of a `<project>/AGENTS.md` another installed agent still read; Codex, Copilot, Windsurf, Cline and OpenCode all use that file. The block now stays until the last of them is uninstalled.
+  - An update without `--scope` / `-Scope` dropped an earlier `--scope design`. It now keeps the scope the manifest recorded.
+  - Updating the block replaced a symlinked instructions file with a regular file and reset its mode to 600. The installers now write through the existing file, and leave it untouched when it is already current.
+  - A skill removed or renamed in a newer version stayed behind forever. An update now takes it out, or moves it to `backups/<date>/removed/` if you changed it, unless another installed agent still lists it.
+  - A start marker without its end marker made `install.sh` cut the rest of the file and `install.ps1` add a second block. Both now check that the markers are paired, stop with the line number and change nothing; so does the uninstaller.
+  - Uninstalling after the project folder was moved or renamed printed "removed", deleted the manifest and left the skills and the block. The manifest records the folder it was written for (`base=`), and paths from it, older manifests included, are read relative to the folder you pass now.
+  - Several installs and an uninstall left `AGENTS.md.bak-<date>` files next to your file, empty `.agents/skills` and `.makkov-harness` folders, and a trailing blank line in your file. Now one copy of your file is kept once in `.makkov-harness/backups/original/`, the uninstall puts the file back byte for byte when you have not changed it, and removes the folders the install created once they are empty.
+  - `install.ps1` / `uninstall.ps1` read a project path with `[` or `]` as a wildcard. Every path now goes through `-LiteralPath`.
+  - `--scope` with no value exited silently; it now prints the usage.
+- The Windows install commands in README.md and INSTALL.md used `~/…`, which Windows PowerShell 5.1 does not expand for `git`; they use `$HOME\makkov-harness` now.
+
 ## [0.5.0] - 2026-11-09
 
 Hardened: the install gate catches the commands people really type, updates and uninstalls know the harness's own copies, the Hyperframes CLI runs only as reviewed (pinned, its telemetry and npm install scripts off), the Design Score loader is pinned by hash, and the docs claim no more than what ships. Prompted by an independent review of 0.4.0.
