@@ -145,9 +145,25 @@ function Get-MhPersonalLayer([string]$File) {
   Join-MhLines $out.ToArray()
 }
 
+# The file a path finally names: a symlink is followed to its target (a relative target is read against the
+# link's folder), so writes go to the real file and the link itself is left as it is.
+function Resolve-MhLink([string]$Path) {
+  $p = $Path
+  for ($i = 0; $i -lt 16; $i++) {
+    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.LinkType -ne 'SymbolicLink') { return $p }
+    $t = @($item.Target)[0]
+    if (-not $t) { return $p }
+    if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $p) $t }
+    $p = $t
+  }
+  $p
+}
+
 # Copies a file's bytes into another file, in place: through a symlink at either end, and read to the end of
 # the stream rather than to the length the file system reports (which can be the link's own, 0).
 function Copy-MhBytes([string]$From, [string]$To) {
+  $To = Resolve-MhLink $To
   $in = [IO.File]::Open($From, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
   try {
     $out = [IO.File]::Open($To, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
@@ -156,7 +172,7 @@ function Copy-MhBytes([string]$From, [string]$To) {
 }
 
 # Writes text into a file in place (through a symlink, keeping the file's attributes), as UTF-8 without a BOM.
-function Write-MhText([string]$File, [string]$Text) { [IO.File]::WriteAllText($File, $Text, $MhUtf8) }
+function Write-MhText([string]$File, [string]$Text) { [IO.File]::WriteAllText((Resolve-MhLink $File), $Text, $MhUtf8) }
 
 # A path relative to the base, for created_dir= lines (always with / separators).
 function Get-MhRel([string]$Path, [string]$Base) {
