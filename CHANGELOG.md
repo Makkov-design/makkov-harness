@@ -13,6 +13,8 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 - README: a stale "New in 0.2" tag on Design Score (the site's home page had it too, now fixed); CHANGELOG link definitions for 0.3.2 to 0.5.0.
 - SECURITY.md: the Frame Lens row shows its pinned version (2.1.0, `94d426f`); the cloud setup script line says its npm installs are pinned with `--before` the review date; the bookmarklet loader line names the versioned copies at `score/<version>/mh-score.js`.
 - `check.mjs` compares a vendored commit in full when both spellings are full 40-character SHAs, instead of by their first 7 characters.
+- SECURITY.md and the security page say more about what two companions reach: Hallmark's `theme.mjs photos --save` downloads photos from Wikimedia Commons and drafts may link Commons thumbnails; interfaces' `afk` skill works unattended once you start it, reads beyond the project (saved memory, sibling projects, connected services, read-only) and runs the project's own commands. Pins unchanged.
+- `check.mjs` closes the remaining short-commit gaps: the full commits in `docs/security-data.js` must equal those in `marketplace.json` and `.github/upstream-watch.json` (so a changed tail no longer passes), and a commit written in uppercase or longer than 40 characters on a line naming a vendored repository fails. The comparisons live in `.github/scripts/pins.mjs`, with tests.
 
 ### Changed
 
