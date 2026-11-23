@@ -21,8 +21,7 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }; ps_e
 # MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
 # `npm pack` (its skills miss the files npm never packs, such as a .gitignore); this repository's by default.
 node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
-# PowerShell keeps caches in its own $HOME (.cache, .local; on Windows LOCALAPPDATA, which defaults to one under
-# USERPROFILE): a folder of its own, outside the folders compared, so
+# PowerShell keeps caches in its own $HOME (.cache, .local): a folder of its own, outside the folders compared, so
 # they are not taken for something an installer left. install.ps1 reads USERPROFILE, the test's home.
 ps_home="$(mktemp -d)"; trap 'rm -rf "$ps_home"' EXIT
 # The command line of one run: <impl> install|uninstall <agent> [project] [--scope design]
@@ -32,10 +31,14 @@ run_cmd() {
   case "$i" in
     sh)   cmd=(bash "$repo/install/$op.sh" "$a"); [ -n "$pr" ] && cmd+=("$pr"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
     node) cmd=(env "USERPROFILE=$(winpath "$HOME")" node "$(winpath "$node_bin")" "$op" --agent "$a"); [ -n "$pr" ] && cmd+=(--project "$wp"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
-    ps)   cmd=(env "USERPROFILE=$(winpath "$HOME")" "HOME=$ps_home" "LOCALAPPDATA=$(winpath "$ps_home")" "APPDATA=$(winpath "$ps_home")" POWERSHELL_TELEMETRY_OPTOUT=1 "$ps_exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(winpath "$repo/install/$op.ps1")" -Agent "$a"); [ -n "$pr" ] && cmd+=(-Project "$wp"); [ -n "$sc" ] && cmd+=(-Scope "$sc") ;;
+    ps)   cmd=(env "USERPROFILE=$(winpath "$HOME")" "HOME=$ps_home" POWERSHELL_TELEMETRY_OPTOUT=1 "$ps_exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(winpath "$repo/install/$op.ps1")" -Agent "$a"); [ -n "$pr" ] && cmd+=(-Project "$wp"); [ -n "$sc" ] && cmd+=(-Scope "$sc") ;;
   esac
   return 0
 }
+# On Windows PowerShell keeps its startup cache under USERPROFILE (AppData/Local/Microsoft/PowerShell), which here
+# is the test's home: that folder, PowerShell's own, is taken away after each PowerShell run when it was not there
+# before the sequence (nothing of the installers' goes there).
+ps_clean() { [ "$1" = ps ] && [ "$had_appdata" = 0 ] && rm -rf "$home/AppData"; return 0; }
 runs_total="${1:-20}" seed="${2:-1}"
 RANDOM="$seed"
 # pick sets $picked (not $(pick …): a subshell's $RANDOM does not advance the sequence, and newer bash reseeds it).
@@ -71,6 +74,7 @@ for n in $(seq 1 "$runs_total"); do
   [ "$level" = project ] && [ $((RANDOM % 3)) = 0 ] && printf 'gemini notes\n' > "$base/GEMINI.md"
   # Files outside the folder that a split or globbed path would hit.
   printf 'outside\n' > "$parent/${name%% *}x"; printf 'outside\n' > "$parent/My"
+  had_appdata=0; [ -e "$home/AppData" ] && had_appdata=1
   start="$(tree "$base")"; outside="$(cd "$parent" && ls -la | grep -v -e '^total' -e ' \.$' -e ' \.\.$' -e " ${name%% *}" | awk '{print $1, $5, $NF}'; cksum "$parent/My" "$parent/${name%% *}x")"
   log="" said=""
   for step in 1 2 3 4 5 6 7 8; do
@@ -100,6 +104,7 @@ for n in $(seq 1 "$runs_total"); do
       out="$("${cmd[@]}" 2>&1)"; code=$?
     fi
     set -e
+    ps_clean "$im"
     said="$said--- $op $a ($im): ${cmd[*]}
 ${out:-}
 "
@@ -114,6 +119,7 @@ ${out:-}
       a="$(basename "$m" .txt)"; a="${a#install-}"
       pick "${impls[@]}"; im="$picked"; run_cmd "$im" uninstall "$a" "$p" ""
       out="$("${cmd[@]}" 2>&1)" || fail "final uninstall of $a ($im) failed: $out"
+      ps_clean "$im"
       said="$said--- uninstall $a ($im, final): ${cmd[*]}
 $out
 "
