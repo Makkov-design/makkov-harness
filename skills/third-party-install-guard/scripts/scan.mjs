@@ -22,7 +22,7 @@ const RULES = [
   // curl … | sh (sudo or doas with options, env, NAME=value, busybox, a path, more pipes between, a quoted URL with & or ;
   // in it; python/node/perl/ruby only when they read a script from stdin: alone or with "-"), sh -c / eval / ruby -e /
   // python3 -c "$(curl …)", bash <(curl …), source <(curl …), iex (irm …), iex "& { $(irm …) }", PowerShell downloaders.
-  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b([^\n;&|"']|"[^"\n]{0,400}"|'[^'\n]{0,400}'|\|(?![|&])){0,1000}?\|&?\s*((sudo|doas)(\s+-\S+)*\s+|(\S*\/)?env(\s+-\S+)*(\s+\w+=\S*)*\s+|\w+=\S*\s+|busybox\s+)*(\S*[\/\\])?(((ba|z|da|k|fi|a)?sh|pwsh|powershell)\b(?!-)|(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?(\s+-(\s|$)|\s*($|["')`;&|])))|\b((ba|z|da|k|fi|a)?sh\b[^\n;&|]*?\s-[a-z]*c|eval|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?\b[^\n;&|]*?\s-([a-z]*[ecr]|command))\s+["']?(\$\(|`)\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)\s+["'][^"'\n]*\$\(\s*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|(\b(ba|z|da|k|fi|a)?sh\b[^\n;&|<]*|\bsource|(^|[\s;&|])\.)\s+(<\s*)?<\(\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object|\[?(System\.)?Net\.WebClient)|\[scriptblock\]::Create[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
+  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b(\\.|[^\n;&|"'\\]|"[^"\n]{0,400}"|'[^'\n]{0,400}'|\|(?![|&])){0,1000}?\|&?\s*((sudo|doas)(\s+-\S+)*\s+|(\S*\/)?env(\s+-\S+)*(\s+\w+=\S*)*\s+|\w+=\S*\s+|(busybox|exec|command|nohup|nice|time)\s+)*(\S*[\/\\])?(((ba|z|da|k|fi|a|c|tc)?sh|pwsh|powershell)\b(?!-)|(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?(\s+-(\s|$)|\s*($|["')`;&|])))|\b((ba|z|da|k|fi|a)?sh\b[^\n;&|]*?\s-[a-z]*c|eval|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?\b[^\n;&|]*?\s-([a-z]*[ecr]|command))\s+["']?(\$\(|`)\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)\s+["'][^"'\n]*\$\(\s*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|(\b(ba|z|da|k|fi|a)?sh\b[^\n;&|<]*|\bsource|(^|[\s;&|])\.)\s+(<\s*)?<\(\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object|\[?(System\.)?Net\.WebClient)|\[scriptblock\]::Create[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
   ['HIGH', 'encoded-shell', 'Encoded/hidden PowerShell or shell payload', /powershell[^\n]*-(e|enc|encodedcommand)\s+[A-Za-z0-9+/=]{20,}|-WindowStyle\s+Hidden|base64\s+(-d|--decode)[^\n]*\|\s*(ba)?sh/i],
   ['HIGH', 'eval-decoded', 'Evaluates decoded/obfuscated data', /\b(eval|new\s+Function|exec|execSync|spawn)\s*\(\s*(atob|Buffer\.from|unescape|decodeURIComponent|String\.fromCharCode|zlib\.|base64\.b64decode|bytes\.fromhex|codecs\.decode)|\bexec\s*\(\s*(compile|base64|zlib|marshal)|marshal\.loads|pickle\.loads\s*\(\s*(base64|requests|urllib)/i],
   ['HIGH', 'credential-access', 'Reads credentials, keys, browser or wallet data', /\.ssh[\/\\](id_|authorized_keys|known_hosts)|\.aws[\/\\]credentials|\.docker[\/\\]config\.json|\.kube[\/\\]config|\.npmrc|\.pypirc|\.git-credentials|\.netrc|\.claude[\/\\](\.credentials|credentials)|\.claude\.json|Login Data|Local State|Cookies\b.*(Chrome|Edge|Brave)|User Data[\/\\]Default|Local Extension Settings|nkbihfbeogaeaoehlefnkodbefgpgknn|exodus|electrum|metamask|phantom|solana[\/\\]id\.json|keychain|Keychains|discord[^\n]*(Local Storage|leveldb)|wallet\.dat/i],
@@ -83,6 +83,9 @@ function logicalLines(text) {
   if (cur !== null) out.push(cur);
   return out;
 }
+const FAR_FETCH = /\b(curl|wget)\b/i;
+const FAR_PIPE_SHELL = /(?<!\|)\|(?!\|)&?\s*(sudo\s+)?(\S*\/)?(ba|z|da|k|fi|a|c|tc)?sh\b(?!-)/i;
+
 // A very long line (minified code, a data blob) is matched in windows of 8,000 characters that overlap by 2,000, so
 // rules with open-ended spans stay linear; a match up to 2,000 characters long is never split.
 const WINDOW = 8000, OVERLAP = 2000;
@@ -155,6 +158,7 @@ function scanFile(p, size) {
   if (isMinifiedSource) add('MEDIUM', 'minified-source', 'Very long lines in a non-dist source file (possible hidden payload)', r, 0);
 
   for (const l of logicalLines(text)) {
+    let execFound = false;
     for (const [sev, id, desc, re] of RULES) {
       const subject = id === 'hidden-unicode' ? l.text.replace(BENIGN_UNICODE, '') : l.text;
       for (const [off, part] of windows(subject)) {
@@ -162,9 +166,15 @@ function scanFile(p, size) {
         if (!m) continue;
         const at = off + m.index;
         add(sev, id, desc, r, lineAt(l, at), subject.length > 160 ? subject.slice(Math.max(0, at - 50), at + 110) : subject);
+        if (id === 'remote-exec') execFound = true;
         break;
       }
     }
+    // The windows and the bounded spans keep the remote-exec rule fast, so a download and a pipe to a shell padded
+    // further apart than they reach are caught here: two plain tests, no open span.
+    const far = execFound ? null : FAR_FETCH.exec(l.text);
+    const pipe = far && FAR_PIPE_SHELL.exec(l.text.slice(far.index));
+    if (pipe) add('HIGH', 'remote-exec', 'Downloads and executes remote code (download and shell far apart on one line)', r, lineAt(l, far.index + pipe.index), l.text.slice(far.index, far.index + 160));
   }
 
   if (path.basename(p) === 'package.json') checkPackageJson(text, r);

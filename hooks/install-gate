@@ -32,6 +32,7 @@ unset parts
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cmd ]] || exit 0
 cmd="${BASH_REMATCH[1]}"
+raw="$cmd"   # as sent: the text rule checks real line breaks here, where a typed " ; " cannot pass for one
 cwd=""
 re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
@@ -66,7 +67,12 @@ if [[ $cmd =~ $re_long ]]; then
   i=0
   while [ $i -lt ${#words[@]} ]; do
     word="${words[$i]}"
-    if [ ${#word} -gt 400 ]; then long=1; words[$i]="${word:0:200} ${word:$((${#word} - 200))}"; fi
+    if [ ${#word} -gt 400 ]; then
+      # The middle is not matched, so it must not be able to hold a command: a separator, a pipe or $( ) there asks.
+      mid="${word:200:$((${#word} - 400))}"
+      case "$mid" in *[\;\|\&\`]*|*'$('*) ask ;; esac
+      long=1; words[$i]="${word:0:200} ${word:$((${#word} - 200))}"
+    fi
     i=$((i + 1))
   done
   cmd="${words[*]}"
@@ -96,6 +102,10 @@ is_text() {   # $1 = the quoted value
   [[ $body =~ $re_tail ]] || return 1
   local inner="${body%"${BASH_REMATCH[0]}"}"
   case " ; $inner ; " in *" ; $d ; "*|*" ;  $d ; "*) return 1 ;; esac
+  # The one heredoc in the whole command, its delimiter followed by a real line break, and the closing line real too.
+  local r1="${raw#*<<}"
+  case "$r1" in "$raw"|*'<<'*) return 1 ;; esac
+  [[ $raw == *"<<'${d}'\\n"* && $raw == *"\\n${d}\\n)\\\""* ]] || return 1
   return 0
 }
 blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex the text before it must match
@@ -105,7 +115,10 @@ blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex
     m="${BASH_REMATCH[0]}"; lead="${BASH_REMATCH[1]}"; opt="${BASH_REMATCH[2]}"; sep="${BASH_REMATCH[3]}"; v="${BASH_REMATCH[4]}"
     pre="${rest%%"$m"*}"; rest="${rest#*"$m"}"
     new="$m"
-    if [[ "$out$pre$lead" =~ $2 ]] && [[ $rest =~ ^${segtext}([;&]|$) ]] && is_text "$v"; then new="$lead$opt$sep\"\""; fi
+    # Not text when a heredoc or a # comment is anywhere around it: there a quote is not a quote, so ask.
+    case "$out$pre$lead$rest" in *'<<'*|*[[:space:]]'#'*) ;; *)
+      if [[ "$out$pre$lead" =~ $2 ]] && [[ $rest =~ ^${segtext}([;&]|$) ]] && is_text "$v"; then new="$lead$opt$sep\"\""; fi ;;
+    esac
     out="$out$pre$new"
   done
   c="$out$rest"
@@ -133,27 +146,27 @@ join "([[:space:]](--prefix|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit
 join "((^|[[:space:];&|(])${path}npm(\.cmd|\.exe)?([[:space:]]+${w}+){0,8}[[:space:]](-w|--workspace))${val}"
 shopt -s nocasematch
 
-b="(^|[[:space:];&|(\`\"'{])"        # a word starts after a space, a separator, a bracket or a quote
+b="(^|[[:space:];&|(\`\"'{!])"       # a word starts after a space, a separator, a bracket, a quote or ! (git aliases)
 flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
 flags="([[:space:]]+-${w}*)*"         # options without values
 pkg="[[:space:]]+[^-[:space:];&|\"')]" # a word that is not an option: a package
 pm="${b}${path}(npm|pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*"
 npm_add='(install|i|in|ins|inst|insta|instal|isnt|isnta|isntal|isntall|add|it|install-test|create|init)'
-shell="${path}(ba|z|da|k|fi|a)?sh(\.exe)?"
+shell="${path}(ba|z|da|k|fi|a|c|tc)?sh(\.exe)?"
 end='([[:space:]]|$|["'"'"')`;&|])'                       # the end of a word
-interp="${path}((ba|z|da|k|fi|a)?sh|pwsh|powershell)(\.exe)?${end}"  # a shell runs its stdin, whatever the options
+interp="${path}((ba|z|da|k|fi|a|c|tc)?sh|pwsh|powershell)(\.exe)?${end}"  # a shell runs its stdin, whatever the options
 # python, node, perl and ruby run their stdin only with no script: alone or with "-" (python3 -m json.tool reads data)
 interp2="${path}(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?([[:space:]]+-([[:space:]]|$)|[[:space:]]*($|[\"')\`;&|]))"
 fetch="${path}(curl|wget)(\.exe)?"
 ps_fetch='(iwr|irm|invoke-webrequest|invoke-restmethod|new-object|\[?(system\.)?net\.webclient)'
 subst='(\$\(|`)'
 # What may stand between a pipe and the program: sudo or doas with options, env, NAME=value, busybox.
-sudo="((sudo|doas)(${flag})*[[:space:]]+|${path}env(\.exe)?${flags}([[:space:]]+${w}+=${w}*)*[[:space:]]+|[a-z_][a-z0-9_]*=${w}*[[:space:]]+|busybox[[:space:]]+)*"
-span="([^;&|\"']|${dq}|${sq}|\|[^|&\"'])*"   # up to the last pipe, quoted & and ; included
+sudo="((sudo|doas)(${flag})*[[:space:]]+|${path}env(\.exe)?${flags}([[:space:]]+${w}+=${w}*)*[[:space:]]+|[a-z_][a-z0-9_]*=${w}*[[:space:]]+|(busybox|exec|command|nohup|nice|time)[[:space:]]+)*"
+span="(\\\\.|[^;&|\"'\\\\]|${dq}|${sq}|\|[^|&\"'])*"   # up to the last pipe, quoted & and ; included
 topipe="${span}\|&?[[:space:]]*${sudo}(${interp}|${interp2})"
 # Saved to a file, then run in the same command line: curl -o, wget, iwr -OutFile, git clone, then sh file, ./file,
 # python file, make, npm install …
-saved="${b}(${fetch}${span}[[:space:]](-[a-z]*o|--output|--remote-name(-all)?)([[:space:]=]|$)|${path}wget(\.exe)?[[:space:]]|(iwr|irm|invoke-webrequest|invoke-restmethod)[^;&|]*-outfile|${path}git(\.exe)?[[:space:]]+clone[[:space:]])"
+saved="${b}(${fetch}${span}[[:space:]](-[a-z]*o|--output|--remote-name(-all)?)([[:space:]=]|$)|${path}wget(\.exe)?[[:space:]]|(iwr|irm|invoke-webrequest|invoke-restmethod)[^;&|]*-outfile|${fetch}${span}>[[:space:]]*[^&|;[:space:]>]|${fetch}${span}\|[[:space:]]*(tar|bsdtar|unzip|gunzip|zcat|cpio)([[:space:]]|$)|${path}git(\.exe)?[[:space:]]+clone[[:space:]]|${path}gh(\.exe)?[[:space:]]+repo[[:space:]]+clone[[:space:]])"
 runs="(^|[;&|(])[[:space:]]*${sudo}(${shell}${flags}[[:space:]]+[^-[:space:];&|<]|&?[[:space:]]*\.{1,2}[/\\]${w}|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+[^-[:space:];&|]|make([[:space:]]|$)|(npm|pnpm|yarn|bun)(\.cmd)?[[:space:]]+(install|i|ci|run|start)([[:space:]]|$)|(pip[0-9.]*|python[0-9.]*[[:space:]]+-m[[:space:]]*pip)[[:space:]]+install[[:space:]])"
 
 # Each pattern starts with the words it needs (any one of them, as text); a pattern runs only when one is there.
@@ -188,7 +201,9 @@ patterns=(
   # sh -c "\$(curl …)", eval "\$(curl …)", ruby -e / python3 -c "\$(curl …)", bash <(curl …), source <(curl …)
   "curl wget@@${b}${sudo}(${shell}${flags}[[:space:]]+-[a-z]*c|eval)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
   "curl wget@@${b}${sudo}${path}(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+-([a-z]*[ecr]|command)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
-  "curl wget@@${b}${sudo}(${shell}${flags}|source|\.)[[:space:]]+(<[[:space:]]*)?<\([[:space:]]*${fetch}[[:space:]]"
+  "curl wget@@${b}${sudo}(${shell}${flags}|${path}(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?${flags}|source|\.)[[:space:]]+(<[[:space:]]*)?<\([[:space:]]*${fetch}[[:space:]]"
+  "curl wget@@<<<[[:space:]]*[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  ">(@@>[[:space:]]*>\([[:space:]]*${sudo}${path}((ba|z|da|k|fi|a|c|tc)?sh|pwsh|powershell|python[0-9.]*|py|node|perl|ruby|php)(\.exe)?([[:space:]]|\))"
   # downloaded to a file, then run: curl -o x.sh … && sh x.sh, git clone … && cd … && ./install.sh or npm install
   "curl wget iwr irm invoke-web invoke-rest clone@@${saved}.*${runs}"
   # PowerShell: iwr … | iex, iex (irm …), iex "& { \$(irm …) }", iex ((New-Object Net.WebClient).DownloadString(…))
