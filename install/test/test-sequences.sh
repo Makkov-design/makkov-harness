@@ -21,7 +21,8 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }; ps_e
 # MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
 # `npm pack` (its skills miss the files npm never packs, such as a .gitignore); this repository's by default.
 node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
-# PowerShell keeps caches in its own $HOME (.cache, .local): a folder of its own, outside the folders compared, so
+# PowerShell keeps caches in its own $HOME (.cache, .local; on Windows LOCALAPPDATA, which defaults to one under
+# USERPROFILE): a folder of its own, outside the folders compared, so
 # they are not taken for something an installer left. install.ps1 reads USERPROFILE, the test's home.
 ps_home="$(mktemp -d)"; trap 'rm -rf "$ps_home"' EXIT
 # The command line of one run: <impl> install|uninstall <agent> [project] [--scope design]
@@ -31,7 +32,7 @@ run_cmd() {
   case "$i" in
     sh)   cmd=(bash "$repo/install/$op.sh" "$a"); [ -n "$pr" ] && cmd+=("$pr"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
     node) cmd=(env "USERPROFILE=$(winpath "$HOME")" node "$(winpath "$node_bin")" "$op" --agent "$a"); [ -n "$pr" ] && cmd+=(--project "$wp"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
-    ps)   cmd=(env "USERPROFILE=$(winpath "$HOME")" "HOME=$ps_home" POWERSHELL_TELEMETRY_OPTOUT=1 "$ps_exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(winpath "$repo/install/$op.ps1")" -Agent "$a"); [ -n "$pr" ] && cmd+=(-Project "$wp"); [ -n "$sc" ] && cmd+=(-Scope "$sc") ;;
+    ps)   cmd=(env "USERPROFILE=$(winpath "$HOME")" "HOME=$ps_home" "LOCALAPPDATA=$(winpath "$ps_home")" "APPDATA=$(winpath "$ps_home")" POWERSHELL_TELEMETRY_OPTOUT=1 "$ps_exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(winpath "$repo/install/$op.ps1")" -Agent "$a"); [ -n "$pr" ] && cmd+=(-Project "$wp"); [ -n "$sc" ] && cmd+=(-Scope "$sc") ;;
   esac
   return 0
 }
