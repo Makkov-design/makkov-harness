@@ -20,7 +20,7 @@ Identify your own tool: Claude Code, Codex, Cursor, Gemini CLI (or Antigravity C
 1. In a browser at claude.ai (not the desktop app): Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. This adds it to the account, so it works on every computer and in cloud sessions; adding it from the desktop app or a terminal installs it on that computer only. Recommend this route.
 2. Or in a terminal: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.
 3. Companion plugins are in the same marketplace, pinned to reviewed versions. Show the list and ask which ones to enable; skip any the user already has from another marketplace. In a terminal: `/plugin install <name>@makkov-harness`.
-4. Design work only: if the user wants the harness to leave other work alone, the environment variable `MAKKOV_HARNESS_SCOPE=design` makes the plugin load the design rows of the routing map only, like `--scope design` below. On their computer it goes under `"env"` in `~/.claude/settings.json` (`"MAKKOV_HARNESS_SCOPE": "design"`); in a cloud environment, into its environment variables. Show the change and write it only after a yes.
+4. Design work only: if the user wants the harness to leave other work alone, the environment variable `MAKKOV_HARNESS_SCOPE=design` makes the plugin load the design rows of the routing map only, like `--scope design` below. The install gate stays on in every scope: a third-party install command still becomes a question to the user. On their computer it goes under `"env"` in `~/.claude/settings.json` (`"MAKKOV_HARNESS_SCOPE": "design"`); in a cloud environment, into its environment variables. Show the change and write it only after a yes.
 
 ## Step 2. Ask the scope
 
@@ -28,26 +28,34 @@ Ask: "Install for all your projects, or only for this project?" Default: all pro
 
 ## Step 3. Get a local copy
 
-If this repository is not on disk yet, clone it to a stable place (not a temp folder), for example `~/makkov-harness`:
+If this repository is not on disk yet, clone it to a stable place (not a temp folder), for example `makkov-harness` in the home folder.
+
+macOS / Linux:
 
 ```
 git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov-harness
 ```
 
+Windows (PowerShell; Windows PowerShell 5.1 does not expand `~` for programs like `git`, so the commands use `$HOME`):
+
+```
+git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\makkov-harness"
+```
+
 ## Step 4. Run the installer for your tool
 
-The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. It makes a `.bak-<date>` backup of any instructions file it edits, and if a skill folder with the same name is already there and differs from ours (your own skill, or one you changed), it moves it to `.makkov-harness/backups/<date>/skills/` in the same home or project folder instead of replacing it.
+The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. Before it first changes an instructions file you already had (even one that already holds a marked block), it keeps one copy of it as it was, in `.makkov-harness/backups/original/` in the same home or project folder; the uninstaller uses that copy to put the file back byte for byte. It checks everything that could stop it before it changes anything: if the instructions file is a folder, read-only, a symlink to a file that does not exist, or saved as UTF-16, it says so and changes nothing. It writes its manifest before its first change, so an install that is interrupted can be run again or uninstalled. If a skill folder with the same name is already there and differs from ours (your own skill, or one you changed), it moves it to `.makkov-harness/backups/<date>-<agent>/skills/` instead of replacing it. If the markers in your file are broken (a start marker without its end marker, or two routing blocks), it stops, says on which line, and changes nothing. A manifest that names paths the installer would not use (edited by hand, or one that came with a cloned repository) is refused the same way, by the installer and the uninstaller.
 
 Windows (PowerShell):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent <agent> [-Project <path>] [-DryRun]
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent <agent> [-Project <path>] [-DryRun] [-Scope design]
 ```
 
 macOS / Linux:
 
 ```
-bash ~/makkov-harness/install/install.sh <agent> [project-path] [--dry-run]
+bash ~/makkov-harness/install/install.sh <agent> [project-path] [--dry-run] [--scope design]
 ```
 
 Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or move and the file it would edit; nothing is written. Show that list to the user before the real run.
@@ -55,7 +63,7 @@ Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or m
 Two choices worth offering:
 
 - **One project first.** Passing a project path keeps everything inside that project, so the person can try the harness without changing how their agent works elsewhere. Suggest it for a first install.
-- **Design work only.** `-Scope design` / `--scope design` leaves out the routing rows that are not about design (research reports, the third-party install review, general coding plugins and the whole-project security review), so a global install does not change how the agent handles other work. The skills are still copied and can be called by name.
+- **Design work only.** `-Scope design` / `--scope design` leaves out the routing rows that are not about design (research reports, the third-party install review, general coding plugins and the whole-project security review), so a global install does not change how the agent routes other work. The skills are still copied and can be called by name, `third-party-install-guard` included, and in Claude Code the install gate stays on in every scope. An update keeps the scope the earlier install had; pass `-Scope all` / `--scope all` to widen it again.
 
 `<agent>` is one of: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode`, `aider`. Pass a project path only for a project-only install (always needed for `cursor`, `copilot`, `windsurf`, `aider`, which have no user-level instructions file the installer can edit).
 
@@ -95,13 +103,13 @@ This step applies to the Claude marketplace route in Step 1 too: ask after the u
 
 ## Updating and removing
 
-Update: `git -C ~/makkov-harness pull`, then run the installer again. It recognises the copies an earlier install put there (the manifest keeps a fingerprint of each) and replaces them; only folders that changed since, or are not ours, are moved aside.
+Update: `git -C ~/makkov-harness pull` (Windows: `git -C "$HOME\makkov-harness" pull`), then run the installer again with the same agent and project path. It recognises the copies an earlier install put there (the manifest keeps a fingerprint of each) and replaces them; only folders that changed since, or are not ours, are moved aside. A skill this version no longer has (removed or renamed) is taken out, or moved to `.makkov-harness/backups/<date>-<agent>/removed/` if you changed it. The scope stays as it was unless you pass it again. Run against files that are already current, it changes nothing.
 
 Remove: run the uninstaller with the same agent and project path you installed with (add `-DryRun` / `--dry-run` to see the list first):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/uninstall.ps1 -Agent <agent> [-Project <path>] [-DryRun]
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\uninstall.ps1" -Agent <agent> [-Project <path>] [-DryRun]
 bash ~/makkov-harness/install/uninstall.sh <agent> [project-path] [--dry-run]
 ```
 
-It reads the manifest the installer wrote (`.makkov-harness/install-<agent>.txt` in the home or project folder) and removes only what the install put there: skill folders still matching what the install put there are deleted, ones you changed since are moved to `.makkov-harness/backups/<date>/removed/`, skills of yours the install had moved aside are put back, and the routing block is taken out, with the personal layer `harness-onboarding` wrote between its own markers (a Cursor rule and its personal rule are deleted and your earlier rule restored). Skills another installed agent still reads from the same folder stay. Installs made before 0.3.3 have no manifest: delete the copied skill folders and the marked block by hand, and restore from `.bak-<date>` if needed.
+It reads the manifest the installer wrote (`.makkov-harness/install-<agent>.txt` in the home or project folder) and removes only what the install put there: skill folders still matching what the install put there are deleted, ones you changed since are moved to `.makkov-harness/backups/<date>-<agent>/removed/`, skills of yours the install had moved aside are put back, and the routing block is taken out, with the personal layer `harness-onboarding` wrote between its own markers (a Cursor rule and its personal rule are deleted and your earlier rule restored). An instructions file you had before is put back byte for byte if you have not changed it since; if you have, your changes stay and the copy of the file as it was before the install stays in `.makkov-harness/backups/original/` (delete it once you no longer need it); a file the install created is deleted once empty, and so are the folders the install created. Skills another installed agent still reads from the same folder stay, and so does the routing block in a file another installed agent still reads (Codex, Copilot, Windsurf, Cline and OpenCode all use `<project>/AGENTS.md`): the last uninstall takes it out. A personal layer it takes out is kept in `.makkov-harness/backups/<date>-<agent>/removed/`. If you moved or renamed the project folder since the install, pass the new path: the uninstaller reads the install from there. Installs made before 0.3.3 have no manifest: delete the copied skill folders and the marked block by hand, and restore from `.bak-<date>` if needed; installs from 0.5.0 and earlier left a `.bak-<date>` copy next to the instructions file for each run, and created folders they did not record (`.agents/skills`, `.gemini`, `.cursor/rules`); after the uninstall, delete the `.bak-<date>` files and any of those folders that are empty.

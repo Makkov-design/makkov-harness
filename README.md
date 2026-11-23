@@ -167,21 +167,21 @@ Then ask it to **`run harness-onboarding`**.
 
 Get a copy, then run the installer with your agent's name: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode` or `aider`. Cursor, Copilot, Windsurf and Aider also need your project folder at the end.
 
-```
-git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov-harness
-```
-
 macOS or Linux:
 
 ```
+git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git ~/makkov-harness
 bash ~/makkov-harness/install/install.sh codex
 ```
 
 Windows, in PowerShell:
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File ~/makkov-harness/install/install.ps1 -Agent codex
+git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\makkov-harness"
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent codex
 ```
+
+Run the same command again to update; `install/uninstall.sh` / `install/uninstall.ps1` with the same arguments removes it.
 
 What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 </details>
