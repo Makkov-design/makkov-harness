@@ -19,9 +19,10 @@ const TEXT_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.jsx', 
 
 // [severity, id, description, regex]
 const RULES = [
-  // curl … | sh (sudo with options, env, a path, more pipes between; python/node/perl/ruby only when they read a script
-  // from stdin), sh -c "$(curl …)", eval "$(curl …)", bash <(curl …), source <(curl …), iex (irm …), PowerShell downloaders.
-  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b([^\n;&]*[^\n|;&])?\|\s*((sudo(\s+-\S+)*|env(\s+\w+=\S*)*)\s+)*(\S*[\/\\])?(((ba|z|da|k|fi)?sh|pwsh|powershell)\b(?!-)|(python[0-9.]*|py|node|perl|ruby)(\.exe)?(\s+-)?\s*($|["')`;&|]))|\b((ba|z|da|k|fi)?sh\b[^\n;&|]*?\s-[a-z]*c|eval)\s+["']?(\$\(|`)\s*(\S*\/)?(curl|wget)\b|(\b(ba|z|da|k|fi)?sh\b[^\n;&|<]*|\bsource|(^|[\s;&|])\.)\s+(<\s*)?<\(\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object|\[?(System\.)?Net\.WebClient)|\[scriptblock\]::Create[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
+  // curl … | sh (sudo or doas with options, env, NAME=value, busybox, a path, more pipes between, a quoted URL with & or ;
+  // in it; python/node/perl/ruby only when they read a script from stdin: alone or with "-"), sh -c / eval / ruby -e /
+  // python3 -c "$(curl …)", bash <(curl …), source <(curl …), iex (irm …), iex "& { $(irm …) }", PowerShell downloaders.
+  ['HIGH', 'remote-exec', 'Downloads and executes remote code', /\b(curl|wget)\b([^\n;&|"']|"[^"\n]{0,400}"|'[^'\n]{0,400}'|\|(?![|&])){0,1000}?\|&?\s*((sudo|doas)(\s+-\S+)*\s+|(\S*\/)?env(\s+-\S+)*(\s+\w+=\S*)*\s+|\w+=\S*\s+|busybox\s+)*(\S*[\/\\])?(((ba|z|da|k|fi|a)?sh|pwsh|powershell)\b(?!-)|(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?(\s+-(\s|$)|\s*($|["')`;&|])))|\b((ba|z|da|k|fi|a)?sh\b[^\n;&|]*?\s-[a-z]*c|eval|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?\b[^\n;&|]*?\s-([a-z]*[ecr]|command))\s+["']?(\$\(|`)\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)\s+["'][^"'\n]*\$\(\s*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|(\b(ba|z|da|k|fi|a)?sh\b[^\n;&|<]*|\bsource|(^|[\s;&|])\.)\s+(<\s*)?<\(\s*(\S*\/)?(curl|wget)\b|\b(iex|Invoke-Expression)[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object|\[?(System\.)?Net\.WebClient)|\[scriptblock\]::Create[\s($]*(iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object)|\b(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(iex|Invoke-Expression)|DownloadString\s*\(|DownloadFile\s*\(|certutil[^\n]*-urlcache|bitsadmin[^\n]*\/transfer|\bmshta\b|regsvr32[^\n]*\/i:http/i],
   ['HIGH', 'encoded-shell', 'Encoded/hidden PowerShell or shell payload', /powershell[^\n]*-(e|enc|encodedcommand)\s+[A-Za-z0-9+/=]{20,}|-WindowStyle\s+Hidden|base64\s+(-d|--decode)[^\n]*\|\s*(ba)?sh/i],
   ['HIGH', 'eval-decoded', 'Evaluates decoded/obfuscated data', /\b(eval|new\s+Function|exec|execSync|spawn)\s*\(\s*(atob|Buffer\.from|unescape|decodeURIComponent|String\.fromCharCode|zlib\.|base64\.b64decode|bytes\.fromhex|codecs\.decode)|\bexec\s*\(\s*(compile|base64|zlib|marshal)|marshal\.loads|pickle\.loads\s*\(\s*(base64|requests|urllib)/i],
   ['HIGH', 'credential-access', 'Reads credentials, keys, browser or wallet data', /\.ssh[\/\\](id_|authorized_keys|known_hosts)|\.aws[\/\\]credentials|\.docker[\/\\]config\.json|\.kube[\/\\]config|\.npmrc|\.pypirc|\.git-credentials|\.netrc|\.claude[\/\\](\.credentials|credentials)|\.claude\.json|Login Data|Local State|Cookies\b.*(Chrome|Edge|Brave)|User Data[\/\\]Default|Local Extension Settings|nkbihfbeogaeaoehlefnkodbefgpgknn|exodus|electrum|metamask|phantom|solana[\/\\]id\.json|keychain|Keychains|discord[^\n]*(Local Storage|leveldb)|wallet\.dat/i],
@@ -55,24 +56,47 @@ const INSTALL_SCRIPT_KEYS = ['preinstall', 'install', 'postinstall'];
 // Run only when installed from git or a local path, not from the registry tarball.
 const SOURCE_INSTALL_SCRIPT_KEYS = ['prepare', 'preprepare', 'postprepare'];
 
-// Not hidden text: a zero-width joiner between two emoji (woman + laptop, flag + rainbow) and the tag letters of a
-// subdivision flag (Scotland, Wales).
+// Not hidden text: a zero-width joiner between two emoji (woman + laptop, flag + rainbow), and the three subdivision
+// flags Unicode recommends (England, Scotland, Wales), spelled out exactly: any other tag letters can carry hidden text.
 // Removed before the hidden-unicode rule, which still catches the same characters anywhere else.
-const BENIGN_UNICODE = /(?<=\p{Extended_Pictographic}[\u{FE0F}\u{1F3FB}-\u{1F3FF}]?)\u200D(?=\p{Extended_Pictographic})|\u{1F3F4}[\u{E0030}-\u{E0039}\u{E0061}-\u{E007A}]{1,6}\u{E007F}/gu;
+const BENIGN_UNICODE = /(?<=\p{Extended_Pictographic}[\u{FE0F}\u{1F3FB}-\u{1F3FF}]?)\u200D(?=\p{Extended_Pictographic})|\u{1F3F4}\u{E0067}\u{E0062}(\u{E0065}\u{E006E}\u{E0067}|\u{E0073}\u{E0063}\u{E0074}|\u{E0077}\u{E006C}\u{E0073})\u{E007F}/gu;
 
-// A line ending in a backslash continues on the next one (shell, Dockerfile, Makefile): join them so a command split
-// over lines is read whole. Returns [first line number, joined text] pairs.
+// A line that ends in an odd number of backslashes, a pipe or && continues on the next one (shell, Dockerfile,
+// Makefile): join them so a command split over lines is read whole. At most 20 lines or 4,000 characters are joined,
+// so a file of continued lines stays fast; then a new logical line starts. Each logical line keeps the offsets where
+// its physical lines start, so a finding is reported at the line it is on.
+const MAX_JOIN_LINES = 20, MAX_JOIN_CHARS = 4000;
 function logicalLines(text) {
   const out = [];
-  let start = 0, buf = null;
+  let cur = null;
   text.split(/\r?\n/).forEach((line, i) => {
-    if (buf === null) { start = i; buf = ''; }
-    if (/\\$/.test(line) && !/\\\\$/.test(line)) { buf += line.slice(0, -1) + ' '; return; }
-    out.push([start + 1, buf + line]);
-    buf = null;
+    if (cur === null) cur = { first: i + 1, text: '', starts: [] };
+    cur.starts.push(cur.text.length);
+    const slashes = line.length - line.replace(/\\+$/, '').length;
+    const goesOn = slashes % 2 === 1 || /(\||&&)\s*$/.test(line);
+    const full = cur.starts.length >= MAX_JOIN_LINES || cur.text.length + line.length > MAX_JOIN_CHARS;
+    if (goesOn && !full) { cur.text += (slashes % 2 === 1 ? line.slice(0, -1) : line) + ' '; return; }
+    cur.text += line;
+    out.push(cur);
+    cur = null;
   });
-  if (buf !== null) out.push([start + 1, buf]);
+  if (cur !== null) out.push(cur);
   return out;
+}
+// A very long line (minified code, a data blob) is matched in windows of 8,000 characters that overlap by 2,000, so
+// rules with open-ended spans stay linear; a match up to 2,000 characters long is never split.
+const WINDOW = 8000, OVERLAP = 2000;
+function* windows(text) {
+  if (text.length <= WINDOW) { yield [0, text]; return; }
+  for (let off = 0; off < text.length; off += WINDOW - OVERLAP) {
+    yield [off, text.slice(off, off + WINDOW)];
+    if (off + WINDOW >= text.length) return;
+  }
+}
+function lineAt(l, index) {
+  let k = 0;
+  while (k + 1 < l.starts.length && l.starts[k + 1] <= index) k++;
+  return l.first + k;
 }
 
 const findings = [];
@@ -130,11 +154,16 @@ function scanFile(p, size) {
   const isMinifiedSource = /\.(m|c)?js$/.test(ext) && lines.some((l) => l.length > 5000) && !/(^|\/)(dist|build|min|vendor)\//.test(r) && !/\.min\./.test(r);
   if (isMinifiedSource) add('MEDIUM', 'minified-source', 'Very long lines in a non-dist source file (possible hidden payload)', r, 0);
 
-  for (const [n, line] of logicalLines(text)) {
+  for (const l of logicalLines(text)) {
     for (const [sev, id, desc, re] of RULES) {
-      const subject = id === 'hidden-unicode' ? line.replace(BENIGN_UNICODE, '') : line;
-      const m = re.exec(subject);
-      if (m) add(sev, id, desc, r, n, subject.length > 160 ? subject.slice(Math.max(0, m.index - 50), m.index + 110) : subject);
+      const subject = id === 'hidden-unicode' ? l.text.replace(BENIGN_UNICODE, '') : l.text;
+      for (const [off, part] of windows(subject)) {
+        const m = re.exec(part);
+        if (!m) continue;
+        const at = off + m.index;
+        add(sev, id, desc, r, lineAt(l, at), subject.length > 160 ? subject.slice(Math.max(0, at - 50), at + 110) : subject);
+        break;
+      }
     }
   }
 

@@ -3,16 +3,14 @@
 # asks you first, and the agent is reminded to review it with the third-party-install-guard skill.
 # It never blocks a command and never runs one: it only turns an automatic run into a question.
 # What it matches and what it does not is listed in SECURITY.md (hooks/install-gate); hooks/install-corpus.json holds
-# the test cases.
-# Not asked about: installs from an existing lockfile (npm ci, plain npm/pnpm/yarn install), npx for a tool
-# already installed in the project (node_modules/.bin), and install words inside a commit or PR message.
-# Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a headless `claude -p` run, where nobody can answer).
-# With MAKKOV_HARNESS_SCOPE=design it is off too, as installs are outside that scope; MAKKOV_HARNESS_INSTALL_GATE=on
-# keeps it on. Pure bash 3.2: reads the hook input from stdin, starts no other program, no network, writes nothing.
+# the test cases. When in doubt it asks: a pass rule applies only where the shell's quoting is known.
+# On in every scope, MAKKOV_HARNESS_SCOPE=design included. Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a
+# headless `claude -p` run, where nobody can answer). Pure bash 3.2: reads the hook input from stdin, starts no other
+# program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
+# longer than 400 characters when it is matched, so a run stays fast on any input (see the size limits below).
 set -u
-gate="${MAKKOV_HARNESS_INSTALL_GATE:-}"
-[ "$gate" = off ] && exit 0
-[ "${MAKKOV_HARNESS_SCOPE:-}" = design ] && [ "$gate" != on ] && exit 0
+export LC_ALL=C   # bytes, not characters: regexes and ${x:i:n} stay linear on any input
+[ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = off ] && exit 0
 
 IFS= read -r -d '' input || true
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
@@ -23,94 +21,174 @@ re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
 
 # Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
-# backslash-n stays text; a backslash at the end of a line continues the line; other line breaks and tabs become
-# separators; escaped quotes become themselves.
+# backslash-n stays text. A line ends a command unless it ends in a backslash, a pipe or && (then the command goes on);
+# other line breaks and tabs become separators; escaped quotes become themselves; a no-break space (PowerShell) is a space.
 P=$'\037'   # a unit separator; not \001, which bash uses internally
 cmd="${cmd//\\\\/$P}"
-cmd="${cmd//${P}\\r\\n/ }"; cmd="${cmd//${P}\\n/ }"
+cmd="${cmd//\\r\\n/\\n}"
+cmd="${cmd//${P}\\n/ }"
+cmd="${cmd//|\\n/| }"; cmd="${cmd//| \\n/| }"; cmd="${cmd//&&\\n/&& }"; cmd="${cmd//&& \\n/&& }"
 cmd="${cmd//\\n/ ; }"; cmd="${cmd//\\r/ }"; cmd="${cmd//\\t/ }"; cmd="${cmd//\\\"/\"}"
 cmd="${cmd//$P/\\}"
+nbsp=$'\xc2\xa0'; cmd="${cmd//$nbsp/ }"
 cwd="${cwd//\\\\/\\}"
+
+# Size limits keep a run well under the hook's 5-second timeout on any input (a timeout would let the command run):
+# over 100,000 characters it asks at once. A word longer than 400 characters (a data blob, a long URL) keeps its first
+# and last 200: no program name or option is that long. A cut word may hide a quote, so then no pass rule below
+# applies. Over 8,000 characters after that it asks without matching. Text is blanked only up to 4,000.
+reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+ask() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "${1:-$reason}"
+  exit 0
+}
+too_long="makkov-harness install gate: this command is too long to check quickly (over 8,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+[ ${#cmd} -gt 100000 ] && ask "$too_long"
+
+long=""
+re_long='[^[:space:]]{401}'
+if [[ $cmd =~ $re_long ]]; then
+  set -f
+  # shellcheck disable=SC2206
+  words=($cmd)
+  set +f
+  i=0
+  while [ $i -lt ${#words[@]} ]; do
+    word="${words[$i]}"
+    if [ ${#word} -gt 400 ]; then long=1; words[$i]="${word:0:200} ${word:$((${#word} - 200))}"; fi
+    i=$((i + 1))
+  done
+  cmd="${words[*]}"
+fi
+[ ${#cmd} -gt 8000 ] && ask "$too_long"
 c=" $cmd "
 
 w='[^[:space:];&|"'"'"')]'            # one character of a word
 dq='"([^"\\]|\\.)*"'; sq="'[^']*'"
+closed='([^"'"'"'\\]|\\.|'"$dq|$sq"')*'       # text in which every quote is closed
+segtext='([^"'"'"'\\;&|]|\\.|'"$dq|$sq"')*'   # the same, within one command (no ; & or | outside quotes)
+path="(${w}*[/\\])?"                  # an optional path before a program: /usr/bin/, venv/bin/, .\tools\
+# Where a command starts: the start, a separator or a bracket, but not $( or <( (their output is used as code or a file).
+cstart='(^|[;&|]|[^$<>]\()[[:space:]]*'
 
-# A commit or PR message is text, not a command: blank a quoted -m/--message/--body/--title/--notes value.
-# A value that runs a command substitution keeps it, except the usual "$(cat <<'EOF' … EOF)" message.
-re_msg="(^|[[:space:]])(-m|--message|--body|--title|--notes|--subject)(=|[[:space:]]+)(${dq}|${sq})"
-out=""; rest="$c"
-while [[ $rest =~ $re_msg ]]; do
-  m="${BASH_REMATCH[0]}"; v="${BASH_REMATCH[4]}"
-  new="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}\"\""
-  body="${v#\"\$(cat <<}"                 # an unquoted heredoc still expands a $( ) or a backtick in its body
-  case "$body" in *'$('*|*'`'*) new="$m" ;; esac
-  out="$out${rest%%"$m"*}$new"; rest="${rest#*"$m"}"
-done
-c="$out$rest"
+# Text that is only text: a quoted message to git or gh (-m, -am, --message, -b/--body, -t/--title, -n/--notes,
+# --subject) and a quoted argument to echo, printf or grep. It is blanked so its words are not read as commands, but
+# only when the quote is outside any other quote, the command is git, gh, echo, printf or grep, and its output is not
+# piped. A double-quoted value with $( ) or a backtick still runs, so it stays, except a commit message written as
+# "$(cat <<'EOF' … EOF)" with a quoted delimiter and nothing after the closing EOF.
+is_text() {   # $1 = the quoted value
+  case "$1" in \'*) return 0 ;; *'$('*|*'`'*) ;; *) return 0 ;; esac
+  local re_hd="^\"\\\$\\(cat[[:space:]]+<<-?[[:space:]]*'([A-Za-z_][A-Za-z0-9_]*)' ; "
+  [[ $1 =~ $re_hd ]] || return 1
+  local d="${BASH_REMATCH[1]}" body="${1#"${BASH_REMATCH[0]}"}"
+  local re_tail=" ; [[:space:]]*${d} ;[[:space:]]*\\)\"\$"
+  [[ $body =~ $re_tail ]] || return 1
+  local inner="${body%"${BASH_REMATCH[0]}"}"
+  case " ; $inner ; " in *" ; $d ; "*|*" ;  $d ; "*) return 1 ;; esac
+  return 0
+}
+blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex the text before it must match
+  local out="" rest="$c" m lead opt sep v pre new n=0
+  while [ $n -lt 16 ] && [[ $rest =~ $1 ]]; do   # the first 16 quoted values; any later ones stay as they are
+    n=$((n + 1))
+    m="${BASH_REMATCH[0]}"; lead="${BASH_REMATCH[1]}"; opt="${BASH_REMATCH[2]}"; sep="${BASH_REMATCH[3]}"; v="${BASH_REMATCH[4]}"
+    pre="${rest%%"$m"*}"; rest="${rest#*"$m"}"
+    new="$m"
+    if [[ "$out$pre$lead" =~ $2 ]] && [[ $rest =~ ^${segtext}([;&]|$) ]] && is_text "$v"; then new="$lead$opt$sep\"\""; fi
+    out="$out$pre$new"
+  done
+  c="$out$rest"
+}
+if [ -z "$long" ] && [ ${#c} -le 4000 ]; then
+  blank "(^|[[:space:]])(-[a-zA-Z]*m|--message|-b|--body|-t|--title|-n|--notes|--subject)(=|[[:space:]]*)(${dq}|${sq})" \
+        "^${closed}${cstart}${path}(git|gh)(\.exe)?[[:space:]]${segtext}\$"
+  # (${P}?) twice: two groups that always match empty, as ERE has no "()"
+  blank "(^|[[:space:]])(${P}?)(${P}?)(${dq}|${sq})" \
+        "^${closed}${cstart}${path}(echo|printf|grep|egrep|fgrep|rg)(\.exe)?[[:space:]]${segtext}\$"
+fi
 
-# Options that take a value become one word (--prefix app -> --prefix=app), so the value is not read as a package.
-# Case-sensitive on purpose: -w and -C differ from -W and -c.
-re_vf="([[:space:]](--prefix|--workspace|-w|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit|--include|--loglevel|--userconfig))[[:space:]]+([^-[:space:];&|\"')]${w}*)"
-out=""; rest="$c"
-while [[ $rest =~ $re_vf ]]; do
-  m="${BASH_REMATCH[0]}"
-  out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=${BASH_REMATCH[3]}"; rest="${rest#*"$m"}"
-done
-c="$out$rest"
+# npm options that take a value become one word (-w web -> -w=web), so the value is not read as a package. Only for
+# the tools where the option does take one: in pnpm -w is --workspace-root and takes none. Case-sensitive on purpose.
+join() {   # $1 = regex for (everything up to the option)(the value)
+  local out="" rest="$c" m n=0
+  while [ $n -lt 32 ] && [[ $rest =~ $1 ]]; do   # the first 32; more is not a real command
+    n=$((n + 1)); m="${BASH_REMATCH[0]}"
+    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; rest="${rest#*"$m"}"
+  done
+  c="$out$rest"
+}
+val="[[:space:]]+([^-[:space:];&|\"')]${w}*)"
+join "([[:space:]](--prefix|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit|--include|--loglevel|--userconfig))${val}"
+join "((^|[[:space:];&|(])${path}npm(\.cmd|\.exe)?([[:space:]]+${w}+){0,8}[[:space:]](-w|--workspace))${val}"
 shopt -s nocasematch
 
 b="(^|[[:space:];&|(\`\"'{])"        # a word starts after a space, a separator, a bracket or a quote
-path="(${w}*[/\\])?"                  # an optional path before a program: /usr/bin/, venv/bin/, .\tools\
 flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
 flags="([[:space:]]+-${w}*)*"         # options without values
 pkg="[[:space:]]+[^-[:space:];&|\"')]" # a word that is not an option: a package
 pm="${b}${path}(npm|pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*"
 npm_add='(install|i|in|ins|inst|insta|instal|isnt|isnta|isntal|isntall|add|it|install-test|create|init)'
-shell="${path}(ba|z|da|k|fi)?sh(\.exe)?"
+shell="${path}(ba|z|da|k|fi|a)?sh(\.exe)?"
 end='([[:space:]]|$|["'"'"')`;&|])'                       # the end of a word
-interp="${path}((ba|z|da|k|fi)?sh|pwsh|powershell)(\.exe)?${end}"  # a shell runs its stdin, whatever the options
+interp="${path}((ba|z|da|k|fi|a)?sh|pwsh|powershell)(\.exe)?${end}"  # a shell runs its stdin, whatever the options
 # python, node, perl and ruby run their stdin only with no script: alone or with "-" (python3 -m json.tool reads data)
-interp2="${path}(python[0-9.]*|py|node|perl|ruby)(\.exe)?([[:space:]]+-)?[[:space:]]*($|[\"')\`;&|])"
+interp2="${path}(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?([[:space:]]+-([[:space:]]|$)|[[:space:]]*($|[\"')\`;&|]))"
 fetch="${path}(curl|wget)(\.exe)?"
 ps_fetch='(iwr|irm|invoke-webrequest|invoke-restmethod|new-object|\[?(system\.)?net\.webclient)'
 subst='(\$\(|`)'
-sudo="(sudo(${flag})*[[:space:]]+|env([[:space:]]+${w}+=${w}*)*[[:space:]]+)*"
+# What may stand between a pipe and the program: sudo or doas with options, env, NAME=value, busybox.
+sudo="((sudo|doas)(${flag})*[[:space:]]+|${path}env(\.exe)?${flags}([[:space:]]+${w}+=${w}*)*[[:space:]]+|[a-z_][a-z0-9_]*=${w}*[[:space:]]+|busybox[[:space:]]+)*"
+span="([^;&|\"']|${dq}|${sq}|\|[^|&\"'])*"   # up to the last pipe, quoted & and ; included
+topipe="${span}\|&?[[:space:]]*${sudo}(${interp}|${interp2})"
+# Saved to a file, then run in the same command line: curl -o, wget, iwr -OutFile, git clone, then sh file, ./file,
+# python file, make, npm install …
+saved="${b}(${fetch}${span}[[:space:]](-[a-z]*o|--output|--remote-name(-all)?)([[:space:]=]|$)|${path}wget(\.exe)?[[:space:]]|(iwr|irm|invoke-webrequest|invoke-restmethod)[^;&|]*-outfile|${path}git(\.exe)?[[:space:]]+clone[[:space:]])"
+runs="(^|[;&|(])[[:space:]]*${sudo}(${shell}${flags}[[:space:]]+[^-[:space:];&|<]|&?[[:space:]]*\.{1,2}[/\\]${w}|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+[^-[:space:];&|]|make([[:space:]]|$)|(npm|pnpm|yarn|bun)(\.cmd)?[[:space:]]+(install|i|ci|run|start)([[:space:]]|$)|(pip[0-9.]*|python[0-9.]*[[:space:]]+-m[[:space:]]*pip)[[:space:]]+install[[:space:]])"
 
 patterns=(
   "${pm}[[:space:]]+${npm_add}${flags}${pkg}"
-  "${pm}[[:space:]]+global[[:space:]]+add[[:space:]]"
+  "${pm}[[:space:]]+(global|workspace[[:space:]]+${w}+)[[:space:]]+${npm_add}${flags}${pkg}"
   "${b}${path}(pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*[[:space:]]+dlx[[:space:]]"
   "${b}${path}npm(\.cmd)?(${flag})*[[:space:]]+(exec|x)[[:space:]]"
   "${b}${path}(npx|pnpx|bunx|uvx)(\.cmd)?${flags}[[:space:]]+(-p|--package|-c|--call|--from|--with)([[:space:]=]|$)"
-  "${b}${path}(pip[0-9.]*|(python[0-9.]*|py)(\.exe)?${flags}[[:space:]]+-m[[:space:]]+pip)(\.exe)?(${flag})*[[:space:]]+install[[:space:]]"
-  "${b}${path}uv(\.exe)?(${flag})*[[:space:]]+(add|tool[[:space:]]+(install|run)|pip[[:space:]]+install)[[:space:]]"
+  "${b}${path}(pip[0-9.]*|(python[0-9.]*|py)(\.exe)?${flags}[[:space:]]+-m[[:space:]]*pip)(\.exe)?(${flag})*[[:space:]]+install[[:space:]]"
+  "${b}${path}uv(\.exe)?(${flag})*[[:space:]]+(add|tool[[:space:]]+(install|run)|pip[[:space:]]+install|run(${flag})*[[:space:]]+--with([[:space:]=]))"
   "${b}${path}pipx(\.exe)?(${flag})*[[:space:]]+(install|run|inject)[[:space:]]"
-  "${b}${path}(poetry|pdm|rye|bundle|cargo)(\.exe)?(${flag})*[[:space:]]+add[[:space:]]"
-  "${b}${path}(cargo|gem|conda|mamba|micromamba)(\.exe)?(${flag})*[[:space:]]+(install|binstall)[[:space:]]"
+  "${b}${path}(poetry|pdm|rye|bundle|cargo)(\.exe)?(${flag}|[[:space:]]+\+${w}+)*[[:space:]]+add[[:space:]]"
+  "${b}${path}(cargo|gem|conda|mamba|micromamba)(\.exe)?(${flag}|[[:space:]]+\+${w}+)*[[:space:]]+(install|binstall)[[:space:]]"
   "${b}${path}go(\.exe)?(${flag})*[[:space:]]+(install|get)[[:space:]]"
   "${b}${path}go(\.exe)?[[:space:]]+run${flags}[[:space:]]+${w}+@"
   "${b}${path}composer(\.phar)?(${flag})*[[:space:]]+(global[[:space:]]+)?require[[:space:]]"
   "${b}${path}deno(\.exe)?(${flag})*[[:space:]]+(add[[:space:]]|install${flags}${pkg})"
-  "${b}${path}(brew|winget|choco|scoop|apt|apt-get|aptitude|dnf|yum|zypper|pacman|yay|snap|flatpak|port)(\.exe)?(${flag})*[[:space:]]+(install[[:space:]]|-S[yu]*${pkg})"
+  "${b}${path}dotnet(\.exe)?[[:space:]]+(add([[:space:]]+${w}+)?[[:space:]]+package|tool[[:space:]]+(install|run|exec)|new[[:space:]]+install)[[:space:]]"
+  "${b}${path}(nix(\.exe)?[[:space:]]+(profile[[:space:]]+(install|add)|run|shell)|nix-env[[:space:]]+(-[a-z]*i[a-z]*|--install))[[:space:]]"
+  "${b}${path}(brew|winget|choco|scoop|apt|apt-get|aptitude|dnf|yum|zypper|pacman|yay|paru|snap|flatpak|port)(\.exe)?(${flag})*[[:space:]]+(install[[:space:]]|add[[:space:]]|-S[yu]*${flags}${pkg})"
   "${b}${path}apk(${flag})*[[:space:]]+add[[:space:]]"
+  "${b}(install-module|install-package|install-script|install-psresource)[[:space:]]"
   "${b}${path}claude(\.exe)?[[:space:]]+(plugin[[:space:]]+(install|marketplace[[:space:]]+add)|mcp[[:space:]]+add(-json)?)[[:space:]]"
   "${b}${path}(code|code-insiders|codium|cursor|windsurf)(\.cmd|\.exe)?(${flag})*[[:space:]]+--install-extension[[:space:]]"
   "${b}${path}gh(\.exe)?[[:space:]]+(extension|extensions|ext)[[:space:]]+install[[:space:]]"
   "${b}${path}(docker|podman|nerdctl)(\.exe)?(${flag})*[[:space:]]+(container[[:space:]]+)?run[[:space:]]"
-  # curl … | sh (any number of pipes between, sudo with options, env, a path, other interpreters)
-  "${fetch}([^;&]*[^|;&])?\|[[:space:]]*${sudo}(${interp}|${interp2})"
-  # sh -c "\$(curl …)", eval "\$(curl …)", bash <(curl …), source <(curl …)
-  "${b}${sudo}(${shell}([[:space:]]+-${w}*)*[[:space:]]+-[a-z]*c|eval)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
-  "${b}${sudo}(${shell}([[:space:]]+-${w}*)*|source|\.)[[:space:]]+(<[[:space:]]*)?<\([[:space:]]*${fetch}[[:space:]]"
-  # PowerShell: iwr … | iex, iex (irm …), iex ((New-Object Net.WebClient).DownloadString(…)), [scriptblock]::Create((irm …))
-  "(iwr|irm|invoke-webrequest|invoke-restmethod|curl|wget)[^;&]*\|[[:space:]]*(iex|invoke-expression)"
+  # curl … | sh, also | sudo -E bash -, | VAR=1 sh, | python3 - --version 1, a quoted URL with & in it, more pipes between
+  "${b}${fetch}${topipe}"
+  "${b}${path}base64(\.exe)?[[:space:]]+(-[a-z]*d|--decode)${topipe}"
+  # sh -c "\$(curl …)", eval "\$(curl …)", ruby -e / python3 -c "\$(curl …)", bash <(curl …), source <(curl …)
+  "${b}${sudo}(${shell}${flags}[[:space:]]+-[a-z]*c|eval)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  "${b}${sudo}${path}(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+-([a-z]*[ecr]|command)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  "${b}${sudo}(${shell}${flags}|source|\.)[[:space:]]+(<[[:space:]]*)?<\([[:space:]]*${fetch}[[:space:]]"
+  # downloaded to a file, then run: curl -o x.sh … && sh x.sh, git clone … && cd … && ./install.sh or npm install
+  "${saved}.*${runs}"
+  # PowerShell: iwr … | iex, iex (irm …), iex "& { \$(irm …) }", iex ((New-Object Net.WebClient).DownloadString(…))
+  "${b}(iwr|irm|invoke-webrequest|invoke-restmethod|curl|wget)${span}\|[[:space:]]*(iex|invoke-expression)"
   "${b}(iex|invoke-expression)[[:space:](\$]*${ps_fetch}"
+  "${b}(iex|invoke-expression)[[:space:]]+[\"'][^\"']*\\\$\\([[:space:]]*${ps_fetch}"
   "\[scriptblock\]::create[[:space:](\$]*${ps_fetch}"
 )
+# Matched twice: as written, and with every quote taken out, so "npm" install x and python3 -m "pip" install x count.
 hit=""
+c2="${c//[\"\']/}"
 for p in "${patterns[@]}"; do
-  if [[ $c =~ $p ]]; then hit=1; break; fi
+  if [[ $c =~ $p ]] || [[ $c2 =~ $p ]]; then hit=1; break; fi
 done
 
 # npx, bunx, uvx, pnpx, bun x: ask unless the tool is already installed in this project, without a version.
@@ -131,7 +209,4 @@ if [ -z "$hit" ]; then
   done
 fi
 [ -z "$hit" ] && exit 0
-
-reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$reason"
-exit 0
+ask

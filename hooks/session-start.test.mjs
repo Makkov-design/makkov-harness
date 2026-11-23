@@ -27,6 +27,7 @@ test("MAKKOV_HARNESS_SCOPE=design keeps the design rows only", () => {
   assert.ok(text.includes("| A design score"));
   assert.ok(text.includes("Scope: design work only (MAKKOV_HARNESS_SCOPE=design)"));
   assert.ok(text.includes("Plugin path: "));
+  assert.ok(text.includes("the install gate still asks"));
 });
 
 const CLOUD = "- Claude cloud session (`CLAUDE_CODE_REMOTE=true`)";

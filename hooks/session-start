@@ -14,7 +14,7 @@ scope="${MAKKOV_HARNESS_SCOPE:-}"
 case "$scope" in
   design)
     drop -e '^| Research, analysis' -e '^| Installing, adding' -e '^| Any new feature or creative work' -e '^| Whole-project security review'
-    routing="$routing"$'\n\n'"Scope: design work only (MAKKOV_HARNESS_SCOPE=design). For research, installs and general coding, work as you would without this harness."
+    routing="$routing"$'\n\n'"Scope: design work only (MAKKOV_HARNESS_SCOPE=design). For research, installs and general coding, work as you would without this harness; the install gate still asks the user before a third-party install."
     ;;
   ''|all) ;;
   *)
