@@ -15,7 +15,11 @@ repo="$(cd "$(dirname "$0")/../.." && pwd)"
 impl="${MAKKOV_IMPL:-sh}"
 case "$impl" in sh) impls=(sh) ;; node) impls=(node) ;; mixed) impls=(sh node); case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) impls+=(ps) ;; *) command -v pwsh >/dev/null 2>&1 && impls+=(ps) ;; esac ;;
   *) echo "MAKKOV_IMPL is sh, node or mixed" >&2; exit 2 ;; esac
-# In Git Bash on Windows, Node and PowerShell get Windows paths (C:\...), and their home is USERPROFILE.
+# In Git Bash on Windows, Node and PowerShell get Windows paths (C:\...), and their home is USERPROFILE. The test's
+# folders go under RUNNER_TEMP when CI sets it: under %TEMP% Git Bash names a folder /tmp/x while Node and PowerShell
+# name it C:\Users\...\Temp\x (read back as /c/Users/...), two spellings of one folder in one manifest, which the
+# installers rightly refuse. (A project of yours has one spelling: /c/Users/you/site is C:\Users\you\site.)
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) [ -n "${RUNNER_TEMP:-}" ] && export TMPDIR="$(cygpath -u "$RUNNER_TEMP")" ;; esac
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }; ps_exe="$(command -v pwsh || command -v powershell)" ;;
   *) winpath() { printf '%s' "$1"; }; ps_exe="$(command -v pwsh || true)" ;; esac
 # MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
