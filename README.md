@@ -53,7 +53,7 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/score.html"><img src=".github/assets/score-panel.png" alt="The Design Score panel open beside a web page: the score ring with its grade, seven category bars from accessibility to consistency, and the top issues, each with a one-line fix." width="100%"></a></p>
 
-**New in 0.2.** Score any live page's design from 0 to 100 in one click. Design Score runs 37 checks in seven categories (accessibility, typography, colour, layout and spacing, responsive, motion, consistency), explains every point it takes off and writes a fix prompt for your agent. It runs inside the page, in your browser, and sends none of the page's data anywhere ([what it loads and from where](SECURITY.md#what-the-harness-itself-runs)).
+Score any live page's design from 0 to 100 in one click. Design Score runs 37 checks in seven categories (accessibility, typography, colour, layout and spacing, responsive, motion, consistency), explains every point it takes off and writes a fix prompt for your agent. It runs inside the page, in your browser, and sends none of the page's data anywhere ([what it loads and from where](SECURITY.md#what-the-harness-itself-runs)).
 
 - **Every point lost, pointed at.** Pick an issue and its elements light up on the page, numbered, with the selector and the value that failed.
 - **Steal the style.** The palette with roles, fonts, type scale, spacing, radii and shadows the page renders, copied as `DESIGN.md`, CSS variables, a Tailwind theme or W3C design tokens.
@@ -191,7 +191,7 @@ What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](C
 <p align="center"><img src=".github/assets/install-chat.png" alt="Four steps for chat apps: create a project, upload the files, paste the instructions, ask as usual." width="100%"></p>
 
 1. Create a project. ChatGPT calls it Projects, Gemini calls it Gems; in Grok or DeepSeek, attach the files to a chat.
-2. Upload `ROUTING.md` and the skills you use. Start with html-report and the install guard. [Download every file (ZIP)](https://github.com/Makkov-design/makkov-harness/archive/refs/heads/main.zip).
+2. Upload `ROUTING.md` and the skills you use from [`adapters/chat-pack/files/`](adapters/chat-pack/files/), one file per skill with its own name (`html-report.md`, `third-party-install-guard.md`…). Start with html-report (and `html-report-skeleton.html`) and the install guard. [Download every file (ZIP)](https://github.com/Makkov-design/makkov-harness/archive/refs/heads/main.zip): they are in `adapters/chat-pack/files/` inside it.
 3. Paste the instructions from [the chat pack](adapters/chat-pack/README.md) into the project instructions and save.
 4. Ask as usual. Results come back in the chat; reports as one HTML file to save.
 

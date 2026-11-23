@@ -10,11 +10,16 @@
 # Every package was reviewed with third-party-install-guard on 2026-11-04 (verdict: green).
 # Versions are pinned on purpose: bump them only after a new review.
 # Installs run with --ignore-scripts: none of these packages needs an install script.
+# --before pins the dependencies too: npm resolves every transitive package to the newest version published
+# before the end of the review day, so a release that appeared after the review (a hijacked patch, say) cannot
+# arrive. npm versions are immutable, so this resolves to the same tree as on the review day without a lockfile
+# (a lockfile would need a project folder; Hallmark finds puppeteer-core through `npm root -g`). Move it with a review.
 # Needs network access "Trusted" (default) or wider: npm registry and Ubuntu archives.
 
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 log() { echo "[design-tools] $*"; }
+REVIEWED_BEFORE="2026-11-04T23:59:59Z"   # end of the review day in SECURITY.md
 
 # Parallel, so the whole script stays well under the ~5 minute cache limit.
 (
@@ -23,10 +28,11 @@ log() { echo "[design-tools] $*"; }
     || log "WARNING: ffmpeg install failed (HyperFrames cannot render MP4)"
 ) &
 (
-  npm install -g --ignore-scripts --no-audit --no-fund \
-      puppeteer-core@25.16.0 hyperframes@0.9.9 >/dev/null 2>&1 \
+  # npm's errors stay on stderr, so a failure says why, not only that it failed.
+  npm install -g --ignore-scripts --no-audit --no-fund --loglevel=error --before="$REVIEWED_BEFORE" \
+      puppeteer-core@25.16.0 hyperframes@0.9.9 >/dev/null \
     && log "puppeteer-core 25.16.0 and hyperframes 0.9.9 installed in $(npm root -g)" \
-    || log "WARNING: npm install failed (Hallmark browser checks / HyperFrames unavailable)"
+    || log "WARNING: npm install failed, npm's error is above (Hallmark browser checks / HyperFrames unavailable)"
 ) &
 wait
 
