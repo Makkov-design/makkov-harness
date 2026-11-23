@@ -19,8 +19,8 @@
     },
     {
       "name": "interfaces",
-      "source": { "source": "github", "repo": "jakubkrehel/skills", "sha": "60bf140e43c98b248e6594487384ec967e89d98a" },
-      "description": "By Jakub Krehel. UI review: accessibility, typography, color, layout, UI copy. Pinned to the reviewed version (1.17.0).",
+      "source": { "source": "github", "repo": "jakubkrehel/skills", "sha": "6c2120103600407a1a9986afd834e73144ef8998" },
+      "description": "By Jakub Krehel. UI review: accessibility, typography, color, layout, UI copy. Pinned to the reviewed version (1.20.0).",
       "homepage": "https://interfaces.dev/",
       "license": "MIT"
     },
@@ -32,7 +32,7 @@
     },
     {
       "name": "hallmark",
-      "source": { "source": "git-subdir", "url": "https://github.com/Nutlope/hallmark.git", "path": "skills", "sha": "407fa689f4a276f2fd389208d271d0fef08f5058" },
+      "source": { "source": "git-subdir", "url": "https://github.com/Nutlope/hallmark.git", "path": "skills", "sha": "04977e15f3dfd6ee4b74c887dac3eb52665d6c92" },
       "strict": false,
       "skills": ["./hallmark"],
       "description": "By Nutlope. New landing pages and sites that look designed, not generated. Pinned to the reviewed version (2.0.0).",
