@@ -17,11 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Full history, so check.mjs can read the base commit: a published Design Score version is held to what the
+      # base recorded, not to docs/score/versions.json in the same change.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - run: node .github/scripts/check.mjs
+        env:
+          # pull request: its base branch's commit; push to main: the commit main was at before the push
+          CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CHECK_BASE_FROM: ${{ github.event_name == 'pull_request' && 'the pull request base' || 'main before this push' }}
 
   tests:
     runs-on: ubuntu-latest

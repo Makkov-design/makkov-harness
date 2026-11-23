@@ -47,6 +47,9 @@ export function makeNpmLatest(fetchImpl = fetch) {
 const repoOf = (src) => src.repo || src.url.replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
 const short = (sha) => sha.slice(0, 7);
 const notFound = (e) => e && e.status === 404;
+// Upstream-controlled text (tag and branch names, API error text) goes into the issue as inline code, so it cannot
+// @mention anyone, link anywhere or break the table.
+export const code = (t) => "`" + String(t ?? "").replace(/[`\r\n]/g, "").replace(/\|/g, "\\|") + "`";
 
 // One pinned GitHub source: { name, kind, repo, sha, path?, ref? }. Returns a row when there is something to review,
 // or null when the pin is current.
@@ -62,11 +65,11 @@ export async function checkSource(gh, s) {
   let target, against;
   if (pinnedTag && release) {
     target = (await gh(`/repos/${repo}/commits/${encodeURIComponent(release.tag_name)}`)).sha;
-    against = `release ${release.tag_name}`;
+    against = `release ${code(release.tag_name)}`;
   } else {
     const meta = await gh(`/repos/${repo}`);
     target = (await gh(`/repos/${repo}/commits/${encodeURIComponent(meta.default_branch)}`)).sha;
-    against = `${meta.default_branch} (latest commit)`;
+    against = `${code(meta.default_branch)} (latest commit)`;
   }
   if (target.startsWith(sha)) return null;
   const cmp = await gh(`/repos/${repo}/compare/${sha}...${target}`);
@@ -81,10 +84,10 @@ export async function checkSource(gh, s) {
     catch (e) { if (!notFound(e)) throw e; notes.push(`review needed: \`${path}/\` no longer exists upstream`); }
   }
   if (path && files.length === 0 && !notes.length) return null; // nothing inside the plugin's folder changed
-  const code = files.filter((f) => CODE.test(f.filename)).length;
+  const codeFiles = files.filter((f) => CODE.test(f.filename)).length;
   return {
     name: s.name, kind: s.kind, repo, pinned: short(sha), against, target: short(target), ahead: cmp.ahead_by,
-    files: truncated ? `${files.length}+` : String(files.length), code: truncated ? `${code}+` : String(code),
+    files: truncated ? `${files.length}+` : String(files.length), code: truncated ? `${codeFiles}+` : String(codeFiles),
     compare: cmp.html_url, note: notes.join("; "),
   };
 }
@@ -125,19 +128,19 @@ export function render({ rows, npmRows, errors }, date = new Date().toISOString(
   if (rows.length) lines.push(
     "| Source | Kind | Pinned | Compared with | Commits | Files changed | Of them code/hooks | Diff | Note |",
     "|---|---|---|---|---|---|---|---|---|",
-    ...rows.map((r) => `| ${cell(r.name)} | ${r.kind} | \`${r.pinned}\` | ${cell(r.against)} \`${r.target}\` | ${r.ahead} | ${r.files} | ${r.code} | [compare](${r.compare}) | ${cell(r.note) || "—"} |`),
+    ...rows.map((r) => `| ${cell(r.name)} | ${r.kind} | \`${r.pinned}\` | ${r.against} \`${r.target}\` | ${r.ahead} | ${r.files} | ${r.code} | [compare](${r.compare}) | ${cell(r.note) || "—"} |`),
     "",
   );
   if (npmRows.length) lines.push(
     "| npm package | Pinned | Latest |",
     "|---|---|---|",
-    ...npmRows.map((r) => `| ${cell(r.name)} | ${r.pinned} | ${r.latest} |`),
+    ...npmRows.map((r) => `| ${cell(r.name)} | ${r.pinned} | ${code(r.latest)} |`),
     "",
   );
   if (errors.length) lines.push(
     "**Could not check** (the run went on with the others; fix the cause or the pin, then run the workflow again):",
     "",
-    ...errors.map((e) => `- ${cell(e.name)} (${e.repo}): ${e.error}`),
+    ...errors.map((e) => `- ${cell(e.name)} (${e.repo}): ${code(e.error)}`),
     "",
   );
   lines.push(

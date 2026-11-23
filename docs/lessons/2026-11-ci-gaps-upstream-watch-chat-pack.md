@@ -9,6 +9,15 @@ Engineering record for the pull request on branch `ci/gaps-upstream-watch-chat-p
 - **The same fact in several files drifts.** Pins and versions were repeated in `marketplace.json`, `SECURITY.md`, `cli-version.json`, the cloud setup script, the workflow and skill docs, and CHANGELOG link definitions stopped at 0.3.1 while five more releases shipped. Each repeated fact now has one source and a `check.mjs` rule that names every file repeating it. When you add a new copy of a version or pin, add the file to that rule.
 - **Checks that read "the first line" or "the root folder" silently cover less over time.** The Markdown link check read only root `*.md` files, and the description check only the first line of `description:`. Prefer `git ls-files` over a folder listing, and parse the format properly enough for what the repo really contains.
 
+## A ratchet that trusts a file the same change can edit is not a ratchet (found in audit)
+
+- The first version of the "a published Design Score version never changes" check compared `docs/score/<version>/mh-score.js` with `docs/score/versions.json`, both in the working tree. A change that edited the bundle, deleted its record and rebuilt passed CI: the check trusted data the change itself could rewrite. The fix reads the record from the base commit (`git show <base>:docs/score/versions.json`, base = `CHECK_BASE_SHA`: the PR base, or `github.event.before` on a push), with `fetch-depth: 0`, and fails in CI when no base can be read instead of passing.
+- Rule: for any immutability, append-only or "never goes down" check, ask "could this PR edit the reference too?" If yes, take the reference from the base commit, and make a missing base a failure in CI, not a silent pass.
+
+## Untrusted text in generated Markdown
+
+- Tag and branch names come from upstreams. Interpolated into an issue they can @mention people or add links. Put any upstream-controlled string in inline code, with backticks and newlines stripped.
+
 ## upstream-watch
 
 - Compare a release pin with the latest release, not the default branch, or every commit after a release looks like news (the Frame Lens row in issue #73).

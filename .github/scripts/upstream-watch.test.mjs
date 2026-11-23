@@ -38,7 +38,7 @@ test("a pin equal to the latest release is current, even when the default branch
 test("a pin on a tag (no ref given) is compared with the latest release, not the branch head", async () => {
   const gh = fakeGh(repo("o/p", { release: { tag: "v2.0.0", sha: B }, tags: [["v2.0.0", B], ["v1.0.0", A]], head: C, compare: { [`${A}...${B}`]: { ahead_by: 4, files: files(3, "src") } } }));
   const row = await checkSource(gh, { name: "p", kind: "companion", repo: "o/p", sha: A });
-  assert.equal(row.against, "release v2.0.0");
+  assert.equal(row.against, "release `v2.0.0`");
   assert.equal(row.target, B.slice(0, 7));
   assert.equal(row.ahead, 4);
   assert.equal(row.files, "3");
@@ -47,7 +47,7 @@ test("a pin on a tag (no ref given) is compared with the latest release, not the
 test("a pin that is not a release is compared with the default branch", async () => {
   const gh = fakeGh(repo("o/p", { release: { tag: "v1.0.0", sha: C }, tags: [["v1.0.0", C]], head: B, branch: "trunk", compare: { [`${A}...${B}`]: { ahead_by: 2, files: [{ filename: "hooks/run.sh" }, { filename: "README.md" }] } } }));
   const row = await checkSource(gh, { name: "p", kind: "companion", repo: "o/p", sha: A });
-  assert.equal(row.against, "trunk (latest commit)");
+  assert.equal(row.against, "`trunk` (latest commit)");
   assert.equal(row.code, "1");
   assert.equal(row.note, "");
 });
@@ -99,7 +99,7 @@ test("one failing upstream is reported and the others are still checked", async 
   assert.equal(result.errors.length, 1);
   assert.equal(result.errors[0].name, "gone");
   assert.equal(decide(result, null), "create");
-  assert.match(render(result, "2026-01-01"), /Could not check[\s\S]*gone \(o\/gone\): GET \/repos\/o\/gone\/releases\/latest: 500 boom/);
+  assert.match(render(result, "2026-01-01"), /Could not check[\s\S]*gone \(o\/gone\): `GET \/repos\/o\/gone\/releases\/latest: 500 boom`/);
 });
 
 test("a force-pushed (missing) pinned commit is an error row, not a crash", async () => {
@@ -117,7 +117,7 @@ test("npm pins: a newer release is a row, an equal one is not, a registry failur
   const result = await collect({ market: { plugins: [] }, watch, gh: fakeGh({}), npmLatest });
   assert.deepEqual(result.npmRows, [{ name: "hyperframes", pinned: "0.9.9", latest: "0.10.0" }]);
   assert.equal(result.errors.length, 1);
-  assert.match(render(result), /\| hyperframes \| 0\.9\.9 \| 0\.10\.0 \|/);
+  assert.match(render(result), /\| hyperframes \| 0\.9\.9 \| `0\.10\.0` \|/);
 });
 
 test("vendored sources are followed alongside companions", () => {
@@ -134,6 +134,16 @@ test("the issue is closed only when everything is current and nothing failed", (
   assert.equal(decide(none, null), "none");
   assert.equal(decide({ ...none, errors: [{ name: "x" }] }, { number: 1 }), "update");
   assert.equal(decide({ ...none, npmRows: [{ name: "x" }] }, null), "create");
+});
+
+test("upstream-controlled names cannot mention, link or break the table", async () => {
+  const evil = "@octocat]](x)`|y";
+  const gh = fakeGh(repo("o/p", { release: { tag: evil, sha: B }, tags: [["v1", A]], compare: { [`${A}...${B}`]: { ahead_by: 1, files: files(1) } } }));
+  const row = await checkSource(gh, { name: "p", kind: "companion", repo: "o/p", sha: A });
+  const body = render({ rows: [row], npmRows: [], errors: [{ name: "q", repo: "o/q", error: "@someone `x`" }] });
+  assert.ok(body.includes("release `@octocat]](x)\\|y`"), body);
+  assert.ok(body.includes("`@someone x`"), body);
+  assert.ok(!/(^|[^`])@octocat/.test(body.replace(/`[^`]*`/g, "")), "no bare @mention outside code");
 });
 
 test("the repository's own watch list is well formed", async () => {

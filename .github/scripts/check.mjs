@@ -1,4 +1,5 @@
 // Repository checks for every push and pull request. Read-only: no network, no writes.
+// Read-only apart from git reads of the base commit (CHECK_BASE_SHA; see baseCommit).
 // 1. plugin and marketplace manifests are valid JSON, every pinned companion has a full commit sha, and the
 //    plugin's version is the same in plugin.json, its marketplace entry and the newest CHANGELOG.md entry
 //    (and, where this clone has tags, a warning for a CHANGELOG.md link to a tag that does not exist yet)
@@ -7,7 +8,8 @@
 //    the spec
 // 4. Design Score: the generated bundle, console snippet and bookmarklets are up to date (build.mjs --check),
 //    the agent's loader carries the built bundle's SRI hash and fetches the versioned copy, score/<version>/, and every
-//    published version in docs/score/versions.json is still there, unchanged,
+//    published version is still there, unchanged: those in docs/score/versions.json, and those recorded on the base
+//    commit (CHECK_BASE_SHA in CI, else origin/main), so editing versions.json cannot hide a rewrite,
 //    the two copies of mh-score.js are identical, and what SECURITY.md promises holds: the bundle uses no
 //    network or storage API, and the loader bookmarklet loads only the bundle from this site, with the referrer
 //    SECURITY.md describes
@@ -17,7 +19,7 @@
 // 6. links between the Markdown files (every one in the repository) resolve (a missing README picture is a warning: screenshots come separately)
 // 7. no file, tracked or new and not ignored, contains something that looks like a key or token
 // 8. what is written down twice agrees: companion pins in marketplace.json and SECURITY.md; the vendored sources and
-//    npm packages in .github/upstream-watch.json and SECURITY.md; the reviewed hyperframes and puppeteer-core versions
+//    npm packages in .github/upstream-watch.json, SECURITY.md, and the vendored commits in CREDITS.md and NOTICE; the reviewed hyperframes and puppeteer-core versions
 //    in every file that repeats them; ROUTING.md and skills/; every CHANGELOG.md version heading and its link
 // 9. the chat pack (adapters/chat-pack/files/) is built from the current skills and no two files share a name
 import { execFileSync } from "node:child_process";
@@ -33,6 +35,20 @@ const ok = (m) => console.log(`ok  ${m}`);
 const read = (f) => fs.readFileSync(f, "utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n");
 const isExternal = (u) => /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(u); // http:, https:, mailto:, javascript:, data:, //host
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+// The commit this tree is compared with for checks that must not trust files the same change can edit.
+// CI passes CHECK_BASE_SHA: the pull request's base, or on a push the commit before it. Locally: origin/main.
+function baseCommit() {
+  const has = (rev) => { try { return execFileSync("git", ["rev-parse", "--verify", "--quiet", `${rev}^{commit}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return ""; } };
+  const env = (process.env.CHECK_BASE_SHA || "").trim();
+  if (env && !/^0+$/.test(env)) {
+    const sha = has(env);
+    return sha ? { sha, from: process.env.CHECK_BASE_FROM || "the base commit" } : { why: `CHECK_BASE_SHA ${env.slice(0, 12)} is not in this clone; fetch it (actions/checkout with fetch-depth: 0)` };
+  }
+  if (env) return { why: "CHECK_BASE_SHA is all zeros (a new branch has no previous commit)" };
+  const main = has("origin/main");
+  return main ? { sha: main, from: "origin/main" } : { why: "CHECK_BASE_SHA is not set and there is no origin/main" };
+}
 
 /* 1. manifests and versions */
 for (const f of [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]) {
@@ -174,6 +190,24 @@ if (fs.existsSync(`${DS}/build.mjs`)) {
     for (const d of fs.readdirSync("docs/score", { withFileTypes: true })) {
       if (d.isDirectory() && !(d.name in published)) { vbad++; fail(`docs/score/${d.name}/ is not recorded in docs/score/versions.json`); }
     }
+    // versions.json is in the same tree a change can edit, so it cannot vouch for itself: every version recorded on
+    // the base commit must still be on the site with the same hash, whatever versions.json says now.
+    const base = baseCommit();
+    if (base.sha) {
+      let before = null;
+      try { before = JSON.parse(execFileSync("git", ["show", `${base.sha}:docs/score/versions.json`], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })); }
+      catch (e) { if (!/does not exist|exists on disk, but not in/.test(String(e.stderr))) { vbad++; fail(`design-score: cannot read docs/score/versions.json at the base ${base.sha.slice(0, 7)} (${base.from}): ${String(e.stderr || e.message).trim().split("\n")[0]}`); } }
+      if (before) {
+        for (const [v, hash] of Object.entries(before)) {
+          const f = `docs/score/${v}/mh-score.js`;
+          const got = fs.existsSync(f) ? "sha384-" + createHash("sha384").update(fs.readFileSync(f)).digest("base64") : null;
+          if (got !== hash) { vbad++; fail(`${f}: Design Score ${v} was published at ${base.from} (${base.sha.slice(0, 7)}) as ${hash}, now ${got ? `it is ${got}` : "it is gone"}. A published version never changes: restore it, bump VERSION in ${DS}/src/probe.js and src/ui.js, and build again`); }
+          if (published[v] !== hash) { vbad++; fail(`docs/score/versions.json: the record of Design Score ${v} differs from ${base.from} (${base.sha.slice(0, 7)}); never edit it by hand`); }
+        }
+        if (!vbad) ok(`design-score: the ${plural(Object.keys(before).length, "version")} published at ${base.from} (${base.sha.slice(0, 7)}) are unchanged`);
+      } else if (!vbad) ok(`design-score: ${base.from} (${base.sha.slice(0, 7)}) has no docs/score/versions.json yet, so no earlier version to hold`);
+    } else if (process.env.CI) { vbad++; fail(`design-score: no base commit to compare published versions with (${base.why}); in CI that would let a published version change unnoticed`); }
+    else warn(`design-score: published versions compared with this tree only (${base.why}); CI compares them with the base commit`);
     if (!vbad) ok(`design-score: ${plural(Object.keys(published).length, "published version")} unchanged; the agent's loader fetches score/${version}/mh-score.js (${plural(loaders, "place")})`);
   }
   const page = path.join(SITE, "score.html");
@@ -332,7 +366,17 @@ try {
     if (!row) { bad++; fail(`.github/upstream-watch.json: SECURITY.md has no row "${pkg.security}"`); }
     else if (row[1] !== pkg.version) { bad++; fail(`.github/upstream-watch.json: ${pkg.name} ${pkg.version}, SECURITY.md reviewed "${row[1]}"`); }
   }
-  if (!bad) ok(`.github/upstream-watch.json: ${plural((watch.vendored || []).length, "vendored source")} and ${plural((watch.npm || []).length, "npm package")} match SECURITY.md`);
+  // CREDITS.md, NOTICE and design-md-library's pinned URL repeat the vendored commits: every commit named on a line
+  // that names the upstream repository must be the watched one.
+  for (const f of ["CREDITS.md", "NOTICE", "skills/design-md-library/SKILL.md"].filter((x) => fs.existsSync(x))) {
+    for (const line of read(f).split("\n")) {
+      for (const v of watch.vendored || []) {
+        if (!line.includes(v.repo)) continue;
+        for (const sha of line.match(/\b[0-9a-f]{7,40}\b/g) || []) if (!sha.startsWith(v.sha.slice(0, 7))) { bad++; fail(`${f}: names ${v.repo} at ${sha}, .github/upstream-watch.json and SECURITY.md say ${v.sha.slice(0, 7)}`); }
+      }
+    }
+  }
+  if (!bad) ok(`.github/upstream-watch.json: ${plural((watch.vendored || []).length, "vendored source")} and ${plural((watch.npm || []).length, "npm package")} match SECURITY.md, CREDITS.md, NOTICE and design-md-library`);
 } catch (e) { fail(`.github/upstream-watch.json: ${e.code === "ENOENT" ? "missing" : e.message}`); }
 // c. the reviewed hyperframes and puppeteer-core versions, repeated in several files, are the same everywhere
 {
