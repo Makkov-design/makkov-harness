@@ -18,7 +18,8 @@
 //    matches the rows in situations-data.js; every script parses
 // 6. links between the Markdown files (every one in the repository) resolve (a missing README picture is a warning: screenshots come separately)
 // 7. no file, tracked or new and not ignored, contains something that looks like a key or token
-// 8. what is written down twice agrees: companion pins in marketplace.json and SECURITY.md; the vendored sources and
+// 8. what is written down twice agrees: companion pins in marketplace.json and SECURITY.md, and their full commits
+//    in docs/security-data.js (vendored ones too; helpers and tests in pins.mjs); the vendored sources and
 //    npm packages in .github/upstream-watch.json, SECURITY.md, and the vendored commits in CREDITS.md and NOTICE; the reviewed hyperframes and puppeteer-core versions
 //    in every file that repeats them; ROUTING.md and skills/; every CHANGELOG.md version heading and its link
 // 9. the chat pack (adapters/chat-pack/files/) is built from the current skills and no two files share a name
@@ -27,6 +28,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { sameCommit, namedCommitErrors, sitePinErrors, siteVendoredErrors } from "./pins.mjs";
 
 let failed = 0;
 const fail = (m) => { failed++; console.log(`::error::${m}`); };
@@ -353,8 +355,6 @@ try {
   if (!bad) ok(`the ${plural(n, "companion pin")} in marketplace.json match SECURITY.md`);
 } catch (e) { fail(`marketplace.json against SECURITY.md: ${e.message}`); }
 // b. the vendored sources and npm packages upstream-watch follows are the ones SECURITY.md reviewed
-// Two spellings of a commit agree when the shorter is a prefix of the longer: in full when both are 40 characters.
-const sameCommit = (a, b) => { const n = Math.min(a.length, b.length); return n >= 7 && a.slice(0, n) === b.slice(0, n); };
 try {
   const watch = JSON.parse(fs.readFileSync(".github/upstream-watch.json", "utf8"));
   let bad = 0;
@@ -373,13 +373,23 @@ try {
   for (const f of ["CREDITS.md", "NOTICE", "skills/design-md-library/SKILL.md"].filter((x) => fs.existsSync(x))) {
     for (const line of read(f).split("\n")) {
       for (const v of watch.vendored || []) {
-        if (!line.includes(v.repo)) continue;
-        for (const sha of line.match(/\b[0-9a-f]{7,40}\b/g) || []) if (!sameCommit(sha, v.sha)) { bad++; fail(`${f}: names ${v.repo} at ${sha}, .github/upstream-watch.json says ${v.sha}`); }
+        for (const err of namedCommitErrors(line, v.repo, v.sha)) { bad++; fail(`${f}: ${err} (.github/upstream-watch.json)`); }
       }
     }
   }
   if (!bad) ok(`.github/upstream-watch.json: ${plural((watch.vendored || []).length, "vendored source")} and ${plural((watch.npm || []).length, "npm package")} match SECURITY.md, CREDITS.md, NOTICE and design-md-library`);
 } catch (e) { fail(`.github/upstream-watch.json: ${e.code === "ENOENT" ? "missing" : e.message}`); }
+// c. docs/security-data.js holds the same full commits as marketplace.json and .github/upstream-watch.json
+try {
+  const box = { window: {} };
+  vm.runInNewContext(read(path.join(SITE, "security-data.js")), box, { filename: "security-data.js", timeout: 2000 });
+  const entries = box.window.MH_SECURITY.entries;
+  const market = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
+  const watch = JSON.parse(fs.readFileSync(".github/upstream-watch.json", "utf8"));
+  const errs = [...sitePinErrors(market.plugins, entries), ...siteVendoredErrors(watch.vendored, entries)];
+  for (const m of errs) fail(m);
+  if (!errs.length) ok("docs/security-data.js has the full commits marketplace.json and .github/upstream-watch.json pin");
+} catch (e) { fail(`docs/security-data.js against the pins: ${e.message}`); }
 // c. the reviewed hyperframes and puppeteer-core versions, repeated in several files, are the same everywhere
 {
   const hf = (() => { try { return JSON.parse(fs.readFileSync("skills/hyperframes/scripts/cli-version.json", "utf8")).version; } catch { return null; } })();
