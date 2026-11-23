@@ -1,6 +1,10 @@
 # Shared by install.sh and uninstall.sh. Sourced, not run. Works in bash 3.2 (macOS).
 # install/lib.ps1 is the PowerShell twin: keep the two in step, rule for rule.
 
+# Text tools work on bytes, not characters: a file in Windows-1251 or with invalid UTF-8 would make awk and sed
+# in a UTF-8 locale (macOS) stop or skip lines. In the C locale every byte passes through as it is.
+LC_ALL=C; export LC_ALL
+
 MH_AGENTS='codex|cursor|gemini|copilot|windsurf|cline|opencode|aider'
 MH_START='<!-- makkov-harness:start -->'
 MH_END='<!-- makkov-harness:end -->'
@@ -55,7 +59,8 @@ mh_check_markers() {
     /<!-- makkov-harness:end -->/            { if (open != "main") { print "line " NR ": an end marker with no routing block open"; exit } open = ""; next }
     /<!-- makkov-harness:personal:end -->/   { if (open != "personal") { print "line " NR ": a personal end marker with no personal layer open"; exit } open = ""; next }
     END { if (open == "main") print "line " at ": a routing block with no end marker"
-          else if (open == "personal") print "line " at ": a personal layer with no end marker" }' "$1")"
+          else if (open == "personal") print "line " at ": a personal layer with no end marker" }' "$1")" ||
+    why="it could not be read"
   [ -z "$why" ] && return 0
   echo "$1: the makkov-harness markers are not paired ($why)." >&2
   echo "Nothing was changed. Fix or delete the marked lines by hand, then run this again." >&2

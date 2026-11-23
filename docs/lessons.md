@@ -12,6 +12,9 @@ Short records of what a change taught, so the next change does not relearn it. N
 - **Read files as bytes in PowerShell.** `ReadAllText` decodes, so Windows-1251 text becomes U+FFFD and a BOM
   disappears. Latin-1 (code page 28591) maps every byte to one character and back, so the bash and PowerShell
   installers agree byte for byte.
+- **Run text tools in the C locale.** macOS's awk in a UTF-8 locale stops at the first byte that is not valid
+  UTF-8 (a Windows-1251 file), half way through an install; GNU awk on Linux does not, so only the macOS CI job
+  showed it. `lib.sh` sets `LC_ALL=C`, and a check whose tool fails counts as failed, never as passed.
 - **A file can belong to more than one install.** Codex, Copilot, Windsurf, Cline and OpenCode all write
   `<project>/AGENTS.md`; Codex and Cline in the home folder share `~/.agents`. Every "is this still in use?"
   check has to cover every shared resource (skills, the instructions file, folders), not only the first one
