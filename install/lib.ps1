@@ -53,8 +53,15 @@ function Read-MhManifest([string]$Path) {
 # install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
 function Remove-MhSkill([string]$Dir) {
   $t = Join-Path (Split-Path -Parent $Dir) ('.mh-tmp-old-' + (Split-Path -Leaf $Dir))
-  if (Test-Path -LiteralPath $t) { Remove-Item -LiteralPath $t -Recurse -Force }
-  Move-Item -LiteralPath $Dir -Destination $t; Remove-Item -LiteralPath $t -Recurse -Force
+  Remove-MhTree $t
+  Move-Item -LiteralPath $Dir -Destination $t; Remove-MhTree $t
+}
+# Removes a file or a folder. A symlink or junction is removed as a link: Windows PowerShell 5.1's
+# Remove-Item -Recurse on a junction deletes the files of the folder it points to.
+function Remove-MhTree([string]$Path) {
+  if (Test-MhLink $Path) {
+    if ([IO.Directory]::Exists($Path)) { [IO.Directory]::Delete($Path, $false) } else { [IO.File]::Delete($Path) }
+  } elseif (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force }
 }
 
 # The first value of key=... in a manifest's lines, as written.
@@ -245,7 +252,8 @@ function Write-MhInPlace([string]$File, [byte[]]$Bytes) {
   try { $out.Write($Bytes, 0, $Bytes.Length) } finally { $out.Dispose() }
 }
 function Write-MhBytes([string]$File, [byte[]]$Bytes) {
-  if (Test-MhLink $File) { Write-MhInPlace $File $Bytes; return }
+  # A file with more than one hard link is written in place too, so every name keeps the same file.
+  if ((Test-MhLink $File) -or ([IO.File]::Exists($File) -and (Get-Item -LiteralPath $File -Force).LinkType -eq 'HardLink')) { Write-MhInPlace $File $Bytes; return }
   $t = "$File.mh-tmp"
   Write-MhInPlace $t $Bytes
   if (-not [IO.File]::Exists($File)) { [IO.File]::Move($t, $File); return }

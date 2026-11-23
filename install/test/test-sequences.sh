@@ -5,9 +5,33 @@
 #
 # Usage: bash install/test/test-sequences.sh [sequences] [seed]
 #   MAKKOV_TEST_KILL=1   also kill runs with kill -9 at a random moment (timing-dependent; for local runs)
+#   MAKKOV_IMPL=sh       install.sh / uninstall.sh (the default)
+#   MAKKOV_IMPL=node     the Node installer (bin/makkov-harness.mjs)
+#   MAKKOV_NODE_BIN=…    the Node installer to run (default: this repository's bin/makkov-harness.mjs)
+#   MAKKOV_IMPL=mixed    each step by one of them picked at random, and by install.ps1 / uninstall.ps1 too when
+#                        PowerShell 7 (pwsh) is installed: the same folder, worked on by every implementation
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-inst="$repo/install/install.sh"; uninst="$repo/install/uninstall.sh"
+impl="${MAKKOV_IMPL:-sh}"
+case "$impl" in sh) impls=(sh) ;; node) impls=(node) ;; mixed) impls=(sh node); case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) impls+=(ps) ;; *) command -v pwsh >/dev/null 2>&1 && impls+=(ps) ;; esac ;;
+  *) echo "MAKKOV_IMPL is sh, node or mixed" >&2; exit 2 ;; esac
+# In Git Bash on Windows, Node and PowerShell get Windows paths (C:\...), and their home is USERPROFILE.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }; ps_exe="$(command -v pwsh || command -v powershell)" ;;
+  *) winpath() { printf '%s' "$1"; }; ps_exe="$(command -v pwsh || true)" ;; esac
+# MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
+# `npm pack` (its skills miss the files npm never packs, such as a .gitignore); this repository's by default.
+node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
+# The command line of one run: <impl> install|uninstall <agent> [project] [--scope design]
+run_cmd() {
+  local i="$1" op="$2" a="$3" pr="$4" sc="$5" wp=""
+  [ -n "$pr" ] && wp="$(winpath "$pr")"
+  case "$i" in
+    sh)   cmd=(bash "$repo/install/$op.sh" "$a"); [ -n "$pr" ] && cmd+=("$pr"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
+    node) cmd=(env "USERPROFILE=$(winpath "$HOME")" node "$(winpath "$node_bin")" "$op" --agent "$a"); [ -n "$pr" ] && cmd+=(--project "$wp"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
+    ps)   cmd=(env "USERPROFILE=$(winpath "$HOME")" "$ps_exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(winpath "$repo/install/$op.ps1")" -Agent "$a"); [ -n "$pr" ] && cmd+=(-Project "$wp"); [ -n "$sc" ] && cmd+=(-Scope "$sc") ;;
+  esac
+  return 0
+}
 runs_total="${1:-20}" seed="${2:-1}"
 RANDOM="$seed"
 pick() { local a=("$@"); printf '%s' "${a[$((RANDOM % ${#a[@]}))]}"; }
@@ -45,14 +69,14 @@ for n in $(seq 1 "$runs_total"); do
   log=""
   for step in 1 2 3 4 5 6 7 8; do
     a="$(pick "${agents[@]}")"
-    pa=(); [ -n "$p" ] && pa=("$p")
     case "$a" in cursor|copilot|windsurf|aider) [ -n "$p" ] || continue ;; esac
+    im="$(pick "${impls[@]}")"
     op="$(pick install install update uninstall uninstall)"
     stop=""; [ $((RANDOM % 4)) = 0 ] && stop=yes
-    if [ "$op" = uninstall ]; then cmd=(bash "$uninst" "$a" ${pa[@]+"${pa[@]}"}); points=(u-skills u-rules)
+    if [ "$op" = uninstall ]; then run_cmd "$im" uninstall "$a" "$p" ""; points=(u-skills u-rules)
       [ -f "$base/.makkov-harness/install-$a.txt" ] || continue
-    else cmd=(bash "$inst" "$a" ${pa[@]+"${pa[@]}"}); points=(skill skills rules)
-      [ "$op" = update ] && [ $((RANDOM % 2)) = 0 ] && cmd+=(--scope design)
+    else sc=""; [ "$op" = update ] && [ $((RANDOM % 2)) = 0 ] && sc=design
+      run_cmd "$im" install "$a" "$p" "$sc"; points=(skill skills rules)
     fi
     how="normal"
     set +e
@@ -69,7 +93,7 @@ for n in $(seq 1 "$runs_total"); do
       out="$("${cmd[@]}" 2>&1)"; code=$?
     fi
     set -e
-    log="$log  $op $a ${cmd[*]:3} ($how)
+    log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)
 "
     [ "$code" = 0 ] || fail "step $step: $op $a failed: $out"
   done
@@ -78,9 +102,9 @@ for n in $(seq 1 "$runs_total"); do
     for m in "$base"/.makkov-harness/install-*.txt; do
       [ -f "$m" ] || continue
       a="$(basename "$m" .txt)"; a="${a#install-}"
-      pa=(); [ -n "$p" ] && pa=("$p")
-      out="$(bash "$uninst" "$a" ${pa[@]+"${pa[@]}"} 2>&1)" || fail "final uninstall of $a failed: $out"
-      log="$log  uninstall $a (final)
+      im="$(pick "${impls[@]}")"; run_cmd "$im" uninstall "$a" "$p" ""
+      out="$("${cmd[@]}" 2>&1)" || fail "final uninstall of $a ($im) failed: $out"
+      log="$log  uninstall $a ($im, final)
 "
     done
   done
@@ -92,4 +116,4 @@ $(diff <(printf '%s\n' "$start") <(printf '%s\n' "$now") || true)"
 $(diff <(printf '%s\n' "$outside") <(printf '%s\n' "$now_out") || true)"
   rm -rf "$parent"
 done
-echo "installer sequences: $runs_total passed (seed $seed)"
+echo "installer sequences: $runs_total passed (seed $seed, $impl: ${impls[*]})"

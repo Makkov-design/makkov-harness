@@ -30,6 +30,8 @@ The `upstream-watch` workflow runs every Monday and keeps one issue, "Companion 
 - `rich-report` and `html-report` share one house style. If you change `skeleton.html` in one, copy it to the other.
 - Add a new skill to `ROUTING.md`, or agents will not know when to use it (CI checks that `ROUTING.md` and `skills/` list the same skills).
 - After changing any `SKILL.md`, `skills/html-report/skeleton.html` or `ROUTING.md`, run `node .github/scripts/chat-pack.mjs` to rebuild the chat pack in `adapters/chat-pack/files/`. CI fails when it is out of date.
+- After changing any file in `skills/`, run `node install/node/fingerprints.mjs --write`: the Node installer keeps the fingerprints of this version's skills as they are in the repository (the npm package cannot carry a `.gitignore`), and its unit test fails when they are stale.
+- The installers come in three that behave the same: `install/*.sh`, `install/*.ps1` and the Node one (`bin/makkov-harness.mjs`, `install/node/`, the standard library only). A change lands in all three, with a scenario in `install/test/`; the suites run against the Node one with `MAKKOV_IMPL=node`.
 - No personal data, company names, client details, keys or machine-specific paths.
 
 ## Pull requests

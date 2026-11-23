@@ -59,3 +59,12 @@ Short records of what a change taught, so the next change does not relearn it. N
   a kill: neither was in any hand-written scenario. Keep the seed in the failure message so it can be re-run.
 - **Kill the process group, not the shell.** `kill -9` on the script's PID left its `cp` running into the next step;
   run the target in its own process group (`set -m`) and kill the group, as closing a terminal does.
+- **A pull request that conflicts with main gets no CI run at all, so "no red checks" is not green.** Before calling a
+  head green, list its check runs and require a completed, successful run of every job on that exact head SHA.
+- **Two implementations agree only where a test drives both.** The Node installer reuses the shell suites through a
+  thin adapter (`install/test/node/`) and the sequence test mixes all three installers on one folder; a rule that
+  differs shows up as a folder that does not end as it began.
+- **A package is not the repository.** npm never packs a `.gitignore`, so a skill copied from the package and from a
+  clone differ by one file and by fingerprint; the package records the repository's fingerprints
+  (`install/node/fingerprints.json`) and CI runs the sequence test with the packed tarball, not only the checkout.
+

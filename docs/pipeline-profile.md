@@ -17,6 +17,7 @@ No service runs. Anything that runs on a user's machine (`hooks/`, `install/`) g
 | Install gate hook | `node --test hooks/install-gate.test.mjs` | ubuntu, macOS (bash 3.2), Windows |
 | Installers, bash | `bash install/test/test-install.sh` | ubuntu, macOS |
 | Installers, PowerShell | `./install/test/test-install.ps1` | Windows, in Windows PowerShell 5.1 and PowerShell 7 |
+| Node installer | `node --test install/node/node.test.mjs`; the suites above with `MAKKOV_IMPL=node`; `test-sequences.sh` with `MAKKOV_IMPL=mixed` | ubuntu, macOS, Windows × Node 22, 24, 26 |
 
 Shell code must run in macOS's bash 3.2 and BSD tools (no `mapfile`, no associative arrays, no `sed -i`,
 no GNU-only `grep` syntax). PowerShell code must run in 5.1 and 7.
@@ -47,5 +48,11 @@ moments. `MAKKOV_SEQ_RUNS` and `MAKKOV_SEQ_SEED` set the count and the seed insi
 Runs are stopped half way through a test hook that is inert in normal use: only with both
 `MAKKOV_HARNESS_TEST=1` and `MAKKOV_HARNESS_TEST_STOP=<point>` set does a run stop at that point (install:
 `skill`, `skills`, `rules`; uninstall: `u-skills`, `u-rules`).
+
+The Node installer (`bin/makkov-harness.mjs`, `install/node/`) is the third implementation of the same behaviour
+and reads and writes the same manifests; a change to the installers lands in all three. It uses the Node standard
+library only (no dependencies, no install scripts) and is published as the npm package `makkov-harness`
+([release.md](release.md); `.github/workflows/release.yml` runs only on the owner's dispatch or a version tag).
+After changing a skill, run `node install/node/fingerprints.mjs --write` (the unit test fails until you do).
 
 Lessons from past changes: [lessons.md](lessons.md).

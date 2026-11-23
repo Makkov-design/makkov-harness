@@ -147,7 +147,7 @@ if ($skillsDir) {
   # Copies an interrupted install left half made under a temporary name are the harness's own.
   if (Test-Path -LiteralPath $skillsDir -PathType Container) {
     foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) {
-      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-Item -LiteralPath $t.FullName -Recurse -Force }
+      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-MhTree $t.FullName }
     }
   }
   # The skills are done: a run after an interruption from here on does not take them up again.

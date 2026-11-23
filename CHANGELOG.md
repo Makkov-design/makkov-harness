@@ -45,6 +45,20 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 - CI: the session-start hook is tested on Linux, macOS (bash 3.2) and Windows, like the install gate; the Design Score fixtures fail instead of skipping when Chrome or puppeteer-core is missing (`DESIGN_SCORE_FIXTURES=required`); the Python tests (`*_test.py`) run; the upstream-watch tests run; Node 24 LTS instead of Node 20, which is past its end of life.
 - `check.mjs` also checks: links in every Markdown file, not only those at the root; skill descriptions written over several lines; that the companion pins in `marketplace.json` match `SECURITY.md`; that the vendored sources and npm pins in `.github/upstream-watch.json` match `SECURITY.md`, and the vendored commits in `CREDITS.md`, `NOTICE` and design-md-library's URL; that the reviewed hyperframes and puppeteer-core versions are the same in every file that repeats them; that `ROUTING.md` and `skills/` list the same skills; and that every CHANGELOG version heading has a link definition.
 
+
+### Added
+
+- A Node installer, one behaviour on every operating system: `node bin/makkov-harness.mjs install|update|uninstall --agent <agent> [--project <path>] [--scope all|design] [--dry-run]` from a copy of the repository, and `npx makkov-harness …` once the package is published on npm. Node 22 or later, the standard library only, no dependencies and no install scripts. It reads and writes the same manifest as `install.sh` and `install.ps1` (and those of 0.4.0 and 0.5.0), with the same checks before the first change, the same journal, the same byte-for-byte handling of your file and the same refusals and exit codes, so an install made by one installer can be updated or removed by another. The shell installers stay as the way without Node.
+- `makkov-harness doctor [--project <path>] [--json]`: a report, changing nothing, of what is installed where (agents, scope, shared files and skill folders, backups), of manifests that fail the installer's checks and why, of skills missing or different from the package's, of files an interrupted run left and of leftovers of 0.5.0 and earlier; exit code 1 when something needs attention.
+- The npm package `makkov-harness` (`package.json` at the root, with a `files` allow-list: the installer, `ROUTING.md` and `skills/` without `rich-report`) and a release workflow that publishes it only when the owner starts it or pushes a version tag, with npm trusted publishing (no token stored) as a staged version the owner approves on npmjs.com. Steps for the owner: [docs/release.md](docs/release.md).
+- Tests: the bash and PowerShell scenario suites and the random sequence tests also drive the Node installer (`MAKKOV_IMPL=node`), and `MAKKOV_IMPL=mixed` mixes the bash, PowerShell and Node installers on the same folders, the Node one also from the packed npm package; CI runs them on Linux, macOS and Windows with Node 22, 24 and 26.
+
+### Fixed (installers)
+
+- A hard-linked instructions file was replaced by a new file, so its other names kept the old content; it is now written in place, in all three installers.
+- The install checks that the instructions file's folder can be written to before its first change (the file is replaced through a temporary file next to it), as the uninstall already did.
+- Windows PowerShell 5.1: removing a skill folder that is a junction (or a link left under a temporary name) could delete the files of the folder it points to; links are now removed as links.
+
 ## [0.5.0] - 2026-11-09
 
 Hardened: the install gate catches the commands people really type, updates and uninstalls know the harness's own copies, the Hyperframes CLI runs only as reviewed (pinned, its telemetry and npm install scripts off), the Design Score loader is pinned by hash, and the docs claim no more than what ships. Prompted by an independent review of 0.4.0.

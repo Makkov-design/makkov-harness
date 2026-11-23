@@ -190,7 +190,7 @@ foreach ($t in "$rules.mh-tmp", "$original.mh-tmp") { if ([IO.File]::Exists($t))
 $copied = @(); $backed = @(); $older = @(); $dropped = @()
 if ($skillsDir) {
   New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
-  foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) { Remove-Item -LiteralPath $t.FullName -Recurse -Force }
+  foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) { Remove-MhTree $t.FullName }
   foreach ($src in $sources) {
     $name = $src.Name
     $dst = Join-Path $skillsDir $name

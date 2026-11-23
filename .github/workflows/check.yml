@@ -85,3 +85,62 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./install/test/test-install.ps1
+
+  # The Node installer (bin/makkov-harness.mjs, install/node/), on every Node version package.json's engines allow,
+  # on Linux, macOS and Windows. The same scenario suites drive it through install/test/node/ (the shell installers'
+  # command line), and the sequence tests mix it with install.sh and install.ps1 on the same folders: after the last
+  # uninstall each folder must be byte for byte as it was.
+  node-installer:
+    name: node installer (${{ matrix.os }}, Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24, 26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: unit tests (fingerprints, command line, doctor, the package's contents)
+        run: node --test install/node/node.test.mjs
+      - name: the bash scenarios and sequences, run by the Node installer
+        if: runner.os != 'Windows'
+        run: bash install/test/test-install.sh
+        env:
+          MAKKOV_IMPL: node
+      - name: sequences mixing install.sh, the Node installer and install.ps1 (pwsh) on the same folders
+        if: runner.os != 'Windows'
+        run: bash install/test/test-sequences.sh 12 "$(date +%j | sed 's/^0*//')"
+        env:
+          MAKKOV_IMPL: mixed
+      - name: sequences mixing install.sh from this checkout with the Node installer from the packed npm package
+        if: runner.os != 'Windows'
+        run: |
+          pk="$RUNNER_TEMP/pack" && mkdir -p "$pk"
+          npm pack --ignore-scripts --pack-destination "$pk"
+          tar -xzf "$pk"/makkov-harness-*.tgz -C "$pk"
+          MAKKOV_NODE_BIN="$pk/package/bin/makkov-harness.mjs" bash install/test/test-sequences.sh 8 "$(date +%j | sed 's/^0*//')"
+        env:
+          MAKKOV_IMPL: mixed
+      - name: the PowerShell scenarios and sequences, run by the Node installer (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./install/test/test-install.ps1
+        env:
+          MAKKOV_IMPL: node
+      - name: sequences mixing install.ps1 and the Node installer on the same folders (PowerShell 7)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./install/test/test-sequences.ps1 -Impl mixed -Runs 6 -Seed (Get-Date).DayOfYear
+      - name: sequences mixing install.sh (Git Bash), the Node installer and install.ps1 on the same folders
+        if: runner.os == 'Windows'
+        shell: bash
+        run: bash install/test/test-sequences.sh 6 "$(date +%j | sed 's/^0*//')"
+        env:
+          MAKKOV_IMPL: mixed

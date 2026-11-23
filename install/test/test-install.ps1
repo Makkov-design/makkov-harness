@@ -6,7 +6,11 @@
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$inst = Join-Path $repo 'install\install.ps1'; $uninst = Join-Path $repo 'install\uninstall.ps1'
+# $env:MAKKOV_IMPL = 'node' runs every scenario against the Node installer (through install\test\node\, which takes
+# the PowerShell installers' parameters); the default is install.ps1 / uninstall.ps1.
+if ($env:MAKKOV_IMPL -eq 'node') { $ri = 'install\test\node\install.ps1'; $ru = 'install\test\node\uninstall.ps1' }
+else { $ri = 'install\install.ps1'; $ru = 'install\uninstall.ps1' }
+$inst = Join-Path $repo $ri; $uninst = Join-Path $repo $ru
 $expected = @(Get-ChildItem (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' }).Count
 $script:fails = 0
 function Check([string]$Name, [scriptblock]$Test) {
@@ -25,7 +29,7 @@ function Snap([string]$Dir) {
     ForEach-Object { $_.FullName.Substring($root.Length) + ' ' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "`n"
 }
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md') $d -Recurse; $d }
+function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md'), (Join-Path $repo 'bin'), (Join-Path $repo 'package.json') $d -Recurse; $d }
 $realHome = $env:USERPROFILE
 # This same PowerShell (5.1 or 7), as a child process: to see an exit code and what went to stderr.
 $exe = (Get-Process -Id $PID).Path
@@ -214,7 +218,7 @@ try {
 
   # A skill removed or renamed in a newer version: the update takes the old copy out (or sets it aside if you
   # changed it), unless another installed agent still lists it.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex and copilot project, skills renamed upstream'
   & $sInst -Agent codex -Project $proj | Out-Null; & $sInst -Agent copilot -Project $proj | Out-Null
@@ -233,7 +237,7 @@ try {
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $src -Recurse -Force
 
   # Updating in place, then uninstalling; and an update over an install from before 0.5.0.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, update in place, then uninstall'
   & $sInst -Agent codex -Project $proj | Out-Null
@@ -480,7 +484,7 @@ try {
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
   # A skill another agent's newer install updated is still the harness's own when the older agent goes last.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex from an older copy, copilot from a newer one, uninstalled copilot first'
   & $sInst -Agent codex -Project $proj | Out-Null
@@ -578,7 +582,7 @@ try {
   Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
   Remove-Item Env:\MAKKOV_HARNESS_TEST_STOP
   $mfl = @(Get-Content (Join-Path $proj '.makkov-harness\install-codex.txt'))
-  Check 'without it, the install runs to the end' { $script:code -eq 0 -and @($mfl | Where-Object { $_ -like 'rules=*' }).Count -eq 1 -and @($mfl | Where-Object { $_ -like 'skill=*' }).Count -eq $expected }
+  Check 'without it, the install runs to the end' { $script:code -eq 0 -and @($mfl | Where-Object { $_ -like 'rules=*' }).Count -eq 1 -and @($mfl | Where-Object { $_ -like 'skill=*' } | ForEach-Object { ($_.Substring(6) -split ' ')[0] } | Select-Object -Unique).Count -eq $expected }
   & $uninst -Agent codex -Project $proj | Out-Null
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
@@ -615,6 +619,34 @@ try {
     & $uninst -Agent cline -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
   } finally { Remove-Item Function:\Get-Date }
   Check 'your animate is back where it was, nothing else left' { (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md hard-linked to a file outside the project'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $linked = Join-Path $h 'linked.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "# mine`n"); Copy-Item $agentsMd $exp
+  $hard = $true; try { New-Item -ItemType HardLink -Path $linked -Target $agentsMd | Out-Null } catch { $hard = $false; Write-Output '  skip (no hard links on this file system)' }
+  if ($hard) {
+    & $inst -Agent codex -Project $proj | Out-Null
+    Check 'the other name shows the routing block too' { (Markers $linked) -eq 1 }
+    & $uninst -Agent codex -Project $proj | Out-Null
+    Check 'after the uninstall, still linked and as it was' { (Same $exp $linked) -and (Same $exp $agentsMd) -and (Get-Item -LiteralPath $agentsMd).LinkType -eq 'HardLink' }
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A link left under a temporary name is removed as a link: the folder it points to keeps its files (Windows
+  # PowerShell 5.1's Remove-Item -Recurse on a junction deletes them).
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a junction to a folder of yours left as .mh-tmp-animate'
+  $target = Join-Path $h 'target'; New-Item -ItemType Directory -Force $target, (Join-Path $proj '.agents\skills') | Out-Null
+  [IO.File]::WriteAllText((Join-Path $target 'file'), "keep`n")
+  $j = Join-Path $proj '.agents\skills\.mh-tmp-animate'; $made = $true
+  try { New-Item -ItemType Junction -Path $j -Target $target | Out-Null } catch { try { New-Item -ItemType SymbolicLink -Path $j -Target $target | Out-Null } catch { $made = $false; Write-Output '  skip (no junctions or symlinks here)' } }
+  if ($made) {
+    & $inst -Agent codex -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+    Check 'the link is gone, the folder it pointed to is untouched' { -not (Test-Path -LiteralPath $j) -and [IO.File]::ReadAllText((Join-Path $target 'file')) -eq "keep`n" }
+  }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
   # A manifest written by install.sh (LF line ends; on Windows, Git Bash /c/x or WSL /mnt/c/x paths) is read by

@@ -4,7 +4,11 @@
 # behaviours for install.ps1 / uninstall.ps1. Run from anywhere: bash install/test/test-install.sh
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-inst="$repo/install/install.sh"; uninst="$repo/install/uninstall.sh"
+# MAKKOV_IMPL=node runs every scenario against the Node installer (through install/test/node/, which takes the
+# shell installers' command line); the default is install.sh / uninstall.sh.
+if [ "${MAKKOV_IMPL:-sh}" = node ]; then ri="install/test/node/install.sh"; ru="install/test/node/uninstall.sh"
+else ri="install/install.sh"; ru="install/uninstall.sh"; fi
+inst="$repo/$ri"; uninst="$repo/$ru"
 expected="$(find "$repo/skills" -mindepth 1 -maxdepth 1 -type d ! -name rich-report | wc -l | tr -d ' ')"
 fails=0
 ok()   { echo "  ok   $*"; }
@@ -19,7 +23,7 @@ tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; t
 runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
 root=0; [ "$(id -u)" = 0 ] && root=1
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$d/"; echo "$d"; }
+harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$repo/bin" "$repo/package.json" "$d/"; echo "$d"; }
 
 run_agent() {
   local agent="$1" scope="$2" home proj base skills rules
@@ -201,18 +205,18 @@ rm -rf "$home" "$parent"
 # changed it), unless another installed agent still lists it.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex and copilot project, skills renamed upstream"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
 mv "$src/skills/animate" "$src/skills/animate-renamed"; mv "$src/skills/design-score" "$src/skills/design-score-renamed"
 echo "my change" >> "$proj/.agents/skills/design-score/SKILL.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "while copilot still lists them, the old copies stay" "[ -d '$proj/.agents/skills/animate' ] && [ -d '$proj/.agents/skills/design-score' ]"
 check "the renamed skills are copied" "[ -d '$proj/.agents/skills/animate-renamed' ]"
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
 check "the last update takes the unchanged old copy out" "[ ! -e '$proj/.agents/skills/animate' ]"
 check "and sets the one you changed aside" "[ ! -e '$proj/.agents/skills/design-score' ] && grep -q 'my change' '$proj'/.makkov-harness/backups/*/removed/design-score/SKILL.md"
 check "neither is in a manifest any more" "! grep -q -e '^skill=animate ' -e '^skill=design-score ' '$proj'/.makkov-harness/install-*.txt"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null; bash "$src/install/uninstall.sh" copilot "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null; bash "$src/$ru" copilot "$proj" >/dev/null
 check "uninstall leaves no skills folder" "[ ! -e '$proj/.agents' ]"
 rm -rf "$home" "$proj" "$src"
 
@@ -220,25 +224,25 @@ rm -rf "$home" "$proj" "$src"
 # and the uninstall then leaves nothing of either behind.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, update in place, then uninstall"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 echo "new in this version" > "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "the update replaced our animate" "[ -f '$proj/.agents/skills/animate/CHANGES.md' ]"
 check "the update made no backup of ours" "[ ! -e '$proj/.makkov-harness/backups' ] || [ -z \"\$(ls -A '$proj/.makkov-harness/backups')\" ]"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null
 check "nothing of the harness left after uninstall" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
 rm -rf "$home" "$proj"
 
 # An install made before 0.5.0 (no fingerprints in its manifest): its copies are set aside, not restored.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, update over an install from before 0.5.0"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 sed 's/^\(skill=[^ ]*\) .*/\1/' "$proj/.makkov-harness/install-codex.txt" | grep -v '^base=' > "$home/m" && cat "$home/m" > "$proj/.makkov-harness/install-codex.txt"
 echo "newer still" >> "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "the old copy went to earlier-harness" "ls '$proj'/.makkov-harness/backups/*/earlier-harness/animate >/dev/null 2>&1"
 check "nothing went to the restore list" "! grep -q '^backup=' '$proj/.makkov-harness/install-codex.txt'"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null
 check "the uninstall restores no old harness copy" "[ ! -e '$proj/.agents/skills/animate' ]"
 rm -rf "$home" "$proj" "$src"
 
@@ -436,10 +440,10 @@ fi
 # A skill another agent's newer install updated is still the harness's own when the older agent goes last.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex from an older copy, copilot from a newer one, uninstalled copilot first"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 echo "newer" > "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
-bash "$src/install/uninstall.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
+bash "$src/$ru" copilot "$proj" >/dev/null
 bash "$inst" codex "$proj" --dry-run >/dev/null
 bash "$uninst" codex "$proj" >/dev/null
 check "nothing taken for yours, nothing left" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
@@ -501,7 +505,7 @@ check "no half-made copies left" "[ \"\$(ls -A '$proj/.agents/skills')\" = style
 echo "the test hook needs MAKKOV_HARNESS_TEST=1"
 rm -rf "$proj/.agents"
 MAKKOV_HARNESS_TEST_STOP=skills bash "$inst" codex "$proj" >/dev/null
-check "without it, the install runs to the end" "grep -q '^rules=' '$proj/.makkov-harness/install-codex.txt' && [ \"\$(grep -c '^skill=' '$proj/.makkov-harness/install-codex.txt')\" = $expected ]"
+check "without it, the install runs to the end" "grep -q '^rules=' '$proj/.makkov-harness/install-codex.txt' && [ \"\$(sed -n 's/^skill=\\([^ ]*\\).*/\\1/p' '$proj/.makkov-harness/install-codex.txt' | sort -u | wc -l | tr -d ' ')\" = $expected ]"
 bash "$uninst" codex "$proj" >/dev/null
 rm -rf "$home" "$proj"
 
@@ -530,11 +534,41 @@ printf '#!/bin/sh\necho 20260101-000000\n' > "$shim/date"; chmod +x "$shim/date"
 echo "two agents installed in the same second"
 mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
 before="$(tree "$proj")"
+# (The shim names the second for install.sh; MAKKOV_HARNESS_TEST_STAMP for the Node installer.)
+export MAKKOV_HARNESS_TEST_STAMP=20260101-000000
 PATH="$shim:$PATH" bash "$inst" codex "$proj" >/dev/null; PATH="$shim:$PATH" bash "$inst" cline "$proj" >/dev/null
 check "the backup folder is named for the agent" "[ -f '$proj/.makkov-harness/backups/20260101-000000-codex/skills/animate/SKILL.md' ]"
 PATH="$shim:$PATH" bash "$uninst" cline "$proj" >/dev/null; PATH="$shim:$PATH" bash "$uninst" codex "$proj" >/dev/null
 check "your animate is back where it was, nothing else left" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
-rm -rf "$home" "$proj" "$shim"
+rm -rf "$home" "$proj" "$shim"; unset MAKKOV_HARNESS_TEST_STAMP
+
+# A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, AGENTS.md hard-linked to a file outside the project"
+printf '# mine\n' > "$proj/AGENTS.md"; ln "$proj/AGENTS.md" "$home/linked.md"; cp "$proj/AGENTS.md" "$home/expected"
+bash "$inst" codex "$proj" >/dev/null
+check "still one file under both names, with the routing block" "[ '$proj/AGENTS.md' -ef '$home/linked.md' ] && [ \"\$(markers '$home/linked.md')\" = 1 ]"
+bash "$uninst" codex "$proj" >/dev/null
+check "after the uninstall, still linked and as it was" "[ '$proj/AGENTS.md' -ef '$home/linked.md' ] && cmp -s '$home/expected' '$home/linked.md'"
+rm -rf "$home" "$proj"
+
+# The instructions file's folder must be writable (the file is replaced through a temporary file next to it).
+if [ "$root" = 0 ]; then
+  home="$(tmp)"; export HOME="$home"
+  echo "gemini user level, ~/.gemini is read-only"
+  mkdir -p "$home/.gemini"; printf '# mine\n' > "$home/.gemini/GEMINI.md"; chmod a-w "$home/.gemini"; before="$(tree "$home")"
+  runs bash "$inst" gemini
+  check "install stops with exit code 1, says why, changes nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'read-only' && [ \"\$(tree '$home')\" = \"\$before\" ]"
+  chmod u+w "$home/.gemini"; rm -rf "$home"
+else echo "gemini user level, ~/.gemini is read-only: skip (running as root, every folder is writable)"; fi
+
+# A link left under a temporary name is removed as a link: the folder it points to keeps its files.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a symlink to a folder of yours left as .mh-tmp-animate"
+mkdir -p "$home/target" "$proj/.agents/skills"; echo keep > "$home/target/file"; ln -s "$home/target" "$proj/.agents/skills/.mh-tmp-animate"
+bash "$inst" codex "$proj" >/dev/null; bash "$uninst" codex "$proj" >/dev/null
+check "the link is gone, the folder it pointed to is untouched" "[ ! -e '$proj/.agents/skills/.mh-tmp-animate' ] && [ ! -L '$proj/.agents/skills/.mh-tmp-animate' ] && grep -qx keep '$home/target/file'"
+rm -rf "$home" "$proj"
 
 # A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"

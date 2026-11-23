@@ -91,10 +91,10 @@ mh_check_markers() {
 # Writes stdin into a file. A regular file is replaced in one step: a copy of it (so it keeps its mode) takes the
 # new content as <file>.mh-tmp and is renamed over it, so an interruption leaves the old file or the new one,
 # never half of one (install and uninstall clear a .mh-tmp left behind). A symlink is written through in place,
-# so it stays a symlink.
+# so it stays a symlink; so is a file with more than one hard link, so every name keeps the same file.
 mh_write_through() {
   local t
-  if [ -L "$1" ]; then t="$(mktemp)"; cat > "$t"; cat "$t" > "$1"; rm -f "$t"; return 0; fi
+  if [ -L "$1" ] || [ -n "$(find "$1" -prune -links +1 2>/dev/null)" ]; then t="$(mktemp)"; cat > "$t"; cat "$t" > "$1"; rm -f "$t"; return 0; fi
   t="$1.mh-tmp"; rm -f "$t"
   if [ -f "$1" ]; then cp -p "$1" "$t"; fi
   cat > "$t" && mv -f "$t" "$1"

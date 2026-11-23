@@ -111,6 +111,8 @@ fi
 [ "$rules_backup" = "$original" ] && [ ! -f "$original" ] && [ -f "$rules" ] && need_copy=1
 # Files and folders it is about to change: they must be there to change, or creatable.
 why="$(mh_writable_file "$rules")" || stop "$why."
+# The file is replaced through a temporary file next to it, so its folder must be writable too.
+if [ -f "$rules" ] && [ ! -L "$rules" ]; then why="$(mh_writable_dir "$(dirname "$rules")")" || stop "$why."; fi
 if [ "$agent" != cursor ]; then
   mh_check_markers "$rules" || exit 1
   if mh_wide_text "$rules"; then stop "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again."; fi

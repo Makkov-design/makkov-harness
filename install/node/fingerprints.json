@@ -1,0 +1,98 @@
+{
+  "animate": {
+    "sh": "3302126827",
+    "ps": "8692e84a099ae42f",
+    "ps_windows": "5b69a23348687ee3",
+    "packed": "3302126827"
+  },
+  "animate-expo": {
+    "sh": "1377053705",
+    "ps": "f0e3858a64ec7236",
+    "ps_windows": "f26c7b1ed1d41986",
+    "packed": "1377053705"
+  },
+  "animation-performance": {
+    "sh": "3807623341",
+    "ps": "1d6d264364f192a1",
+    "ps_windows": "800c256a73976f18",
+    "packed": "3807623341"
+  },
+  "design-md-library": {
+    "sh": "1656018294",
+    "ps": "22121df5c3a0ae23",
+    "ps_windows": "7a0e296757548104",
+    "packed": "1656018294"
+  },
+  "design-score": {
+    "sh": "732179906",
+    "ps": "b39e91c1b7c48ce8",
+    "ps_windows": "f87a2b7e297296a1",
+    "packed": "732179906"
+  },
+  "find-animation-opportunities": {
+    "sh": "173509139",
+    "ps": "cdc0341d25addbcc",
+    "ps_windows": "a45dc55dcbe5ffbe",
+    "packed": "173509139"
+  },
+  "harness-onboarding": {
+    "sh": "4197929699",
+    "ps": "bef980588eef88b2",
+    "ps_windows": "7eda92cb3f6b69c0",
+    "packed": "4197929699"
+  },
+  "html-report": {
+    "sh": "1092566049",
+    "ps": "fd5a5a14577080fc",
+    "ps_windows": "fa8150c6dd5fdb0f",
+    "packed": "1092566049"
+  },
+  "hyperframes": {
+    "sh": "972705917",
+    "ps": "2d23892cc45cc9a1",
+    "ps_windows": "920af5099878b254",
+    "packed": "972705917"
+  },
+  "hyperframes-cli": {
+    "sh": "1412031033",
+    "ps": "bf66c75348ddd483",
+    "ps_windows": "85000b3a3b89d60c",
+    "packed": "1412031033"
+  },
+  "hyperframes-registry": {
+    "sh": "1862383516",
+    "ps": "6b1c00ed0d0488d2",
+    "ps_windows": "5e2cd419958a42e1",
+    "packed": "1862383516"
+  },
+  "improve-animations": {
+    "sh": "1657005261",
+    "ps": "4d2809e64085e45c",
+    "ps_windows": "96a596428f83db6a",
+    "packed": "1657005261"
+  },
+  "media-use": {
+    "sh": "1443038368",
+    "ps": "c797317a4c0f1e2e",
+    "ps_windows": "8b996b4f4959e1a1",
+    "packed": "3239707203"
+  },
+  "slideshow": {
+    "sh": "1200357663",
+    "ps": "47d0e3be07fefc05",
+    "ps_windows": "9f39f714feef3973",
+    "packed": "1200357663"
+  },
+  "style-sampling": {
+    "sh": "2168922264",
+    "ps": "a216e63ac60061f5",
+    "ps_windows": "128336dd688d36fd",
+    "packed": "2168922264"
+  },
+  "third-party-install-guard": {
+    "sh": "1299868130",
+    "ps": "ee71e0e250980d7f",
+    "ps_windows": "864f0fdb615ab47f",
+    "packed": "1299868130"
+  }
+}
