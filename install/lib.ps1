@@ -32,11 +32,12 @@ function Get-MhTreeIds([string]$Dir) {
 # The id recorded in a new manifest.
 function Get-MhTreeId([string]$Dir) { @(Get-MhTreeIds $Dir)[0] }
 
-function Read-MhManifest([string]$Path) { @([IO.File]::ReadAllLines($Path, $MhUtf8)) }
+# Always an array (an empty file gives an empty one, not $null, which a pipeline would pass on as one item).
+function Read-MhManifest([string]$Path) { ,@([IO.File]::ReadAllLines($Path, $MhUtf8)) }
 
 # The first value of key=... in a manifest's lines, as written.
 function Get-MhRaw([string[]]$Lines, [string]$Key) {
-  $l = $Lines | Where-Object { $_.StartsWith("$Key=") } | Select-Object -First 1
+  $l = @($Lines) | Where-Object { $_ -and $_.StartsWith("$Key=") } | Select-Object -First 1
   if ($null -eq $l) { '' } else { $l.Substring($Key.Length + 1) }
 }
 

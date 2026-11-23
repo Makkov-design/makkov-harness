@@ -502,7 +502,8 @@ try {
   Write-Output 'codex with the home folder as the project path'
   Run-Child $inst @('-Agent', 'codex', '-Project', $h)
   Check 'install stops with exit code 2 and says why' { $script:code -eq 2 -and $script:out -match 'home folder' }
-  Check 'nothing written' { (Entries $h).Count -eq 0 }
+  # (The child PowerShell may write its own caches under the home folder: check what the harness would write.)
+  Check 'nothing written' { -not (Test-Path (Join-Path $h '.makkov-harness')) -and -not (Test-Path (Join-Path $h '.agents')) -and -not (Test-Path (Join-Path $h 'AGENTS.md')) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 } finally { $env:USERPROFILE = $realHome }
 
