@@ -353,6 +353,8 @@ try {
   if (!bad) ok(`the ${plural(n, "companion pin")} in marketplace.json match SECURITY.md`);
 } catch (e) { fail(`marketplace.json against SECURITY.md: ${e.message}`); }
 // b. the vendored sources and npm packages upstream-watch follows are the ones SECURITY.md reviewed
+// Two spellings of a commit agree when the shorter is a prefix of the longer: in full when both are 40 characters.
+const sameCommit = (a, b) => { const n = Math.min(a.length, b.length); return n >= 7 && a.slice(0, n) === b.slice(0, n); };
 try {
   const watch = JSON.parse(fs.readFileSync(".github/upstream-watch.json", "utf8"));
   let bad = 0;
@@ -372,7 +374,7 @@ try {
     for (const line of read(f).split("\n")) {
       for (const v of watch.vendored || []) {
         if (!line.includes(v.repo)) continue;
-        for (const sha of line.match(/\b[0-9a-f]{7,40}\b/g) || []) if (!sha.startsWith(v.sha.slice(0, 7))) { bad++; fail(`${f}: names ${v.repo} at ${sha}, .github/upstream-watch.json and SECURITY.md say ${v.sha.slice(0, 7)}`); }
+        for (const sha of line.match(/\b[0-9a-f]{7,40}\b/g) || []) if (!sameCommit(sha, v.sha)) { bad++; fail(`${f}: names ${v.repo} at ${sha}, .github/upstream-watch.json says ${v.sha}`); }
       }
     }
   }
