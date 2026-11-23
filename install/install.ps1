@@ -232,7 +232,7 @@ if ($skillsDir) {
     if (-not (Test-Path -LiteralPath $dst)) { continue }
     $other = $false
     foreach ($m in Get-Manifests) {
-      if (Test-MhSamePath $m.FullName $manifest) { continue }
+      if ($m.Name -eq (Split-Path -Leaf $manifest)) { continue }   # by name: FullName can spell an 8.3 short name out
       $o = Read-MhManifest $m.FullName
       if ((Test-MhSamePath (Get-MhPath $o 'skills_dir' $base) $skillsDir) -and ($o | Where-Object { $_ -eq "skill=$name" -or $_.StartsWith("skill=$name ") })) { $other = $true }
     }

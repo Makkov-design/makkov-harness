@@ -621,6 +621,23 @@ try {
   Check 'your animate is back where it was, nothing else left' { (Tree $proj) -eq $before }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
+  # A home folder given by its 8.3 short name (as Git Bash's cygpath and the TEMP variable often give it): the
+  # installers know their own manifest and the skills they copied, though Windows lists files under the long name.
+  $h = New-Temp; $long = Join-Path $h 'longfoldername-home'; New-Item -ItemType Directory -Force $long | Out-Null
+  $short = $null; try { $short = (New-Object -ComObject Scripting.FileSystemObject).GetFolder($long).ShortPath } catch { }
+  Write-Output 'codex and cline at user level, the home folder given by its 8.3 short name'
+  if ($short -and $short -ne $long) {
+    $env:USERPROFILE = $short
+    & $inst -Agent codex | Out-Null; & $inst -Agent cline | Out-Null
+    Run-Child $inst @('-Agent', 'codex')
+    Check 'a second run takes our copies for ours (moves nothing aside)' { $script:code -eq 0 -and $script:out -notmatch 'Kept your earlier versions' }
+    & $uninst -Agent cline | Out-Null
+    Run-Child $uninst @('-Agent', 'codex')
+    Check 'the uninstall does not take its own manifest for another agent''s' { $script:code -eq 0 -and $script:out -notmatch 'also installed there' }
+    Check 'nothing left' { (Entries $long).Count -eq 0 }
+  } else { Write-Output '  skip (this volume makes no 8.3 short names)' }
+  $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
+
   # A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, AGENTS.md hard-linked to a file outside the project'

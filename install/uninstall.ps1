@@ -59,7 +59,8 @@ if ($ob -and $ob -ne $base) { Write-Output "Installed in $ob, which is now ${bas
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 # Other installs in the same folder that read the same skills folder or the same instructions file.
-function Get-Others { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File | Where-Object { -not (Test-MhSamePath $_.FullName $manifest) }) }
+# (Compared by file name, all in the same folder: Get-ChildItem's FullName can spell an 8.3 short name out in full.)
+function Get-Others { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File | Where-Object { $_.Name -ne (Split-Path -Leaf $manifest) }) }
 function Test-SameSkills([string[]]$O) { Test-MhSamePath (Get-MhPath $O 'skills_dir' $base) $skillsDir }
 $rulesUsers = @()
 foreach ($m in Get-Others) {
