@@ -6,6 +6,13 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ### Fixed
 
+- Chat pack: the instructions had people upload several files that are all named `SKILL.md`, and chat apps keep only a file's name, so each upload replaced the one before. `adapters/chat-pack/files/` now holds one file per skill with its own name (`html-report.md`, `third-party-install-guard.md`…), plus `ROUTING.md` and `html-report-skeleton.html`, built from `skills/` by `.github/scripts/chat-pack.mjs`; CI fails when the pack is stale or two files share a name [#7](https://github.com/Makkov-design/makkov-harness/issues/7).
+- Design Score: the agent's loader pinned the bundle by hash but fetched `score/mh-score.js`, which changes with every release, so older installs would get "Blocked" once the bundle changed. Each version is now published once at `score/<version>/mh-score.js` and never changes there: `docs/score/versions.json` records each hash, the build refuses to change a published version, and CI fails if a version recorded on the base branch changed or disappeared. The loader fetches that copy. `score/mh-score.js` stays for the bookmarklets, which always load the latest, and keeps working for installs from 0.5.0 only until the next Design Score version: after that their loader reports "Blocked" until you update the harness.
+- upstream-watch: a pin on a release is compared with the upstream's latest release, not the default branch, so a pin equal to the latest release no longer shows as behind; a subfolder plugin whose diff reaches GitHub's 300-file compare limit is marked "review needed" instead of skipped; one upstream that fails (a 404, a force-pushed commit) is reported in the issue while the others are still checked. It now also follows the vendored skills (Emil Kowalski, Hyperframes, awesome-design-md) and the npm pins (hyperframes, puppeteer-core), listed in `.github/upstream-watch.json`, with unit tests on stubbed API responses. Upstream tag and branch names go into the issue as inline code, so they cannot @mention anyone or add links.
+- `cloud/setup-design-tools.sh`: an npm failure printed only "WARNING" because its errors went to `/dev/null`; they now show. Transitive dependencies are pinned too, with `--before` set to the end of the review day, so nothing published after the review can be installed. The pinned versions are unchanged.
+- README: a stale "New in 0.2" tag on Design Score (the site's home page had it too, now fixed); CHANGELOG link definitions for 0.3.2 to 0.5.0.
+- SECURITY.md: the Frame Lens row shows its pinned version (2.1.0, `94d426f`); the cloud setup script line says its npm installs are pinned with `--before` the review date; the bookmarklet loader line names the versioned copies at `score/<version>/mh-score.js`.
+- `check.mjs` compares a vendored commit in full when both spellings are full 40-character SHAs, instead of by their first 7 characters.
 - Installers, update and uninstall ([install/](install/)), each with a scenario in `install/test/` for bash and PowerShell:
   - Uninstalling one agent took the routing block (and the personal layer) out of a `<project>/AGENTS.md` another installed agent still read; Codex, Copilot, Windsurf, Cline and OpenCode all use that file. The block now stays until the last of them is uninstalled.
   - An update without `--scope` / `-Scope` dropped an earlier `--scope design`. It now keeps the scope the manifest recorded.
@@ -17,6 +24,12 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
   - `install.ps1` / `uninstall.ps1` read a project path with `[` or `]` as a wildcard. Every path now goes through `-LiteralPath`.
   - `--scope` with no value exited silently; it now prints the usage.
 - The Windows install commands in README.md and INSTALL.md used `~/…`, which Windows PowerShell 5.1 does not expand for `git`; they use `$HOME\makkov-harness` now.
+
+### Changed
+
+- Companion pins, after a new `third-party-install-guard` review on 2026-11-23 (both green): interfaces 1.17.0 → 1.20.0 (`6c21201`; drops the `teardown` skill and its scripts, adds the user-invoked `afk` skill, text only) and Hallmark 2.0.0 at `04977e1` (screenshot file names no longer collide, `<img>` paths use forward slashes on Windows). Frame Lens stays at v2.1.0, its latest release.
+- CI: the session-start hook is tested on Linux, macOS (bash 3.2) and Windows, like the install gate; the Design Score fixtures fail instead of skipping when Chrome or puppeteer-core is missing (`DESIGN_SCORE_FIXTURES=required`); the Python tests (`*_test.py`) run; the upstream-watch tests run; Node 24 LTS instead of Node 20, which is past its end of life.
+- `check.mjs` also checks: links in every Markdown file, not only those at the root; skill descriptions written over several lines; that the companion pins in `marketplace.json` match `SECURITY.md`; that the vendored sources and npm pins in `.github/upstream-watch.json` match `SECURITY.md`, and the vendored commits in `CREDITS.md`, `NOTICE` and design-md-library's URL; that the reviewed hyperframes and puppeteer-core versions are the same in every file that repeats them; that `ROUTING.md` and `skills/` list the same skills; and that every CHANGELOG version heading has a link definition.
 
 ## [0.5.0] - 2026-11-09
 
@@ -176,6 +189,12 @@ The first public release.
 - A weekly upstream watch that flags new versions of the pinned companions in one issue.
 - The website on GitHub Pages, the brand mark and wordmark, an MIT license, issue and pull request templates and a code of conduct.
 
+[Unreleased]: https://github.com/Makkov-design/makkov-harness/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.4...v0.4.0
+[0.3.4]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Makkov-design/makkov-harness/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.1.0...v0.2.0

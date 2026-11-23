@@ -20,7 +20,7 @@ Identify your own tool: Claude Code, Codex, Cursor, Gemini CLI (or Antigravity C
 1. In a browser at claude.ai (not the desktop app): Customize → Plugins → Add → Add marketplace → `Makkov-design/makkov-harness` → enable **makkov-harness**. This adds it to the account, so it works on every computer and in cloud sessions; adding it from the desktop app or a terminal installs it on that computer only. Recommend this route.
 2. Or in a terminal: `/plugin marketplace add Makkov-design/makkov-harness`, then `/plugin install makkov-harness@makkov-harness`.
 3. Companion plugins are in the same marketplace, pinned to reviewed versions. Show the list and ask which ones to enable; skip any the user already has from another marketplace. In a terminal: `/plugin install <name>@makkov-harness`.
-4. Design work only: if the user wants the harness to leave other work alone, the environment variable `MAKKOV_HARNESS_SCOPE=design` makes the plugin load the design rows of the routing map only, like `--scope design` below. On their computer it goes under `"env"` in `~/.claude/settings.json` (`"MAKKOV_HARNESS_SCOPE": "design"`); in a cloud environment, into its environment variables. Show the change and write it only after a yes.
+4. Design work only: if the user wants the harness to leave other work alone, the environment variable `MAKKOV_HARNESS_SCOPE=design` makes the plugin load the design rows of the routing map only, like `--scope design` below. The install gate stays on in every scope: a third-party install command still becomes a question to the user. On their computer it goes under `"env"` in `~/.claude/settings.json` (`"MAKKOV_HARNESS_SCOPE": "design"`); in a cloud environment, into its environment variables. Show the change and write it only after a yes.
 
 ## Step 2. Ask the scope
 
@@ -63,7 +63,7 @@ Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or m
 Two choices worth offering:
 
 - **One project first.** Passing a project path keeps everything inside that project, so the person can try the harness without changing how their agent works elsewhere. Suggest it for a first install.
-- **Design work only.** `-Scope design` / `--scope design` leaves out the routing rows that are not about design (research reports, the third-party install review, general coding plugins and the whole-project security review), so a global install does not change how the agent handles other work. The skills are still copied and can be called by name. An update keeps the scope the earlier install had; pass `-Scope all` / `--scope all` to widen it again.
+- **Design work only.** `-Scope design` / `--scope design` leaves out the routing rows that are not about design (research reports, the third-party install review, general coding plugins and the whole-project security review), so a global install does not change how the agent routes other work. The skills are still copied and can be called by name, `third-party-install-guard` included, and in Claude Code the install gate stays on in every scope. An update keeps the scope the earlier install had; pass `-Scope all` / `--scope all` to widen it again.
 
 `<agent>` is one of: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode`, `aider`. Pass a project path only for a project-only install (always needed for `cursor`, `copilot`, `windsurf`, `aider`, which have no user-level instructions file the installer can edit).
 
