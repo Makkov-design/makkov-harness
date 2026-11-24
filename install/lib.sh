@@ -60,15 +60,18 @@ mh_lock_stale() {   # $1: lock folder
 }
 mh_lock() {
   local st="$1" l="$1/lock" i pid when
-  # (Another run may make the folder at the same moment: that is not "cannot write here".)
-  if [ ! -d "$st" ]; then mkdir "$st" 2>/dev/null || [ -d "$st" ] || return 0; fi   # cannot write: the checks before the first change say why
   MH_LOCK_STATE="$st"
-  for i in 1 2 3; do
+  for i in 1 2 3 4 5 6; do
+    # The harness folder, made again if another run just took it away; another run may make it at the same
+    # moment, which is not "cannot write here". A folder that cannot be made: no lock, and the checks before the
+    # first change say why.
+    if [ ! -d "$st" ]; then mkdir "$st" 2>/dev/null || [ -d "$st" ] || return 0; fi
     if mkdir "$l" 2>/dev/null; then
       printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh\n' "$(mh_pid)" "$(mh_host)" "$(date +%s)" > "$l/owner" 2>/dev/null || true
       MH_LOCK="$l"; return 0
     fi
-    [ -d "$l" ] || { rmdir "$st" 2>/dev/null; return 0; }
+    # Gone between the two steps (the run that held it finished): try again, never go on without it.
+    if [ ! -d "$l" ]; then [ ! -d "$st" ] || [ -w "$st" ] || return 0; continue; fi
     if mh_lock_stale "$l"; then rm -rf "${l:?}"; continue; fi
     pid="$(sed -n 's/^pid=//p' "$l/owner" 2>/dev/null | head -n 1)"
     echo "Another makkov-harness run is working in $2 (process ${pid:-?}). Let it finish, then run this again. If none is running, delete the folder $l and run this again." >&2

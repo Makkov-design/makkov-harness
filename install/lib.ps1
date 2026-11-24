@@ -107,10 +107,15 @@ function Get-MhLockOwner([string]$Lock) {
 # because the folder cannot be written; the checks before the first change then say why).
 function Enter-MhLock([string]$State, [string]$Base) {
   $l = Join-Path $State 'lock'
-  if (-not [IO.Directory]::Exists($State)) { try { [void][IO.Directory]::CreateDirectory($State) } catch { return $null } }
-  for ($i = 0; $i -lt 3; $i++) {
+  for ($i = 0; $i -lt 6; $i++) {
+    # The harness folder, made again if another run just took it away. A folder that cannot be made: no lock, and
+    # the checks before the first change say why.
+    if (-not [IO.Directory]::Exists($State)) { try { [void][IO.Directory]::CreateDirectory($State) } catch { if (-not [IO.Directory]::Exists($State)) { return $null } } }
     $made = $false
-    try { New-Item -ItemType Directory -Path $l -ErrorAction Stop | Out-Null; $made = $true } catch { if (-not [IO.Directory]::Exists($l)) { return $null } }
+    try { New-Item -ItemType Directory -Path $l -ErrorAction Stop | Out-Null; $made = $true }
+    catch { if ($_.Exception -is [UnauthorizedAccessException] -or $_.Exception.InnerException -is [UnauthorizedAccessException]) { return $null } }
+    # Gone between the two steps (the run that held it finished): try again, never go on without it.
+    if (-not $made -and -not [IO.Directory]::Exists($l)) { continue }
     if ($made) {
       try { [IO.File]::WriteAllText((Join-Path $l 'owner'), "pid=$PID`nhost=$([Environment]::MachineName)`nstarted=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())`nby=install.ps1`n") } catch { }
       return @{ Lock = $l; State = $State }

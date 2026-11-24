@@ -308,7 +308,11 @@ try {
     Check 'the update takes the older copy for the harness''s (moves nothing aside)' { $script:code -eq 0 -and $script:out -notmatch 'Kept your earlier versions' }
     Check 'and replaces it with this version''s' { -not (Test-Path (Join-Path $proj '.agents\skills\animate\OLDER.md')) -and (Test-Path (Join-Path $proj '.agents\skills\animate\SKILL.md')) }
     & $uninst -Agent codex -Project $proj | Out-Null
-    Check 'the uninstall leaves nothing' { (Entries $proj).Count -eq 0 }
+    # 0.5.0 recorded no folders it made (no created_dir=), so its empty .agents and .makkov-harness folders stay;
+    # no file may.
+    $left = @(Entries $proj | Where-Object { $legacy.Name -ne '0.5.0' -or -not $_.PSIsContainer })
+    Check 'the uninstall leaves nothing (0.5.0: no file; the empty folders it did not record stay)' { $left.Count -eq 0 }
+    if ($left.Count) { $left | ForEach-Object { Write-Output "    left: $($_.FullName.Substring($proj.Length))" } }
     $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
   }
 

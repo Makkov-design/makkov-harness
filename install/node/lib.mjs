@@ -402,10 +402,10 @@ export function moveFile(src, dst) {
 // Returns a function that removes the lock (and the harness folder, when the run left it empty), or throws Stop.
 export function lock(state, base) {
   const l = join(state, 'lock');
-  let made = false;
-  // (Another run may make the folder at the same moment: that is not "cannot write here".)
-  if (!exists(state)) { try { fs.mkdirSync(state); made = true; } catch (e) { if (e.code !== 'EEXIST') return () => {}; } }   // cannot write: pre-flight says why
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 6; i++) {
+    // The harness folder, made again if another run just took it away; another run may make it at the same
+    // moment, which is not "cannot write here". A folder that cannot be made: no lock, and pre-flight says why.
+    if (!isDir(state)) { try { fs.mkdirSync(state); } catch (e) { if (!isDir(state)) return () => {}; } }
     try {
       fs.mkdirSync(l);
       fs.writeFileSync(join(l, 'owner'), `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`);
@@ -418,7 +418,9 @@ export function lock(state, base) {
       process.once('exit', release);   // also when the run stops at a test point (process.exit)
       return release;
     } catch (e) {
-      if (e.code !== 'EEXIST' || !isDir(l)) { if (made) try { fs.rmdirSync(state); } catch { /* */ } return () => {}; }
+      // Gone between the two steps (the run that held it finished, or took the harness folder away): try again,
+      // never go on without it.
+      if (!isDir(l)) { if (e.code === 'EEXIST' || e.code === 'ENOENT') continue; return () => {}; }   // cannot write: pre-flight says why
     }
     const o = lockOwner(l);
     if (o.stale) { removeTree(l); continue; }

@@ -635,6 +635,7 @@ mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/anima
 for i in 1 2 3 4; do bash "$inst" codex "$proj" > "$home/run$i" 2>&1 & done; wait || true
 ok4=1; for i in 1 2 3 4; do grep -q 'makkov-harness installed for codex\|Another makkov-harness run' "$home/run$i" || ok4=0; done
 check "each run either installs or says another run is working (no stack trace)" "[ $ok4 = 1 ] && ! grep -q 'at \|Error:' '$home'/run*"
+[ "$ok4" = 1 ] || for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
 runs bash "$uninst" codex "$proj"
 check "the uninstall puts your animate back and leaves nothing else" "[ $code = 0 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
 rm -rf "$home" "$proj"
