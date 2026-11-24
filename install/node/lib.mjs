@@ -423,11 +423,24 @@ export function lock(state, base) {
       if (!isDir(l)) { if (e.code === 'EEXIST' || e.code === 'ENOENT') continue; return () => {}; }   // cannot write: pre-flight says why
     }
     const o = lockOwner(l);
-    if (o.stale) { removeTree(l); continue; }
+    if (o.stale) { if (!takeStale(l)) sleep(1000); continue; }
     throw new Stop(`Another makkov-harness run is working in ${base} (process ${o.pid || '?'}${o.host ? ' on ' + o.host : ''}, started ${o.when || 'just now'}). Let it finish, then run this again. If none is running, delete the folder ${l} and run this again.\nNothing was changed.`);
   }
   throw new Stop(`Could not take the lock ${l}. Delete that folder if no makkov-harness run is going on, then run this again.\nNothing was changed.`);
 }
+// Removes a lock judged stale, holding lock.takeover while it looks again: without it, a run that judged the lock
+// of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+function takeStale(l) {
+  const t = l + '.takeover';
+  try { fs.mkdirSync(t); } catch {
+    // One left by a run stopped while taking over (it holds it for a moment only).
+    const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmdirSync(t); } catch { /* */ }
+    return false;
+  }
+  try { if (lockOwner(l).stale) removeTree(l); } finally { try { fs.rmdirSync(t); } catch { /* */ } }
+  return true;
+}
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 // What a lock says about its run, and whether that run is over.
 export function lockOwner(l) {
   let t = '';

@@ -103,6 +103,18 @@ function Get-MhLockOwner([string]$Lock) {
   }
   @{ Pid = $ownerPid; Stale = $stale }
 }
+# Removes a lock judged stale, holding lock.takeover while it looks again: without it, a run that judged the lock
+# of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+function Enter-MhTakeover([string]$Lock) {
+  $t = "$Lock.takeover"
+  try { New-Item -ItemType Directory -Path $t -ErrorAction Stop | Out-Null } catch {
+    # One left by a run stopped while taking over (it holds it for a moment only).
+    try { if (([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.Directory]::Delete($t) } } catch { }
+    return $false
+  }
+  try { if ((Get-MhLockOwner $Lock).Stale) { Remove-MhTree $Lock } } finally { try { [IO.Directory]::Delete($t) } catch { } }
+  $true
+}
 # Takes the lock, or stops the run when another one holds it. Returns what Exit-MhLock needs ($null: no lock taken,
 # because the folder cannot be written; the checks before the first change then say why).
 function Enter-MhLock([string]$State, [string]$Base) {
@@ -121,7 +133,7 @@ function Enter-MhLock([string]$State, [string]$Base) {
       return @{ Lock = $l; State = $State }
     }
     $o = Get-MhLockOwner $l
-    if ($o.Stale) { Remove-MhTree $l; continue }
+    if ($o.Stale) { if (-not (Enter-MhTakeover $l)) { Start-Sleep -Seconds 1 }; continue }
     [Console]::Error.WriteLine("Another makkov-harness run is working in $Base (process $(if ($o.Pid) { $o.Pid } else { '?' })). Let it finish, then run this again. If none is running, delete the folder $l and run this again.")
     [Console]::Error.WriteLine('Nothing was changed.')
     exit 1

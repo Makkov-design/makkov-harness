@@ -72,7 +72,7 @@ mh_lock() {
     fi
     # Gone between the two steps (the run that held it finished): try again, never go on without it.
     if [ ! -d "$l" ]; then [ ! -d "$st" ] || [ -w "$st" ] || return 0; continue; fi
-    if mh_lock_stale "$l"; then rm -rf "${l:?}"; continue; fi
+    if mh_lock_stale "$l"; then mh_take_stale "$l" || sleep 1; continue; fi
     pid="$(sed -n 's/^pid=//p' "$l/owner" 2>/dev/null | head -n 1)"
     echo "Another makkov-harness run is working in $2 (process ${pid:-?}). Let it finish, then run this again. If none is running, delete the folder $l and run this again." >&2
     echo "Nothing was changed." >&2
@@ -80,6 +80,18 @@ mh_lock() {
   done
   echo "Could not take the lock $l. Delete that folder if no makkov-harness run is going on, then run this again." >&2
   return 1
+}
+# Removes a lock judged stale, holding lock.takeover while it looks again: without it, a run that judged the lock
+# of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+mh_take_stale() {
+  local t="$1.takeover"
+  if ! mkdir "$t" 2>/dev/null; then
+    # One left by a run stopped while taking over (it holds it for a moment only).
+    [ -z "$(find "$t" -prune -mmin +1 2>/dev/null)" ] || rmdir "$t" 2>/dev/null || true
+    return 1
+  fi
+  if mh_lock_stale "$1"; then rm -rf "${1:?}"; fi
+  rmdir "$t" 2>/dev/null || true
 }
 # Removes the lock this run took, and the harness folder when the run left it empty.
 mh_unlock() { if [ -n "$MH_LOCK" ]; then rm -rf "${MH_LOCK:?}"; MH_LOCK=""; fi; if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi; return 0; }
