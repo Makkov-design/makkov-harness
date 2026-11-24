@@ -307,20 +307,20 @@ function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
 }
 # Where a path really is: every symlink or junction on its way followed ('' for a loop of links).
 function Get-MhReal([string]$Path) {
+  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux.)
   $p = [IO.Path]::GetFullPath($Path)
-  $sep = [IO.Path]::DirectorySeparatorChar
   for ($n = 0; $n -lt 64; $n++) {
     $root = [IO.Path]::GetPathRoot($p)
     $rest = @($p.Substring($root.Length) -split '[\\/]' | Where-Object { $_ })
     $d = $root; $hit = $false
     for ($i = 0; $i -lt $rest.Count; $i++) {
-      $d = Join-Path $d $rest[$i]
+      $d = [IO.Path]::Combine($d, $rest[$i])
       if (Test-MhLink $d) {
         $t = @((Get-Item -LiteralPath $d -Force).Target)[0]
         if (-not $t) { break }
-        if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $d) $t }
+        if (-not [IO.Path]::IsPathRooted($t)) { $t = [IO.Path]::Combine([IO.Path]::GetDirectoryName($d), $t) }
         $tail = @($rest | Select-Object -Skip ($i + 1))
-        $p = [IO.Path]::GetFullPath($(if ($tail.Count) { Join-Path $t ($tail -join $sep) } else { $t }))
+        $p = [IO.Path]::GetFullPath([IO.Path]::Combine([string[]](@($t) + $tail)))
         $hit = $true; break
       }
     }
