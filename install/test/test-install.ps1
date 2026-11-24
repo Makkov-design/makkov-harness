@@ -847,7 +847,9 @@ try {
   if ($linked) {
     $pbefore = Tree $proj
     Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
-    Check 'install stops (exit 1) and names -FollowLinks; the file outside unchanged, nothing in the project' { $script:code -eq 1 -and $script:out -match 'follow-?links' -and (Same $exp $notes) -and (Tree $proj) -eq $pbefore }
+    # (Windows reads the link's target as text, so there AGENTS.md names <project>\notes.md, which does not exist: the
+    # install stops for that. On macOS and Linux it leads outside the project and the install names -FollowLinks.)
+    Check 'install stops (exit 1) and says why; the file outside unchanged, nothing in the project' { $script:code -eq 1 -and $script:out -match 'follow-?links|does not exist' -and (Same $exp $notes) -and (Tree $proj) -eq $pbefore }
     [IO.File]::Delete((Join-Path $proj 'AGENTS.md')); [IO.Directory]::Delete((Join-Path $proj 'lnk'))
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force

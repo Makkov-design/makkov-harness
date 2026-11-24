@@ -305,8 +305,9 @@ function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
   }
   ''
 }
-# Where a path really is: every symlink or junction on its way followed, part by part, so a ".." after a link goes to
-# the parent of where the link leads, as the system resolves it ('' for a loop of links).
+# Where a path really is: every symlink or junction on its way followed, part by part, as the system resolves it
+# ('' for a loop of links). On macOS and Linux a ".." after a link goes to the parent of where the link leads; Windows
+# reads a link's relative target as text against the link's folder, ".." included, so there it is folded first.
 function Get-MhReal([string]$Path) {
   # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux;
   # and no GetFullPath, which would fold "link/.." away as text before the link is followed.)
@@ -324,6 +325,7 @@ function Get-MhReal([string]$Path) {
       $t = @((Get-Item -LiteralPath $next -Force).Target)[0]
       if ($t) {
         if (++$links -gt 40) { return '' }
+        if (-not [IO.Path]::IsPathRooted($t) -and [IO.Path]::DirectorySeparatorChar -eq '\') { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
         if ([IO.Path]::IsPathRooted($t)) { $cur = [IO.Path]::GetPathRoot($t); $t = $t.Substring($cur.Length) }
         $parts = @($t -split '[\\/]' | Where-Object { $_ })
         $todo.InsertRange(0, [string[]]$parts)
