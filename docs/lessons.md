@@ -2,6 +2,10 @@
 
 Short records of what a change taught, so the next change does not relearn it. Newest first.
 
+## 2026-11-24 · Install gate: the text rule removed
+
+- **A pass rule that keeps needing patches costs more than the false asks it saves.** The rule that let install words in quoted text through (commit messages, `echo`, `grep`) was patched after every audit round, and every round found new ways to hide a real command behind it: a quote inside another quote, a `#` comment, a heredoc body, a typed `;`, a `$'…'` string, a line ending in `\` or `|`, PowerShell quoting. The owner chose to remove it: the gate now asks whenever an install form appears anywhere, and a commit message that mentions `npm install` gets a question. Safety rules that only ask should not have pass rules that depend on parsing the shell's quoting.
+
 ## 2026-11-24 · Install gate audit, round 3
 
 - **When a pass rule needs a third patch, shrink it instead.** The "text is only text" rule was patched for `#` comments and heredoc bodies, and the next audit still found three more places where a quote is not a quote: a heredoc body line ending in `\` or `|` (joined with the closing line, so the gate missed where the heredoc ended), `$'…\'…'`, and the PowerShell tool, where a backslash does not escape a quote. The rule now covers only what can be checked by reading: the Bash tool, a single-quoted value or a double-quoted one with no `$`, backtick or backslash, and nothing else in the command that changes what a quote means. The heredoc exception is gone; a heredoc message with install words asks.

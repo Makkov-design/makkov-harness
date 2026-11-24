@@ -27,52 +27,37 @@ for (const { cmd, gate: want } of CORPUS) {
   test(`${label}: ${JSON.stringify(cmd)}`, () => assert.equal(gate(cmd), want === "ask" ? "ask" : "allow"));
 }
 
-// Differential guard: everything the 0.5.0 gate asked about must still ask, except these reviewed text-only cases,
-// which 0.5.0 asked about only because it read install words anywhere. A new pass rule that lets a command through
-// fails here until it is added to this list, with a reason, and reviewed.
+// Differential guard: everything the 0.5.0 gate asked about must still ask, except installs of an existing lockfile,
+// which 0.5.0 misread as installs of a package. A new rule that lets a command through fails here until it is added to
+// this list, with a reason, and reviewed.
 const OLD = join(dirname(HOOK), "fixtures", "install-gate-0.5.0");
-const TEXT_ONLY = {
+const LOCKFILE_ONLY = {
   "npm install --prefix app": "installs app's existing lockfile",
   "npm i -w packages/a": "installs the workspace's existing lockfile",
-  'git commit -m "docs: pip install note"': "commit message",
-  "git commit -m 'docs: say npm install left-pad in the README'": "commit message",
-  'git commit --message="chore: drop the npm install step"': "commit message",
-  'gh pr create --title "Add a note" --body "Run npm install left-pad first"': "PR text",
-  'git commit -am "docs: npm install left-pad"': "commit message",
-  'git commit -m"docs: npm install x"': "commit message",
-  'git commit -s -m "docs: drop the npm install step"': "commit message",
-  'gh pr create -t "npm install x" -b "run npm install y first"': "PR text",
-  'gh release create v1.2.0 -n "pip install x now works"': "release notes",
-  'echo "run npm install x to set up"': "echo prints text",
-  'printf "%s\\n" "pip install x"': "printf prints text",
-  'echo "npm install x" > NOTES.md': "echo writes text to a file",
-  'git commit -m "fix #12: npm install note"': "commit message",
-  "git commit -m 'costs $5: say \"pip install x\" in the docs'": "commit message in single quotes",
 };
-test("asks about everything the 0.5.0 gate asked about, except the reviewed text-only cases", () => {
+test("asks about everything the 0.5.0 gate asked about, except installs of an existing lockfile", () => {
   const old = (command) => {
     const r = spawnSync("bash", [OLD], { input: JSON.stringify({ tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
     return r.stdout.trim() ? "ask" : "allow";
   };
   const weaker = [];
-  for (const { cmd } of CORPUS) if (old(cmd) === "ask" && gate(cmd) === "allow" && !(cmd in TEXT_ONLY)) weaker.push(cmd);
-  assert.deepEqual(weaker, [], "passes now, asked in 0.5.0, not in TEXT_ONLY");
-  for (const cmd of Object.keys(TEXT_ONLY)) assert.ok(CORPUS.some((c) => c.cmd === cmd), `TEXT_ONLY entry not in the corpus: ${cmd}`);
+  for (const { cmd } of CORPUS) if (old(cmd) === "ask" && gate(cmd) === "allow" && !(cmd in LOCKFILE_ONLY)) weaker.push(cmd);
+  assert.deepEqual(weaker, [], "passes now, asked in 0.5.0, not in LOCKFILE_ONLY");
+  for (const cmd of Object.keys(LOCKFILE_ONLY)) assert.ok(CORPUS.some((c) => c.cmd === cmd), `LOCKFILE_ONLY entry not in the corpus: ${cmd}`);
 });
 
-test("text is read as text only in the Bash tool: PowerShell quotes differently", () => {
+test("install words in quoted text ask in every tool", () => {
   const run = (tool_name, command) => {
     const r = spawnSync("bash", [HOOK], { input: JSON.stringify({ tool_name, tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
     return r.stdout.trim() ? "ask" : "allow";
   };
   // In PowerShell a backslash does not escape a quote, so this is three commands there.
   const three = 'echo "a\\" ; npm install evil-pkg ; echo "\\"';
-  assert.equal(run("PowerShell", three), "ask");
-  assert.equal(run("Bash", three), "ask"); // a double-quoted value with a backslash is not read as text in bash either
   const msg = "git commit -m 'docs: npm install note'";
-  assert.equal(run("Bash", msg), "allow");
-  assert.equal(run("PowerShell", msg), "ask");
-  assert.equal(run(undefined, msg), "ask"); // no tool name: not known to be bash
+  for (const tool of ["Bash", "PowerShell", undefined]) {
+    assert.equal(run(tool, three), "ask", String(tool));
+    assert.equal(run(tool, msg), "ask", String(tool));
+  }
 });
 
 test("a word cut for length asks when its unread middle could hold a command", () => {

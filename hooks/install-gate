@@ -3,7 +3,7 @@
 # asks you first, and the agent is reminded to review it with the third-party-install-guard skill.
 # It never blocks a command and never runs one: it only turns an automatic run into a question.
 # What it matches and what it does not is listed in SECURITY.md (hooks/install-gate); hooks/install-corpus.json holds
-# the test cases. When in doubt it asks: a pass rule applies only where the shell's quoting is known.
+# the test cases. Install words anywhere in the command ask, quoted text and commit messages included.
 # On in every scope, MAKKOV_HARNESS_SCOPE=design included. Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a
 # headless `claude -p` run, where nobody can answer). Pure bash 3.2: reads the hook input from stdin, starts no other
 # program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
@@ -53,10 +53,8 @@ cwd="${cwd//\\\\/\\}"
 
 # Size limits keep a run well under the hook's 5-second timeout on any input (a timeout would let the command run):
 # over 20,000 characters as sent it asks at once. A word longer than 400 characters (a data blob, a long URL) keeps its first
-# and last 200: no program name or option is that long. A cut word may hide a quote, so then no pass rule below
-# applies. Over 4,000 characters after that it asks without matching. Text is blanked only up to 2,000.
+# and last 200: no program name or option is that long. Over 4,000 characters after that it asks without matching.
 
-long=""
 re_long='[^[:space:]]{200}[^[:space:]]{201}'   # 401 in two parts: macOS allows at most 255 in {n}
 if [[ $cmd =~ $re_long ]]; then
   set -f
@@ -70,7 +68,7 @@ if [[ $cmd =~ $re_long ]]; then
       # The middle is not matched, so it must not be able to hold a command: a separator, a pipe or $( ) there asks.
       mid="${word:200:$((${#word} - 400))}"
       case "$mid" in *[\;\|\&\`]*|*'$('*) ask ;; esac
-      long=1; words[$i]="${word:0:200} ${word:$((${#word} - 200))}"
+      words[$i]="${word:0:200} ${word:$((${#word} - 200))}"
     fi
     i=$((i + 1))
   done
@@ -81,46 +79,7 @@ c=" $cmd "
 
 w='[^[:space:];&|"'"'"')]'            # one character of a word
 dq='"([^"\\]|\\.)*"'; sq="'[^']*'"
-closed='([^"'"'"'\\]|\\.|'"$dq|$sq"')*'       # text in which every quote is closed
-segtext='([^"'"'"'\\;&|]|\\.|'"$dq|$sq"')*'   # the same, within one command (no ; & or | outside quotes)
 path="(${w}*[/\\])?"                  # an optional path before a program: /usr/bin/, venv/bin/, .\tools\
-# Where a command starts: the start, a separator or a bracket, but not $( or <( (their output is used as code or a file).
-cstart='(^|[;&|]|[^$<>]\()[[:space:]]*'
-
-# Text that is only text: a quoted message to git or gh (-m, -am, --message, -b/--body, -t/--title, -n/--notes,
-# --subject) and a quoted argument to echo, printf or grep. It is blanked so its words are not read as commands.
-# The rule is kept small enough to check by reading: only in the Bash tool (PowerShell quotes differently); only a
-# single-quoted value, where bash has no special character at all, or a double-quoted one with no $, backtick or
-# backslash; only when the quote is outside any other quote, the command is git, gh, echo, printf or grep and its output
-# is not piped; and never when the rest of the command has a heredoc, a # comment or a $'…' string, where a quote is
-# not a quote. A commit message written as "$(cat <<'EOF' … EOF)" is therefore matched like any other command.
-is_text() {   # $1 = the quoted value
-  case "$1" in \'*) return 0 ;; *'$'*|*'`'*|*'\'*) return 1 ;; esac
-  return 0
-}
-blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex the text before it must match
-  local out="" rest="$c" m lead opt sep v pre new n=0
-  while [ $n -lt 16 ] && [[ $rest =~ $1 ]]; do   # the first 16 quoted values; any later ones stay as they are
-    n=$((n + 1))
-    m="${BASH_REMATCH[0]}"; lead="${BASH_REMATCH[1]}"; opt="${BASH_REMATCH[2]}"; sep="${BASH_REMATCH[3]}"; v="${BASH_REMATCH[4]}"
-    pre="${rest%%"$m"*}"; rest="${rest#*"$m"}"
-    new="$m"
-    # Not text when a heredoc, a # comment or a $'…' / $"…" string is anywhere around it: there a quote is not a quote.
-    case "$out$pre$lead$rest" in *'<<'*|*[[:space:]]'#'*|*'$'[\'\"]*) ;; *)
-      if [[ "$out$pre$lead" =~ $2 ]] && [[ $rest =~ ^${segtext}([;&]|$) ]] && is_text "$v"; then new="$lead$opt$sep\"\""; fi ;;
-    esac
-    out="$out$pre$new"
-  done
-  c="$out$rest"
-}
-re_bash='"tool_name"[[:space:]]*:[[:space:]]*"Bash"'
-if [ -z "$long" ] && [ ${#c} -le 2000 ] && [[ $input =~ $re_bash ]]; then
-  blank "(^|[[:space:]])(-[a-zA-Z]*m|--message|-b|--body|-t|--title|-n|--notes|--subject)(=|[[:space:]]*)(${dq}|${sq})" \
-        "^${closed}${cstart}${path}(git|gh)(\.exe)?[[:space:]]${segtext}\$"
-  # (${P}?) twice: two groups that always match empty, as ERE has no "()"
-  blank "(^|[[:space:]])(${P}?)(${P}?)(${dq}|${sq})" \
-        "^${closed}${cstart}${path}(echo|printf|grep|egrep|fgrep|rg)(\.exe)?[[:space:]]${segtext}\$"
-fi
 
 # npm options that take a value become one word (-w web -> -w=web), so the value is not read as a package. Only for
 # the tools where the option does take one: in pnpm -w is --workspace-root and takes none. Case-sensitive on purpose.
