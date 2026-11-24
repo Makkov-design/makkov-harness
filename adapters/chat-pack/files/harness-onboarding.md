@@ -49,7 +49,7 @@ Write it where the harness itself was installed, so it lives and goes with that 
    | aider | `<project>/CONVENTIONS.md` | none |
    | cursor | `<project>/.cursor/rules/makkov-harness-personal.mdc` | none |
 
-   - `rules=` is only a check: it must name that same file (for Cursor, `makkov-harness.mdc` next to it). If it names anything else, the agent is not in the table or has no file at that level, or the file or any folder on the way to it is a symlink, write nothing and tell the person what you found. Never follow a path from the manifest.
+   - `rules=` is only a check: it must name that same file (for Cursor, `makkov-harness.mdc` next to it). If it names anything else, the agent is not in the table or has no file at that level, or, for a project install, the file or any folder on the way to it is a symlink that leads outside the project, write nothing and tell the person what you found. At user level the person's own links (dotfiles) are followed, as the installers do. Never follow a path from the manifest.
    - A manifest in the project folder (a project install): write into that project's file. The layer then applies to this project only; say so. Do not write to a user-level file unless the person asks for it by name.
    - A manifest in the home folder (a user-level install): write into that agent's user-level file.
    - Cursor: `makkov-harness.mdc` is rewritten on every install, so the layer goes into `makkov-harness-personal.mdc` next to it, starting with the same front matter (`description: makkov-harness personal layer`, `alwaysApply: true`).

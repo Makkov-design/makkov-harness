@@ -396,9 +396,13 @@ function cleanExample(v) {
   if (typeof v.note === 'string') out.note = txt(v.note, 200);
   return out;
 }
-// A check's raw value: flat, known shapes only (numbers, booleans, short strings, short lists of them).
+// A check's raw value: flat, known shapes only (a number, boolean or short string, a short list of them, or an
+// object of those).
+const cleanScalar = (y, max) => (typeof y === 'number' ? numIn(y, -1e9, 1e9) : typeof y === 'boolean' ? y : typeof y === 'string' ? txt(y, max) : null);
 function cleanValue(v) {
-  if (v == null || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (v == null) return null;
+  if (typeof v !== 'object') return cleanScalar(v, 200);
+  if (Array.isArray(v)) return list(v, 50, (y) => cleanScalar(y, 100));
   const out = {};
   for (const k of Object.keys(v).slice(0, 40)) {
     if (!/^[A-Za-z][A-Za-z0-9]{0,39}$/.test(k)) continue;

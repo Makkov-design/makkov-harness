@@ -305,28 +305,34 @@ function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
   }
   ''
 }
-# Where a path really is: every symlink or junction on its way followed ('' for a loop of links).
+# Where a path really is: every symlink or junction on its way followed, part by part, so a ".." after a link goes to
+# the parent of where the link leads, as the system resolves it ('' for a loop of links).
 function Get-MhReal([string]$Path) {
-  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux.)
-  $p = [IO.Path]::GetFullPath($Path)
-  for ($n = 0; $n -lt 64; $n++) {
-    $root = [IO.Path]::GetPathRoot($p)
-    $rest = @($p.Substring($root.Length) -split '[\\/]' | Where-Object { $_ })
-    $d = $root; $hit = $false
-    for ($i = 0; $i -lt $rest.Count; $i++) {
-      $d = [IO.Path]::Combine($d, $rest[$i])
-      if (Test-MhLink $d) {
-        $t = @((Get-Item -LiteralPath $d -Force).Target)[0]
-        if (-not $t) { break }
-        if (-not [IO.Path]::IsPathRooted($t)) { $t = [IO.Path]::Combine([IO.Path]::GetDirectoryName($d), $t) }
-        $tail = @($rest | Select-Object -Skip ($i + 1))
-        $p = [IO.Path]::GetFullPath([IO.Path]::Combine([string[]](@($t) + $tail)))
-        $hit = $true; break
+  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux;
+  # and no GetFullPath, which would fold "link/.." away as text before the link is followed.)
+  if (-not [IO.Path]::IsPathRooted($Path)) { $Path = [IO.Path]::Combine((Get-Location).ProviderPath, $Path) }
+  $cur = [IO.Path]::GetPathRoot($Path)
+  $todo = New-Object System.Collections.Generic.List[string]
+  foreach ($x in @($Path.Substring($cur.Length) -split '[\\/]')) { if ($x) { $todo.Add($x) } }
+  $links = 0
+  while ($todo.Count) {
+    $part = $todo[0]; $todo.RemoveAt(0)
+    if ($part -eq '.') { continue }
+    if ($part -eq '..') { $up = [IO.Path]::GetDirectoryName($cur); if ($up) { $cur = $up }; continue }
+    $next = [IO.Path]::Combine($cur, $part)
+    if (Test-MhLink $next) {
+      $t = @((Get-Item -LiteralPath $next -Force).Target)[0]
+      if ($t) {
+        if (++$links -gt 40) { return '' }
+        if ([IO.Path]::IsPathRooted($t)) { $cur = [IO.Path]::GetPathRoot($t); $t = $t.Substring($cur.Length) }
+        $parts = @($t -split '[\\/]' | Where-Object { $_ })
+        $todo.InsertRange(0, [string[]]$parts)
+        continue
       }
     }
-    if (-not $hit) { return $p }
+    $cur = $next
   }
-  ''
+  $cur
 }
 # In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
 # have come with the repository: one that leads outside the project, or an instructions file with more than one hard
