@@ -5,6 +5,7 @@
 # What it matches and what it does not is listed in SECURITY.md (hooks/install-gate); hooks/install-corpus.json holds
 # the test cases. Install words anywhere in the command ask, quoted text and commit messages included.
 # When a command can be read two ways (bash and PowerShell escape differently), it asks if either reading is an install.
+# It asks about everything the 0.5.0 gate asks about, and more: no rule here lets through a command 0.5.0 asked about.
 # On in every scope, MAKKOV_HARNESS_SCOPE=design included. Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a
 # headless `claude -p` run, where nobody can answer). Pure bash 3.2: reads the hook input from stdin, starts no other
 # program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
@@ -93,25 +94,12 @@ w='[^[:space:];&|"'"'"')]'            # one character of a word
 dq='"([^"\\]|\\.)*"'; sq="'[^']*'"
 path="(${w}*[/\\])?"                  # an optional path before a program: /usr/bin/, venv/bin/, .\tools\
 
-# npm options that take a value become one word (-w web -> -w=web), so the value is not read as a package. Only for
-# the tools where the option does take one: in pnpm -w is --workspace-root and takes none. Case-sensitive on purpose.
-join() {   # $1 = regex for (everything up to the option)(the value)
-  local out="" rest="$c" m n=0
-  while [ $n -lt 32 ] && [[ $rest =~ $1 ]]; do   # the first 32; more is not a real command
-    n=$((n + 1)); m="${BASH_REMATCH[0]}"
-    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; rest="${rest#*"$m"}"
-  done
-  c="$out$rest"
-}
-val="[[:space:]]+([^-[:space:];&|\"')]${w}*)"
-join "([[:space:]](--prefix|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit|--include|--loglevel|--userconfig))${val}"
-join "((^|[[:space:];&|(])${path}npm(\.cmd|\.exe)?([[:space:]]+${w}+){0,8}[[:space:]](-w|--workspace))${val}"
 shopt -s nocasematch
 
 b="(^|[[:space:];&|(\`\"'{!])"       # a word starts after a space, a separator, a bracket, a quote or ! (git aliases)
 flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
 flags="([[:space:]]+-${w}*)*"         # options without values
-pkg="[[:space:]]+[^-[:space:];&|)]"     # a word that is not an option: a package, quoted ("|", 'x') or not
+pkg="[[:space:]]+[^-[:space:];&|\"')]" # a word that is not an option: a package
 pm="${b}${path}(npm|pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*"
 npm_add='(install|i|in|ins|inst|insta|instal|isnt|isnta|isntal|isntall|add|it|install-test|create|init)'
 shell="${path}(ba|z|da|k|fi|a|c|tc)?sh(\.exe)?"
@@ -174,15 +162,23 @@ patterns=(
   "iex invoke-expression@@${b}(iex|invoke-expression)[[:space:]]+[\"'][^\"']*\\\$\\([[:space:]]*${ps_fetch}"
   "scriptblock@@\[scriptblock\]::create[[:space:](\$]*${ps_fetch}"
 )
-# Matched twice: as written, and with every quote taken out, so "npm" install x and python3 -m "pip" install x count.
+# Matched as written, with every quote taken out (so "npm" install x and python3 -m "pip" install x count), and with a
+# separator next to a quote read as part of the word, as bash reads it (pacman -S "|"--noconfirm jq installs jq).
 hit=""
 c2="${c//[\"\']/}"
+c3="$c"
+if [[ $c == *[\"\'][\|\&\;\)]* || $c == *[\|\&\;\)][\"\']* ]]; then
+  for q in '"' "'"; do c3="${c3//$q[|&;)]/${q}_}"; c3="${c3//[|&;)]$q/_${q}}"; done
+  c3="${c3//[\"\']/}"
+fi
 for p in "${patterns[@]}"; do
   want=""
   for k in ${p%%@@*}; do [[ $c2 == *"$k"* ]] && { want=1; break; }; done
   [ -z "$want" ] && continue
   re="${p#*@@}"
-  if [[ $c =~ $re ]] || { [ "$c2" != "$c" ] && [[ $c2 =~ $re ]]; }; then hit=1; break; fi
+  if [[ $c =~ $re ]] || { [ "$c2" != "$c" ] && [[ $c2 =~ $re ]]; } || { [ "$c3" != "$c2" ] && [[ $c3 =~ $re ]]; }; then
+    hit=1; break
+  fi
 done
 
 # npx, bunx, uvx, pnpx, bun x: ask unless the tool is already installed in this project, without a version.
@@ -192,7 +188,7 @@ if [ -z "$hit" ]; then
   while [[ $rest =~ $re_npx ]]; do
     tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 2))]}"; tool="${tool#[\"\']}"
     rest="${rest#*"${BASH_REMATCH[0]}"}"
-    case "$tool" in ''|[\|\;\&\)\"\']*) hit=1; break ;; esac   # a quoted name that is not a name ("|"): asks
+    case "$tool" in ''|*[!A-Za-z0-9@/._~+-]*) hit=1; break ;; esac   # not a plain name ("|", x$(npx …)): asks
     local_bin=""
     if [ -n "$cwd" ] && [[ $tool != *@* || $tool == @*/* && ${tool#@} != *@* ]]; then
       name="${tool##*/}"

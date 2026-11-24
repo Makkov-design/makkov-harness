@@ -2,6 +2,10 @@
 
 Short records of what a change taught, so the next change does not relearn it. Newest first.
 
+## 2026-11-24 · Install gate: no rule that passes
+
+- **A rule that lets something through is where bypasses live.** W2 (`--prefix \| evil-pkg`), X1 (`echo "a --prefix " ; npm install evil-pkg`) and Z1 (`--prefix a"|" evil-pkg`) all came through one rule: joining an option with its value so that `npm install --prefix app` would pass. Each fix of that rule opened the next hole. The owner had it removed; the gate now asks about everything the 0.5.0 gate asks about, and more, and a test checks that with no list of exceptions. A security check that only asks should add matches, not skip text.
+
 ## 2026-11-24 · Install gate: two readings, not one rewrite
 
 - **When the shell is not known, match every reading; never replace one with another.** The hook runs for both the Bash and the PowerShell tool, and `\|` means a word in one and a pipe in the other. A first fix rewrote `\|` into a pipe, which closed the PowerShell case and opened its mirror: `npm install --prefix \| evil-pkg` is a folder and a package in bash, and the rewrite made the gate stop at the pipe. The fix that holds keeps the command as written and adds both readings next to it, so adding a reading can only add asks. A generated test (an escaped separator before and after every word of every row that asks) caught a case neither audit listed: a quoted package after such a value.
