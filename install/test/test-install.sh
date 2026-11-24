@@ -633,7 +633,9 @@ home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, four installs started at once"
 mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"; before="$(tree "$proj")"
 # (Each run's shell trace goes to its own file, shown only when the check fails.)
-for i in 1 2 3 4; do PS4='+ $EPOCHREALTIME $BASHPID ' BASH_XTRACEFD=7 bash -x "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
+# (bash 3.2, macOS's, has no BASH_XTRACEFD: no trace there, it would go into what the run prints.)
+tr4=""; [ "$(bash -c 'echo "${BASH_VERSINFO[0]}"')" -ge 5 ] && tr4=-x
+for i in 1 2 3 4; do PS4='+ $EPOCHREALTIME $BASHPID ' BASH_XTRACEFD=7 bash $tr4 "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
 ok4=1; for i in 1 2 3 4; do grep -q 'makkov-harness installed for codex\|Another makkov-harness run' "$home/run$i" || ok4=0; done
 check "each run either installs or says another run is working (no stack trace)" "[ $ok4 = 1 ] && ! grep -q 'at \|Error:' '$home'/run*"
 [ "$ok4" = 1 ] || for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
