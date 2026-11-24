@@ -41,6 +41,7 @@ re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
 
 [ ${#cmd} -gt 20000 ] && ask "$too_long"
+raw0="$cmd"   # the command as sent, for the 0.5.0 matcher at the end
 
 # Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
 # backslash-n stays text. A line ends a command unless it ends in a backslash, a pipe or && (then the command goes on);
@@ -158,6 +159,10 @@ patterns=(
   "curl wget iwr irm invoke-web invoke-rest clone@@${saved}.*${runs}"
   # PowerShell: iwr … | iex, iex (irm …), iex "& { \$(irm …) }", iex ((New-Object Net.WebClient).DownloadString(…))
   "iex invoke-expression@@${b}(iwr|irm|invoke-webrequest|invoke-restmethod|curl|wget)${span}\|[[:space:]]*(iex|invoke-expression)"
+  # 0.5.0's two pipe patterns, not anchored at a word start ($CURL, my-curl, x.Invoke-WebRequest): here they also see
+  # the two readings and the quote-free copies, which the 0.5.0 matcher at the end does not
+  "curl wget@@(curl|wget)[^|;]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([[:space:]]|$|[\"'])"
+  "iwr irm invoke-web invoke-rest@@(iwr|irm|invoke-webrequest|invoke-restmethod)[^|;]*\|[[:space:]]*(iex|invoke-expression)"
   "iex invoke-expression@@${b}(iex|invoke-expression)[[:space:](\$]*${ps_fetch}"
   "iex invoke-expression@@${b}(iex|invoke-expression)[[:space:]]+[\"'][^\"']*\\\$\\([[:space:]]*${ps_fetch}"
   "scriptblock@@\[scriptblock\]::create[[:space:](\$]*${ps_fetch}"
@@ -199,5 +204,72 @@ if [ -z "$hit" ]; then
     [ -z "$local_bin" ] && { hit=1; break; }
   done
 fi
+
+# ---- 0.5.0 matcher, verbatim: do not edit ----
+# The decode, the twelve patterns and the npx loop of the gate as released in 0.5.0, copied line for line from
+# hooks/fixtures/install-gate-0.5.0 (only its cwd decode and its hit="" are left out; cwd is decoded above the same way).
+# It runs when nothing above asked, on the command as sent (and its readings). This is what makes "asks about everything the 0.5.0
+# gate asks about" true by construction; hooks/install-gate.test.mjs checks that these lines match the fixture.
+# Run on the command as sent and, as above, on its PowerShell and bash readings when it has an escaped separator
+# (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
+if [ -z "$hit" ]; then
+raws=("$raw0")
+if [ ${#raw0} -le 8000 ] && [[ $raw0 == *'\\'[\|\&\;\)]* ]]; then
+  ps0="${raw0//\\\\|/ |}"; ps0="${ps0//\\\\;/ ;}"; ps0="${ps0//\\\\)/ )}"; ps0="${ps0//\\\\&&/ &&}"
+  raws+=("$ps0" "${raw0//\\\\[|&;)]/_}")
+fi
+for raw in "${raws[@]}"; do
+[ -n "$hit" ] && break
+cmd="$raw"
+# Decode the JSON escapes that change where words start: line breaks and tabs become separators,
+# escaped quotes and backslashes become themselves.
+cmd="${cmd//\\n/ ; }"; cmd="${cmd//\\r/ }"; cmd="${cmd//\\t/ }"
+cmd="${cmd//\\\"/\"}"; cmd="${cmd//\\\\/\\}"
+c=" $cmd "
+shopt -s nocasematch
+
+b="(^|[[:space:];&|(\`\"'{])"        # a word starts after a space, a separator, a bracket or a quote
+w='[^[:space:];&|"'"'"')]'            # one character of a word
+flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
+
+patterns=(
+  "${b}(npm|pnpm|yarn|bun)(\.cmd)?(${flag})*[[:space:]]+(install|i|add)([[:space:]]+-${w}*)*[[:space:]]+[^-[:space:];&|\"')]"
+  "${b}(pnpm|yarn|bun)(\.cmd)?[[:space:]]+dlx[[:space:]]"
+  "${b}npm(\.cmd)?[[:space:]]+(exec|x)[[:space:]]"
+  "${b}(pip[0-9.]*|(python[0-9.]*|py)[[:space:]]+-m[[:space:]]+pip)[[:space:]]+install[[:space:]]"
+  "${b}uv[[:space:]]+(add|tool[[:space:]]+install|pip[[:space:]]+install)[[:space:]]"
+  "${b}pipx[[:space:]]+(install|run)[[:space:]]"
+  "${b}(cargo|go|gem)[[:space:]]+install[[:space:]]"
+  "${b}(brew|winget|choco|scoop|apt|apt-get|dnf|yum|pacman)[[:space:]]+(install|-S)[[:space:]]"
+  "${b}claude[[:space:]]+(plugin[[:space:]]+install|mcp[[:space:]]+add)[[:space:]]"
+  "${b}code(\.cmd)?[[:space:]]+--install-extension[[:space:]]"
+  "(curl|wget)[^|;]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([[:space:]]|$|[\"'])"
+  "(iwr|irm|invoke-webrequest|invoke-restmethod)[^|;]*\|[[:space:]]*(iex|invoke-expression)"
+)
+for p in "${patterns[@]}"; do
+  if [[ $c =~ $p ]]; then hit=1; break; fi
+done
+
+# npx, bunx, uvx, pnpx: ask unless the tool is already installed in this project, without a version.
+if [ -z "$hit" ]; then
+  rest="$c"
+  re_npx="${b}(npx|bunx|uvx|pnpx)(\.cmd)?((${flag})*)[[:space:]]+([^-[:space:];&|\"')]${w}*)"
+  while [[ $rest =~ $re_npx ]]; do
+    tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 1))]}"
+    rest="${rest#*"${BASH_REMATCH[0]}"}"
+    local_bin=""
+    if [ -n "$cwd" ] && [[ $tool != *@* || $tool == @*/* && ${tool#@} != *@* ]]; then
+      name="${tool##*/}"
+      for f in "$cwd/node_modules/.bin/$name" "$cwd/node_modules/.bin/$name.cmd"; do
+        [ -e "$f" ] && local_bin=1
+      done
+    fi
+    [ -z "$local_bin" ] && { hit=1; break; }
+  done
+fi
+done
+fi
+# ---- end of the 0.5.0 matcher ----
+
 [ -z "$hit" ] && exit 0
 ask

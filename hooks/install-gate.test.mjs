@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "install-gate");
@@ -30,14 +30,46 @@ for (const { cmd, gate: want } of CORPUS) {
 // Differential guard: this gate asks about everything the 0.5.0 gate asks about, and more. No exceptions: a rule that
 // lets through a command 0.5.0 asked about fails here.
 const OLD = join(dirname(HOOK), "fixtures", "install-gate-0.5.0");
+
+// A project whose node_modules/.bin holds every word of the corpus and common tool names, so a command such as
+// `npx --cache tsc evil-tool` meets a local `tsc`. Every comparison with the 0.5.0 gate runs with and without it.
+const LOCAL = mkdtempSync(join(tmpdir(), "gate-local-"));
+after(() => rmSync(LOCAL, { recursive: true, force: true }));
+mkdirSync(join(LOCAL, "node_modules", ".bin"), { recursive: true });
+for (const name of new Set([...CORPUS.flatMap((c) => c.cmd.split(/\s+/)), "tsc", "eslint", "vite", "prettier", "jest", "next", "create-vite", "create-next-app"])) {
+  if (/^[A-Za-z0-9@._+~-]{1,80}$/.test(name) && !/^\.+$/.test(name)) writeFileSync(join(LOCAL, "node_modules", ".bin", name), "");
+}
+// True when the hook at `file` asks about `command` (run in `cwd` when given).
+function asks(file, command, cwd) {
+  const r = spawnSync("bash", [file], { input: JSON.stringify({ tool_name: "Bash", ...(cwd ? { cwd } : {}), tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
+  assert.equal(r.signal, null, `killed after 10 s: ${JSON.stringify(command.slice(0, 80))}`);
+  return r.stdout.trim() !== "";
+}
+// Commands the 0.5.0 gate asks about and this gate lets through, with no project and in LOCAL.
+const weakerThanOld = (command) => [undefined, LOCAL].filter((cwd) => asks(OLD, command, cwd) && !asks(HOOK, command, cwd)).length > 0;
+
+test("the 0.5.0 matcher inside the gate is the fixture's, line for line", () => {
+  const gateLines = readFileSync(HOOK, "utf8").split("\n");
+  const a = gateLines.indexOf("# ---- 0.5.0 matcher, verbatim: do not edit ----");
+  const b = gateLines.indexOf("# ---- end of the 0.5.0 matcher ----");
+  assert.ok(a > 0 && b > a, "markers not found");
+  const block = gateLines.slice(a + 1, b);
+  const start = block.indexOf('cmd="$raw"');
+  assert.ok(start > 0 && block[start - 1] === '[ -n "$hit" ] && break' && block[block.length - 2] === "done" && block[block.length - 1] === "fi");
+  const fixture = readFileSync(OLD, "utf8").split("\n");
+  const from = fixture.indexOf("# Decode the JSON escapes that change where words start: line breaks and tabs become separators,");
+  const to = fixture.indexOf("[ -z \"$hit\" ] && exit 0");
+  const want = fixture.slice(from, to).filter((l) => !l.startsWith('cwd="${cwd//') && l !== 'hit=""');
+  assert.deepEqual(block.slice(start + 1, -2), want);
+});
 test("asks about everything the 0.5.0 gate asked about", () => {
   const old = (command) => {
     const r = spawnSync("bash", [OLD], { input: JSON.stringify({ tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
     return r.stdout.trim() ? "ask" : "allow";
   };
   const weaker = [];
-  for (const { cmd } of CORPUS) if (old(cmd) === "ask" && gate(cmd) === "allow") weaker.push(cmd);
-  assert.deepEqual(weaker, [], "passes now, asked in 0.5.0");
+  for (const { cmd } of CORPUS) if ((old(cmd) === "ask" && gate(cmd) === "allow") || weakerThanOld(cmd)) weaker.push(cmd);
+  assert.deepEqual(weaker, [], "passes now, asked in 0.5.0 (with or without local tools)");
 });
 
 test("install words in quoted text ask in every tool", () => {
@@ -83,8 +115,8 @@ test("an escaped separator put anywhere in a command that asks never lets it thr
   const psReading = (v) => v.replace(/\\\|/g, " |").replace(/\\;/g, " ;").replace(/\\\)/g, " )").replace(/\\&&/g, " &&");
   const through = [];
   [...variants].forEach((v, k) => {
-    if (k % step !== 0 || ask(HOOK, v)) return;
-    if (ask(OLD, v) || ask(HOOK, bashReading(v)) || ask(HOOK, psReading(v))) through.push(v);
+    if (k % step !== 0) return;
+    if (weakerThanOld(v) || (!ask(HOOK, v) && (ask(HOOK, bashReading(v)) || ask(HOOK, psReading(v))))) through.push(v);
   });
   assert.ok(variants.size > 10000, `${variants.size} variants`);
   assert.deepEqual(through, []);
@@ -114,7 +146,7 @@ test("quoted text ending in a value-taking option never hides a command that ask
   const step = process.env.MAKKOV_GATE_VARIANTS === "all" ? 1 : 200;
   const through = [];
   [...variants].forEach((v, k) => {
-    if (k % step === 0 && !ask(HOOK, v) && ask(OLD, v)) through.push(v);
+    if (k % step === 0 && weakerThanOld(v)) through.push(v);
   });
   assert.ok(variants.size > 50000, `${variants.size} variants`);
   assert.deepEqual(through, []);
@@ -143,9 +175,29 @@ test("a quoted separator inside or around a word never lets a command through th
   const step = process.env.MAKKOV_GATE_VARIANTS === "all" ? 1 : 200;
   const through = [];
   [...variants].forEach((v, k) => {
-    if (k % step === 0 && !ask(HOOK, v) && ask(OLD, v)) through.push(v);
+    if (k % step === 0 && weakerThanOld(v)) through.push(v);
   });
   assert.ok(variants.size > 35000, `${variants.size} variants`);
+  assert.deepEqual(through, []);
+});
+
+// One character put directly before a word (`$CURL`, `xcurl`, `@curl`, `my-iwr`): the 0.5.0 gate matched some programs
+// anywhere in a word. Generated from the corpus: each of $ @ = : > x - _ . and a letter before each word of every row
+// that asks (about 26,000). None may pass where the 0.5.0 gate asks, with or without local tools. Every 100th by
+// default; MAKKOV_GATE_VARIANTS=all runs all of them.
+test("a character before a program name never lets a command through that 0.5.0 asks about", () => {
+  const variants = new Set();
+  for (const { cmd, gate: want } of CORPUS) {
+    if (want !== "ask") continue;
+    const starts = [0, ...[...cmd.matchAll(/ /g)].map((m) => m.index + 1)];
+    for (const i of starts) for (const ch of ["$", "@", "=", ":", ">", "x", "-", "_", ".", "m"]) variants.add(cmd.slice(0, i) + ch + cmd.slice(i));
+  }
+  const step = process.env.MAKKOV_GATE_VARIANTS === "all" ? 1 : 100;
+  const through = [];
+  [...variants].forEach((v, k) => {
+    if (k % step === 0 && weakerThanOld(v)) through.push(v);
+  });
+  assert.ok(variants.size > 15000, `${variants.size} variants`);
   assert.deepEqual(through, []);
 });
 
@@ -171,6 +223,8 @@ test("npx of a tool installed in the project passes; a missing one is asked abou
     // A name that is not a plain word asks even when a file of that name is there: the inner npx would run.
     writeFileSync(join(dir, "node_modules", ".bin", "x$(npx"), "");
     for (const c of ['npx "x$(npx evil-pkg)"', "npx x$(npx evil-pkg)", 'npx "x`npx evil-pkg`"']) assert.equal(run(c), "ask", c);
+    // An option's value is not the tool: npx --cache tsc evil-tool runs evil-tool.
+    for (const c of ["npx --cache tsc evil-tool", "npx --prefix tsc evil-tool", "npx -w tsc evil-tool", "bunx --cwd tsc evil-tool", "pnpx --dir tsc evil", "uvx --python tsc evil-tool", "npx tsc && npx --cache tsc evil-tool"]) assert.equal(run(c), "ask", c);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -207,6 +261,11 @@ test("stays fast on large and adversarial input (asks, never times out)", () => 
     rep("curl x ", 100000),
     "echo " + rep('"a" ', 100000),
     'git commit -m "' + rep("word ", 100000) + '"',
+    // The 0.5.0 matcher runs on the command as sent: its two pipe patterns are not anchored, so long words full of
+    // "curl" and "iwr" that get past the 4,000-character limit (few words, each cut to 400) are its slowest input.
+    Array(9).fill(rep("curliwr", 2200)).join(" "),
+    rep("curliwr", 19800),
+    Array(9).fill(rep("curliwr", 870)).join(" ") + " a\\|b", // under 8,000: also matched in both readings
   ];
   // Escaped separators make the gate match the command three times over (as written, as bash and PowerShell read it).
   for (const s of ["curl x ", "npm -x ", "env A=1 ", "$(curl ", "npm i -w a ", '"a" ', "'a' ", "| a=b ", "git clone x ", '-m "a" ', "sudo -E ",

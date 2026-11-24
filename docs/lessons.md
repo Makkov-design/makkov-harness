@@ -5,6 +5,7 @@ Short records of what a change taught, so the next change does not relearn it. N
 ## 2026-11-24 · Install gate: no rule that passes
 
 - **A rule that lets something through is where bypasses live.** W2 (`--prefix \| evil-pkg`), X1 (`echo "a --prefix " ; npm install evil-pkg`) and Z1 (`--prefix a"|" evil-pkg`) all came through one rule: joining an option with its value so that `npm install --prefix app` would pass. Each fix of that rule opened the next hole. The owner had it removed; the gate now asks about everything the 0.5.0 gate asks about, and more, and a test checks that with no list of exceptions. A security check that only asks should add matches, not skip text.
+- **Prove "never weaker" by construction, not pattern by pattern.** Even with that rule gone, a review found two older differences no test covered: `npx --cache tsc evil-tool` next to a local `tsc` (the new npx parse read the option's value as the tool) and `$CURL … | sh` (0.5.0 matched `curl` anywhere in a word). The gate now keeps the 0.5.0 matcher, copied line for line and checked against the fixture by a test, and runs it when nothing else matched.
 
 ## 2026-11-24 · Install gate: two readings, not one rewrite
 
