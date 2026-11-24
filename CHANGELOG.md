@@ -98,13 +98,14 @@ Fixed, from the cross-installer tests:
 - Chat pack: the instructions had people upload several files that are all named `SKILL.md`, and chat apps keep only a file's name, so each upload replaced the one before. `adapters/chat-pack/files/` now holds one file per skill with its own name (`html-report.md`, `third-party-install-guard.md`…), plus `ROUTING.md` and `html-report-skeleton.html`, built from `skills/` by `.github/scripts/chat-pack.mjs`; CI fails when the pack is stale or two files share a name [#7](https://github.com/Makkov-design/makkov-harness/issues/7).
 - media-use's requirements point the music engines at the pinned setup command.
 
-### Companions and records
+### Docs, companions and records
 
 - Companion pins, after a new `third-party-install-guard` review on 2026-11-23 (both green): interfaces 1.17.0 → 1.20.0 (`6c21201`; drops the `teardown` skill and its scripts, adds the user-invoked `afk` skill, text only) and Hallmark 2.0.0 at `04977e1` (screenshot file names no longer collide, `<img>` paths use forward slashes on Windows). Frame Lens stays at v2.1.0, its latest release.
 - SECURITY.md and the security page say more about what two companions reach: Hallmark's `theme.mjs photos --save` downloads photos from Wikimedia Commons and drafts may link Commons thumbnails; interfaces' `afk` skill works unattended once you start it, reads beyond the project (saved memory, sibling projects, connected services, read-only) and runs the project's own commands. Pins unchanged.
 - SECURITY.md: the Frame Lens row shows its pinned version (2.1.0, `94d426f`); the cloud setup script line says its npm installs are pinned with `--before` the review date; the bookmarklet loader line names the versioned copies at `score/<version>/mh-score.js`.
 - README: a stale "New in 0.2" tag on Design Score (the site's home page had it too, now fixed); CHANGELOG link definitions for 0.3.2 to 0.5.0.
 - The records also say that `afk` merges pull requests, posts or sends messages only when asked, and that its unattended calls to real AI endpoints and connected services use the project's own keys and may cost money; and that Hallmark drafts may load fonts from Google Fonts or Fontshare and logos from Simple Icons.
+- Docs that said more than the code does: README told you to uninstall "with the same arguments", but the uninstallers take no `--scope` (same agent and project path); INSTALL.md gives doctor's exit code 3 too; SECURITY.md says upstream-watch creates its label if missing, and that the npm package keeps one note of what the Design Score fixtures should score; design-score's SKILL.md says the bookmarklets load the versioned copy, not `score/mh-score.js`.
 - Frame Lens stays pinned at v2.1.0 (`94d426f`). A newer Frame Lens release needs its own pin change after it is tagged.
 
 ### CI and checks

@@ -108,4 +108,4 @@ answers, add these sentences, in one pull request:
 - INSTALL.md, the section on the Node installer: "The same installer is on npm: `npx makkov-harness install
   --agent <agent> [--project <path>]`, then `npx makkov-harness doctor` to check. Use the same `--agent` and
   `--project` for update and uninstall."
-- COMPATIBILITY.md, the installer row: "Node installer: from the clone, or `npx makkov-harness` (Node.js 22+)."
+- COMPATIBILITY.md, the "Install route" row: "Node installer: from the clone, or `npx makkov-harness` (Node.js 22+)."
