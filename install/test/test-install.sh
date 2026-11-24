@@ -638,6 +638,10 @@ check "each run either installs or says another run is working (no stack trace)"
 [ "$ok4" = 1 ] || for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
 runs bash "$uninst" codex "$proj"
 check "the uninstall puts your animate back and leaves nothing else" "[ $code = 0 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+if [ "$code" != 0 ] || [ "$(tree "$proj")" != "$before" ]; then
+  echo "    uninstall (exit $code) said: $out"; diff <(printf '%s\n' "$before") <(tree "$proj") | sed 's/^/    /' || true
+  for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
+fi
 rm -rf "$home" "$proj"
 
 # A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
