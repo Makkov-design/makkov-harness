@@ -181,7 +181,7 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\m
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent codex
 ```
 
-Run the same command again to update; `install/uninstall.sh` / `install/uninstall.ps1` with the same arguments removes it.
+Run the same command again to update; `install/uninstall.sh` / `install/uninstall.ps1` with the same agent and project path (no `--scope`) removes it.
 
 With Node.js 22 or later, one installer works the same on every system: `node ~/makkov-harness/bin/makkov-harness.mjs install --agent codex` (and `update`, `uninstall`, `doctor`, which reports what is installed where).
 
