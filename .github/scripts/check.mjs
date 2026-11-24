@@ -391,7 +391,9 @@ try {
   }
   if (!bad) ok(`.github/upstream-watch.json: ${plural((watch.vendored || []).length, "vendored source")} and ${plural((watch.npm || []).length, "npm package")} match SECURITY.md, CREDITS.md, NOTICE and design-md-library`);
 } catch (e) { fail(`.github/upstream-watch.json: ${e.code === "ENOENT" ? "missing" : e.message}`); }
-// c. docs/security-data.js holds the same full commits as marketplace.json and .github/upstream-watch.json
+// c. docs/security-data.js holds the same full commits as marketplace.json and .github/upstream-watch.json.
+//    This is a consistency check between files, not a check against upstream: the same wrong commit written into
+//    every file passes. upstream-watch and the third-party-install-guard review are what tie a pin to upstream.
 try {
   const box = { window: {} };
   vm.runInNewContext(read(path.join(SITE, "security-data.js")), box, { filename: "security-data.js", timeout: 2000 });
@@ -402,7 +404,7 @@ try {
   for (const m of errs) fail(m);
   if (!errs.length) ok("docs/security-data.js has the full commits marketplace.json and .github/upstream-watch.json pin");
 } catch (e) { fail(`docs/security-data.js against the pins: ${e.message}`); }
-// c. the reviewed hyperframes and puppeteer-core versions, repeated in several files, are the same everywhere
+// d. the reviewed hyperframes and puppeteer-core versions, repeated in several files, are the same everywhere
 {
   const hf = (() => { try { return JSON.parse(fs.readFileSync("skills/hyperframes/scripts/cli-version.json", "utf8")).version; } catch { return null; } })();
   const pp = secRow("puppeteer-core")?.[1];
@@ -429,7 +431,7 @@ try {
     if (!bad) ok(`${pkg} ${want} is the same in ${plural(files.length + also.length + 1, "file")}`);
   }
 }
-// d. every skill in ROUTING.md exists in skills/, and every skill folder is in ROUTING.md
+// e. every skill in ROUTING.md exists in skills/, and every skill folder is in ROUTING.md
 try {
   const routing = read("ROUTING.md");
   const section = (routing.split(/^## /m).find((s) => s.startsWith("Skills in this repository")) || "");
@@ -442,7 +444,7 @@ try {
   for (const s of folders) if (!named.has(s)) { bad++; fail(`skills/${s} is not in ROUTING.md's "Skills in this repository" table, so no request is routed to it`); }
   if (!bad) ok(`ROUTING.md and skills/ list the same ${plural(folders.size, "skill")}`);
 } catch (e) { fail(`ROUTING.md: ${e.message}`); }
-// e. every version heading in CHANGELOG.md has a link definition at the foot
+// f. every version heading in CHANGELOG.md has a link definition at the foot
 if (fs.existsSync("CHANGELOG.md")) {
   const log = read("CHANGELOG.md");
   const heads = [...log.matchAll(/^## \[([^\]]+)\]/gm)].map((m) => m[1]);
