@@ -15,14 +15,16 @@ export function uninstall({ repo, agent, project, dry, out }) {
   const state = L.join(base, '.makkov-harness');
   const manifest = L.join(state, `install-${agent}.txt`);
   if (!L.isFile(manifest)) {
+    if (!dry) L.clearLockOnly(state, base);
     throw new L.Stop(`No makkov-harness install for ${agent} found in ${base} (no ${manifest}).\nIf you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.`);
   }
   const stop = (why) => { throw new L.Stop(`${why}\nNothing was changed.`); };
   // One run at a time in this folder (a dry run changes nothing, so it takes no lock).
   const unlock = dry ? () => {} : L.lock(state, base);
+  let dropState = false;
   try {
     return run();
-  } finally { unlock(); }
+  } finally { unlock(dropState); }
 
   function run() {
 
@@ -188,6 +190,8 @@ export function uninstall({ repo, agent, project, dry, out }) {
     };
     sweep(state);
     if (fs.readdirSync(state).length === 0) fs.rmdirSync(state);
+    // The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+    dropState = true;
   }
   say(dry ? `Dry run done for ${agent}. Run again without --dry-run to uninstall.` : `makkov-harness removed for ${agent}. Restart the agent.`);
   return 0;

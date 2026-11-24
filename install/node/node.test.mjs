@@ -217,3 +217,36 @@ foreach ($d in $input) {
     fs.rmSync(t, { recursive: true, force: true });
   });
 }
+
+// The lock's clauses (install/node/lib.mjs, lock()): 4, the release removes only its own owner file, and the harness
+// folder only when this run made it or the caller asks; 5, clearLockOnly takes over a stale lock left alone in the
+// harness folder and removes the folder, and leaves a live one as it is; 2, a live lock refuses without removing.
+test('the lock: release, refusal and a lock left alone in the harness folder', () => {
+  const t = tmp(), st = path.join(t, '.makkov-harness'), own = path.join(st, 'lock', 'owner');
+  let release = L.lock(st, t);
+  fs.writeFileSync(own, 'pid=1\nhost=elsewhere\nstarted=1\nby=test\n');
+  release();
+  assert.ok(fs.readFileSync(own, 'utf8').includes('host=elsewhere'), "another run's owner file stays");
+  fs.rmSync(st, { recursive: true });
+  release = L.lock(st, t); release();
+  assert.ok(!fs.existsSync(st), 'its own owner file, the lock and the folder it made go');
+  fs.mkdirSync(st); release = L.lock(st, t); release();
+  assert.ok(fs.existsSync(st) && fs.readdirSync(st).length === 0, 'a folder it did not make stays');
+  release = L.lock(st, t); release(true);
+  assert.ok(!fs.existsSync(st), 'release(true) takes an empty harness folder away');
+  fs.mkdirSync(path.join(st, 'lock'), { recursive: true });
+  fs.writeFileSync(own, `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=test\n`);
+  assert.throws(() => L.lock(st, t), /Another makkov-harness run/);
+  L.clearLockOnly(st, t);
+  assert.ok(fs.existsSync(own), 'a live lock is left as it is');
+  const dead = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' }).stdout;
+  fs.writeFileSync(own, `pid=${dead}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=test\n`);
+  fs.writeFileSync(path.join(st, 'install-cline.txt.new'), 'agent=cline\n');
+  L.clearLockOnly(st, t);
+  assert.ok(!fs.existsSync(st), 'a stale lock and a manifest being written, alone in the harness folder, are cleared and the folder removed');
+  fs.mkdirSync(path.join(st, 'lock'), { recursive: true }); fs.writeFileSync(own, `pid=${dead}\nhost=${os.hostname()}\nstarted=1\nby=test\n`);
+  fs.writeFileSync(path.join(st, 'install-codex.txt'), 'agent=codex\n');
+  L.clearLockOnly(st, t);
+  assert.ok(fs.existsSync(own), 'not when the harness folder holds anything else');
+  fs.rmSync(t, { recursive: true, force: true });
+});

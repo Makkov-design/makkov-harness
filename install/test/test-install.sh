@@ -656,6 +656,61 @@ if [ "$ok4" != 1 ] || [ "$code" != 0 ] || [ "$(tree "$proj")" != "$before" ]; th
 fi
 rm -rf "$home" "$proj"
 
+# The lock's clauses (install/lib.sh): 5, an uninstall with no manifest clears a harness folder that holds only a
+# stale lock (a first install killed just after it took the lock; seed 4242 of the kill sequences) but never a live
+# one; 4, the harness folder goes only when this run made it; 4, the release removes only its own owner file.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, only a lock and a manifest being written, left by a stopped first install, then an uninstall"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+printf 'agent=cline\n' > "$proj/.makkov-harness/install-cline.txt.new"
+runs bash "$uninst" codex "$proj"
+check "uninstall says no install was found (exit 1), takes the lock over and leaves nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'No makkov-harness install' && printf '%s' \"\$out\" | grep -q 'Taking over' && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+echo "codex project, only a lock a running process holds, then an uninstall"
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$$" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+before="$(tree "$proj")"
+runs bash "$uninst" codex "$proj"
+check "uninstall says no install was found (exit 1) and leaves the live lock as it is" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'No makkov-harness install' && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, an empty .makkov-harness of yours, an install that stops before any change"
+mkdir -p "$proj/.makkov-harness" "$proj/AGENTS.md"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1) and the folder it did not make is still there" "[ $code = 1 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+if [ "$root" = 1 ]; then echo "codex project, a read-only .makkov-harness"; echo "  skip (running as root, which can write a read-only folder)"; else
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a read-only .makkov-harness"
+mkdir -p "$proj/.makkov-harness"; chmod 555 "$proj/.makkov-harness"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$inst" codex "$proj"
+check "install stops (exit 1) twice, the folder is still there and nothing changed" "[ $c1 = 1 ] && [ $code = 1 ] && [ -d '$proj/.makkov-harness' ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+chmod 755 "$proj/.makkov-harness"; rm -rf "$home" "$proj"
+fi
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, .makkov-harness/lock is a link to a folder elsewhere"
+mkdir -p "$proj/.makkov-harness"; ln -s "$outside" "$proj/.makkov-harness/lock"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1), says it is a link, nothing written there or here" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'is a link' && [ -z \"\$(ls -A '$outside')\" ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj" "$outside"
+echo "the lock's release removes only its own owner file"
+proj="$(tmp)"
+( . "$repo/install/lib.sh"; mh_lock "$proj/.makkov-harness" "$proj" 2>/dev/null; printf 'pid=1\nhost=elsewhere\nstarted=1\nby=test\n' > "$proj/.makkov-harness/lock/owner"; mh_unlock )
+check "another run's owner file stays" "grep -q '^host=elsewhere' '$proj/.makkov-harness/lock/owner'"
+( . "$repo/install/lib.sh"; rm -rf "$proj/.makkov-harness"; mh_lock "$proj/.makkov-harness" "$proj" 2>/dev/null; mh_unlock )
+check "its own owner file, the lock and the folder it made go" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$proj"
+# A skill folder that is a link to a copy of yours outside the project: removing the link leaves the copy and its
+# modes alone (chmod -R would follow the link).
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, the animate skill a link to a read-only copy outside the project, then uninstall"
+runs bash "$inst" codex "$proj"
+cp -R "$proj/.agents/skills/animate" "$outside/animate"; chmod -R a-w "$outside/animate"
+rm -rf "$proj/.agents/skills/animate"; ln -s "$outside/animate" "$proj/.agents/skills/animate"
+modes="$(ls -lR "$outside" | awk '{print $1}')"
+runs bash "$uninst" codex "$proj"
+check "uninstall goes through and the copy outside keeps its files and modes" "[ $code = 0 ] && [ -f '$outside/animate/SKILL.md' ] && [ \"\$(ls -lR '$outside' | awk '{print \$1}')\" = \"\$modes\" ]"
+chmod -R u+w "$outside"; rm -rf "$home" "$proj" "$outside"
+
 # A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "a manifest in install.ps1's form"

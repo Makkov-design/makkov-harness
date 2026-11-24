@@ -114,6 +114,12 @@ jobs:
         run: bash install/test/test-install.sh
         env:
           MAKKOV_IMPL: node
+      - name: sequences killed at random moments, Node installer, seed 4242 (a first install killed just after it took the lock)
+        if: runner.os != 'Windows'
+        run: bash install/test/test-sequences.sh 80 4242
+        env:
+          MAKKOV_IMPL: node
+          MAKKOV_TEST_KILL: '1'
       - name: sequences mixing install.sh, the Node installer and install.ps1 (pwsh) on the same folders
         if: runner.os != 'Windows'
         run: bash install/test/test-sequences.sh 12 "$(( $(date +%j | sed 's/^0*//') * 100 + ${{ strategy.job-index }} ))"

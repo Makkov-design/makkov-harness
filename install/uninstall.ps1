@@ -36,6 +36,7 @@ $base = if ($Project) { $Project } else { $home_ }
 $state = Join-Path $base '.makkov-harness'
 $manifest = Join-Path $state "install-$Agent.txt"
 if (-not (Test-Path -LiteralPath $manifest)) {
+  if (-not $DryRun) { Clear-MhLockOnly $state $base }
   [Console]::Error.WriteLine("No makkov-harness install for $Agent found in $base (no $manifest).")
   [Console]::Error.WriteLine('If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.')
   exit 1
@@ -238,6 +239,8 @@ if (-not $DryRun -and (Test-Path -LiteralPath $state)) {
     if (@(Get-ChildItem -LiteralPath $d.FullName -Force).Count -eq 0) { Remove-Item -LiteralPath $d.FullName -Force }
   }
   if (@(Get-ChildItem -LiteralPath $state -Force).Count -eq 0) { Remove-Item -LiteralPath $state -Force }
+  # The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+  if ($mhLock) { $mhLock.DropState = $true }
 }
 if (-not $DryRun) { Write-Output "makkov-harness removed for $Agent. Restart the agent." }
 else { Write-Output "Dry run done for $Agent. Run again without -DryRun to uninstall." }

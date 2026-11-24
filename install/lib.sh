@@ -32,13 +32,25 @@ mh_drive_form() { case "$1" in /mnt/[a-z]/*) MH_DRV="/mnt/" ;; *) MH_DRV="/" ;; 
 # Deletes a skill folder the harness put there: renamed first to a temporary name (.mh-tmp-old-<name>, which
 # install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
 # (Folders copied from a read-only clone are read-only too: made writable first, so they can be removed.)
-mh_drop() { local t; t="$(dirname "$1")/.mh-tmp-old-$(basename "$1")"; if [ -e "$t" ]; then chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; fi; mv "$1" "$t" && { chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; }; }
+# (chmod -R only on a real folder: given a link, it would change the modes of what the link points to.)
+mh_drop() { local t; t="$(dirname "$1")/.mh-tmp-old-$(basename "$1")"; if [ -e "$t" ] || [ -L "$t" ]; then [ -L "$t" ] || chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; fi; mv "$1" "$t" && { [ -L "$t" ] || chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; }; }
 
-# One run at a time in a folder: a lock folder, .makkov-harness/lock, that install.sh, install.ps1 and the Node
-# installer all make and honour. Its owner file says which process on which computer made it, and when. A lock whose
-# process no longer runs on this computer, or older than a day, was left by a run that was stopped and is taken over.
-# Usage: mh_lock <state folder> <folder for messages>; then trap mh_unlock EXIT. Prints why and returns 1 when held.
-MH_LOCK="" MH_LOCK_STATE=""
+# One run at a time in a folder. The lock is the same in install.sh, install.ps1 and the Node installer, and each
+# clause below has a scenario in install/test/:
+#  1. Take: a run holds the lock once it has made .makkov-harness/lock/owner itself, with O_EXCL (here noclobber). The
+#     folders on the way are made with mkdir, which alone is not exclusive on every file system.
+#  2. Refuse: a run that finds an owner file it does not judge stale stops before any change and removes nothing.
+#  3. Take over: an owner file is stale when its process is gone on this computer, or it is more than a day old. A run
+#     removes one only while it holds .makkov-harness/lock.takeover (made with O_EXCL), after judging it stale again.
+#  4. Release: a run removes the owner file only while it is still its own (the same pid, host and start), then the
+#     lock folder if it is empty, then the harness folder only if it is empty and this run made it, or this run is
+#     an uninstall that has just removed the last thing the harness kept there.
+#  5. Nothing installed: an uninstall that finds no manifest and a harness folder holding only a lock and manifests
+#     being written (install-*.txt.new) takes that lock as in 1 or 3 (never a live one), removes those, and by 4 the
+#     folder: a first install killed after it took the lock and before its first change leaves exactly that.
+# Usage: mh_lock <state folder> <folder for messages>; then trap mh_unlock EXIT. Prints why and returns 1 when held;
+# returns 0 without a lock when the folder cannot be written (the checks before the first change then say why).
+MH_LOCK="" MH_LOCK_ME="" MH_LOCK_STATE=""
 mh_pid() { if [ -r "/proc/$$/winpid" ]; then cat "/proc/$$/winpid"; else echo "$$"; fi; }   # Git Bash: the Windows pid
 mh_host() { hostname 2>/dev/null || uname -n; }
 mh_lock_stale() {   # $1: lock folder
@@ -59,23 +71,26 @@ mh_lock_stale() {   # $1: lock folder
   return 1
 }
 mh_lock() {
-  local st="$1" l="$1/lock" i pid when
-  MH_LOCK_STATE="$st"
+  local st="$1" l="$1/lock" i pid made=0 me
   for i in 1 2 3 4 5 6; do
     # The harness folder, made again if another run just took it away; another run may make it at the same
-    # moment, which is not "cannot write here". A folder that cannot be made: no lock, and the checks before the
-    # first change say why.
-    if [ ! -d "$st" ]; then mkdir "$st" 2>/dev/null || [ -d "$st" ] || return 0; fi
+    # moment, which is not "cannot write here".
+    if [ ! -d "$st" ]; then if mkdir "$st" 2>/dev/null; then made=1; elif [ ! -d "$st" ]; then return 0; fi; fi
+    if [ -L "$l" ]; then echo "$l is a link, not the harness's lock folder. Delete it, then run this again." >&2; echo "Nothing was changed." >&2; return 1; fi
     mkdir "$l" 2>/dev/null || true
     # Gone between the two steps (the run that held it finished): try again, never go on without it.
     if [ ! -d "$l" ]; then [ ! -d "$st" ] || [ -w "$st" ] || return 0; continue; fi
-    # The lock is the owner file, made only if it is not there (noclobber: O_EXCL). A folder made by mkdir is not
-    # enough: on some file systems two processes that make the same folder at the same moment both succeed (seen
-    # on GitHub's Ubuntu runners), a file opened with O_EXCL never.
-    if (set -C; printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh\n' "$(mh_pid)" "$(mh_host)" "$(date +%s)" > "$l/owner") 2>/dev/null; then
-      MH_LOCK="$l"; return 0
+    me="$(printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh' "$(mh_pid)" "$(mh_host)" "$(date +%s)")"
+    if (set -C; printf '%s\n' "$me" > "$l/owner") 2>/dev/null; then
+      MH_LOCK="$l" MH_LOCK_ME="$me"; [ "$made" = 1 ] && MH_LOCK_STATE="$st"
+      return 0
     fi
     [ -d "$l" ] || continue
+    if [ ! -f "$l/owner" ] && [ ! -L "$l/owner" ]; then
+      [ -w "$l" ] && continue   # (made and removed again between the two steps)
+      echo "$l cannot be written, so the lock cannot be taken. Nothing was changed." >&2
+      return 1
+    fi
     if mh_lock_stale "$l"; then mh_take_stale "$l" || sleep 1; continue; fi
     pid="$(sed -n 's/^pid=//p' "$l/owner" 2>/dev/null | head -n 1)"
     echo "Another makkov-harness run is working in $2 (process ${pid:-?}). Let it finish, then run this again. If none is running, delete the folder $l and run this again." >&2
@@ -83,10 +98,11 @@ mh_lock() {
     return 1
   done
   echo "Could not take the lock $l. Delete that folder if no makkov-harness run is going on, then run this again." >&2
+  echo "Nothing was changed." >&2
   return 1
 }
-# Removes a lock judged stale, holding lock.takeover while it looks again: without it, a run that judged the lock
-# of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+# Clause 3: removes a lock judged stale, holding lock.takeover while it looks again; without it, a run that judged the
+# lock of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 mh_take_stale() {
   local t="$1.takeover"
   if ! (set -C; : > "$t") 2>/dev/null; then
@@ -100,10 +116,30 @@ mh_take_stale() {
   fi
   rm -f "$t"
 }
-# Removes the lock this run took, and the harness folder when the run left it empty.
-# Only this run's owner file goes, then the folder if it is empty: a run that has just made its own owner file in
-# the folder keeps its lock.
-mh_unlock() { if [ -n "$MH_LOCK" ]; then rm -f "$MH_LOCK/owner"; rmdir "$MH_LOCK" 2>/dev/null || true; MH_LOCK=""; fi; if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi; return 0; }
+# Clause 4.
+mh_unlock() {
+  if [ -n "$MH_LOCK" ]; then
+    [ "$(cat "$MH_LOCK/owner" 2>/dev/null)" = "$MH_LOCK_ME" ] && rm -f "$MH_LOCK/owner"
+    rmdir "$MH_LOCK" 2>/dev/null || true
+    MH_LOCK=""
+    if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi
+  fi
+  return 0
+}
+# Clause 5, for an uninstall that found no manifest: a harness folder that holds only a lock (and the takeover file)
+# and manifests being written is the leftover of a first install stopped before its first change.
+mh_clear_lock_only() {   # $1: state folder, $2: folder for messages
+  local n
+  [ -d "$1/lock" ] && [ ! -L "$1/lock" ] || return 0
+  for n in "$1"/* "$1"/.[!.]* "$1"/..?*; do [ -e "$n" ] || [ -L "$n" ] || continue; case "${n##*/}" in lock|lock.takeover|install-*.txt.new) ;; *) return 0 ;; esac; done
+  local e; e="$(mktemp)"
+  if mh_lock "$1" "$2" 2>"$e"; then
+    [ -z "$MH_LOCK" ] || rm -f "$1"/install-*.txt.new
+    MH_LOCK_STATE="${MH_LOCK:+$1}"; mh_unlock
+  fi
+  # Only a takeover is told; a live lock is left as it is, and the caller says no install was found.
+  grep '^Taking over' "$e" >&2 || true; rm -f "$e"
+}
 
 # The first value of key=... in a manifest, as written (after mh_cat).
 mh_raw() { mh_cat "$1" | sed -n "s/^$2=//p" | head -n 1; }

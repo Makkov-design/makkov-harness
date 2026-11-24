@@ -142,6 +142,19 @@ $out
 "
     done
   done
+  # Nothing installed, but a harness folder left: a first install killed just after it took the lock. An uninstall
+  # (which says no install was found) clears it, as the lock's clause 5 says.
+  if [ -d "$base/.makkov-harness" ] && ! ls "$base"/.makkov-harness/install-*.txt >/dev/null 2>&1; then
+    pick "${agents[@]}"; a="$picked"; pick "${impls[@]}"; im="$picked"; run_cmd "$im" uninstall "$a" "$p" ""
+    set +e; out="$("${cmd[@]}" 2>&1)"; code=$?; set -e
+    ran "$im"; ps_clean "$im"
+    said="$said--- uninstall $a ($im, nothing installed): ${cmd[*]}
+$out
+"
+    log="$log  uninstall $a ($im, nothing installed)
+"
+    [ "$code" = 1 ] || fail "the uninstall with nothing installed ($im) exited $code: $out"
+  fi
   now="$(tree "$base")"
   [ "$now" = "$start" ] || fail "the folder is not as it was:
 $(diff <(printf '%s\n' "$start") <(printf '%s\n' "$now") || true)"

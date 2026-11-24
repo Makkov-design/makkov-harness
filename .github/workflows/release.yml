@@ -6,7 +6,8 @@ name: release
 #
 # No npm token is stored anywhere: npm trusted publishing (OIDC) lets this one workflow file publish, and npm adds
 # a provenance statement by itself. The package is published as a staged version (`npm stage publish`): it goes live
-# only when the owner approves it on npmjs.com with two-factor authentication, so this workflow alone cannot release.
+# only when the owner approves it on npmjs.com with two-factor authentication, so this workflow cannot make a version
+# live by itself (docs/release.md says what each gate does and does not stop).
 # The publish job also waits in the GitHub environment `npm-release`, which the owner protects with a required
 # reviewer (docs/release.md). YAML cannot check that the environment has one, so the workflow cannot fail closed on it.
 # Setup steps for the owner: docs/release.md. Requirements read from docs.npmjs.com/trusted-publishers and

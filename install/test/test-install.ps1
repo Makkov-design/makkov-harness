@@ -316,6 +316,55 @@ try {
     $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
   }
 
+  # The lock's clauses (install/lib.ps1): 2, a live lock refuses and nothing changes; 3, a stopped run's lock is taken
+  # over; 5, an uninstall with no manifest clears a harness folder that holds only a stale lock, never a live one;
+  # 4, the harness folder goes only when this run made it, and the release removes only its own owner file.
+  $mhHost = try { [Net.Dns]::GetHostName() } catch { [Environment]::MachineName }
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  $gone = Start-Process -FilePath $exe -ArgumentList '-NoProfile', '-Command', 'exit 0' -PassThru; $gone.WaitForExit(); $deadPid = $gone.Id
+  function Set-Owner([string]$Dir, [int]$OwnerPid) {
+    New-Item -ItemType Directory -Force (Join-Path $Dir '.makkov-harness\lock') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $Dir '.makkov-harness\lock\owner'), "pid=$OwnerPid`nhost=$mhHost`nstarted=$now`nby=test`n")
+  }
+  function Listing([string]$Dir) { (@(Get-ChildItem -LiteralPath $Dir -Recurse -Force | ForEach-Object { $_.FullName.Substring($Dir.Length) }) | Sort-Object) -join '|' }
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a lock a running process holds'
+  Set-Owner $proj $PID; $before = Listing $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops with exit code 1, says another run is working, changes nothing' { $script:code -eq 1 -and $script:out -match 'Another makkov-harness run' -and (Listing $proj) -eq $before }
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'an uninstall with no install leaves the live lock as it is' { $script:code -eq 1 -and $script:out -match 'No makkov-harness install' -and (Listing $proj) -eq $before }
+  Write-Output 'codex project, a lock a stopped run left'
+  Set-Owner $proj $deadPid
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'it is taken over: install and uninstall go through, nothing left' { $c1 -eq 0 -and $script:code -eq 0 -and (Entries $proj).Count -eq 0 }
+  Write-Output 'codex project, only a lock and a manifest being written, left by a stopped first install, then an uninstall'
+  Set-Owner $proj $deadPid; [IO.File]::WriteAllText((Join-Path $proj '.makkov-harness\install-cline.txt.new'), "agent=cline`n")
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'uninstall says no install was found (exit 1), takes the lock over and leaves nothing' { $script:code -eq 1 -and $script:out -match 'No makkov-harness install' -and (Entries $proj).Count -eq 0 }
+  Write-Output 'codex project, an empty .makkov-harness of yours, an install that stops before any change'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.makkov-harness'), (Join-Path $proj 'AGENTS.md') | Out-Null; $before = Listing $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops (exit 1) and the folder it did not make is still there' { $script:code -eq 1 -and (Listing $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+  Write-Output "the lock's release removes only its own owner file"
+  $proj = New-Temp; $st = Join-Path $proj '.makkov-harness'
+  $probe = Join-Path (New-Temp) 'release.ps1'
+  [IO.File]::WriteAllText($probe, @(
+    'param([string]$Lib, [string]$State, [switch]$Foreign)',
+    '. $Lib',
+    '$h = Enter-MhLock $State $State',
+    'if ($Foreign) { [IO.File]::WriteAllText((Join-Path $h.Lock ''owner''), "pid=1`nhost=elsewhere`n") }',
+    'Exit-MhLock $h'
+  ) -join "`n")
+  & $exe -NoProfile -ExecutionPolicy Bypass -File $probe -Lib (Join-Path $repo 'install\lib.ps1') -State $st -Foreign | Out-Null
+  Check "another run's owner file stays" { [IO.File]::ReadAllText((Join-Path $st 'lock\owner')) -match 'host=elsewhere' }
+  Remove-Item $st -Recurse -Force
+  & $exe -NoProfile -ExecutionPolicy Bypass -File $probe -Lib (Join-Path $repo 'install\lib.ps1') -State $st | Out-Null
+  Check 'its own owner file, the lock and the folder it made go' { (Entries $proj).Count -eq 0 }
+  Remove-Item $proj, (Split-Path -Parent $probe) -Recurse -Force
+
   # Paths with spaces and with [ ] (read as a wildcard without -LiteralPath).
   foreach ($pname in 'My Project', 'design [v2]') {
     $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent $pname; $env:USERPROFILE = $h

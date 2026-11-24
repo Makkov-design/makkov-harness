@@ -45,6 +45,7 @@ mh_drive_form "$base"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
 if [ ! -f "$manifest" ]; then
+  [ "$dry" = 1 ] || mh_clear_lock_only "$state" "$base"
   echo "No makkov-harness install for $agent found in $base (no $manifest)." >&2
   echo "If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md." >&2
   exit 1
@@ -236,6 +237,8 @@ if [ "$dry" = 0 ] && [ -d "$state" ]; then
   find "$state" -depth -mindepth 2 -type d -name '.mh-tmp-*' -exec rm -rf {} + 2>/dev/null || true
   find "$state" -depth -mindepth 1 -type d -empty -exec rmdir {} \; 2>/dev/null || true
   rmdir "$state" 2>/dev/null || true
+  # The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+  MH_LOCK_STATE="$state"
 fi
 if [ "$dry" = 1 ]; then echo "Dry run done for $agent. Run again without --dry-run to uninstall."
 else echo "makkov-harness removed for $agent. Restart the agent."; fi

@@ -396,47 +396,61 @@ export function moveFile(src, dst) {
   fs.rmSync(src, { force: true });
 }
 
-// One run at a time in a folder: a lock folder, .makkov-harness/lock, that install.sh, install.ps1 and this
-// installer all make and honour. It holds who made it (process id, computer, time). A lock whose process no longer
-// runs on this computer, or that is older than a day, is left from a run that was stopped, and is taken over.
-// Returns a function that removes the lock (and the harness folder, when the run left it empty), or throws Stop.
+// One run at a time in a folder. The lock is the same in install.sh, install.ps1 and this installer, and each clause
+// has a scenario in install/test/:
+//  1. Take: a run holds the lock once it has made .makkov-harness/lock/owner itself, with O_EXCL ('wx'). The folders
+//     on the way are made with mkdir, which alone is not exclusive on every file system (GitHub's Ubuntu runners).
+//  2. Refuse: a run that finds an owner file it does not judge stale stops before any change and removes nothing.
+//  3. Take over: an owner file is stale when its process is gone on this computer, or it is more than a day old. A run
+//     removes one only while it holds .makkov-harness/lock.takeover (made with O_EXCL), after judging it stale again.
+//  4. Release: a run removes the owner file only while it is still its own (the same pid, host and start), then the
+//     lock folder if it is empty, then the harness folder only if it is empty and this run made it, or this run is
+//     an uninstall that has just removed the last thing the harness kept there (release(true)).
+//  5. Nothing installed: an uninstall that finds no manifest and a harness folder holding only a lock and manifests
+//     being written (install-*.txt.new) takes that lock as in 1 or 3 (never a live one), removes those, and by 4 the
+//     folder (clearLockOnly): a first install killed after it took the lock and before its first change leaves that.
+// Returns release(dropState), or a no-op when the folder cannot be written (pre-flight then says why); throws Stop
+// when another run holds the lock.
 export function lock(state, base) {
   const l = join(state, 'lock');
+  let made = false;
   for (let i = 0; i < 6; i++) {
     // The harness folder, made again if another run just took it away; another run may make it at the same
-    // moment, which is not "cannot write here". A folder that cannot be made: no lock, and pre-flight says why.
-    if (!isDir(state)) { try { fs.mkdirSync(state); } catch (e) { if (!isDir(state)) return () => {}; } }
+    // moment, which is not "cannot write here".
+    if (!isDir(state)) { try { fs.mkdirSync(state); made = true; } catch (e) { if (!isDir(state)) return () => {}; } }
+    if (lstat(l)?.isSymbolicLink()) throw new Stop(`${l} is a link, not the harness's lock folder. Delete it, then run this again.\nNothing was changed.`);
     try { fs.mkdirSync(l); } catch (e) {
       // Gone between the two steps (the run that held it finished, or took the harness folder away): try again,
       // never go on without it.
       if (!isDir(l)) { if (e.code === 'EEXIST' || e.code === 'ENOENT') continue; return () => {}; }   // cannot write: pre-flight says why
     }
+    const me = `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`;
     try {
-      // The lock is the owner file, made only if it is not there ('wx': O_EXCL). A folder made by mkdir is not
-      // enough: on some file systems two processes that make the same folder at the same moment both succeed
-      // (seen on GitHub's Ubuntu runners), a file opened with O_EXCL never.
-      fs.writeFileSync(join(l, 'owner'), `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`, { flag: 'wx' });
-      let done = false;
-      const release = () => {
-        if (done) return; done = true;
-        // Only this run's owner file, then the folder if it is empty: a run that has just made its own owner file there keeps its lock.
-        try { fs.rmSync(join(l, 'owner'), { force: true }); fs.rmdirSync(l); } catch { /* */ }
-        try { if (fs.readdirSync(state).length === 0) fs.rmdirSync(state); } catch { /* */ }
-      };
-      process.once('exit', release);   // also when the run stops at a test point (process.exit)
-      return release;
+      fs.writeFileSync(join(l, 'owner'), me, { flag: 'wx' });
     } catch (e) {
       if (!isDir(l)) continue;
-      if (e.code !== 'EEXIST') return () => {};   // cannot write: pre-flight says why
+      if (e.code !== 'EEXIST') {
+        if (!lstat(join(l, 'owner'))) throw new Stop(`${l} cannot be written, so the lock cannot be taken. Nothing was changed.`);
+        continue;
+      }
+      const o = lockOwner(l);
+      if (o.stale) { if (!takeStale(l)) sleep(1000); continue; }
+      throw new Stop(`Another makkov-harness run is working in ${base} (process ${o.pid || '?'}${o.host ? ' on ' + o.host : ''}, started ${o.when || 'just now'}). Let it finish, then run this again. If none is running, delete the folder ${l} and run this again.\nNothing was changed.`);
     }
-    const o = lockOwner(l);
-    if (o.stale) { if (!takeStale(l)) sleep(1000); continue; }
-    throw new Stop(`Another makkov-harness run is working in ${base} (process ${o.pid || '?'}${o.host ? ' on ' + o.host : ''}, started ${o.when || 'just now'}). Let it finish, then run this again. If none is running, delete the folder ${l} and run this again.\nNothing was changed.`);
+    let done = false;
+    const release = (dropState = false) => {
+      if (done) return; done = true;
+      try { if (fs.readFileSync(join(l, 'owner'), 'utf8') === me) fs.rmSync(join(l, 'owner'), { force: true }); } catch { /* */ }
+      try { fs.rmdirSync(l); } catch { /* */ }
+      if (made || dropState) try { if (fs.readdirSync(state).length === 0) fs.rmdirSync(state); } catch { /* */ }
+    };
+    process.once('exit', () => release());   // also when the run stops at a test point (process.exit)
+    return release;
   }
   throw new Stop(`Could not take the lock ${l}. Delete that folder if no makkov-harness run is going on, then run this again.\nNothing was changed.`);
 }
-// Removes a lock judged stale, holding lock.takeover while it looks again: without it, a run that judged the lock
-// of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+// Clause 3: removes a lock judged stale, holding lock.takeover while it looks again; without it, a run that judged
+// the lock of a run that just finished could remove the lock a third run has just made, and two runs would go on.
 function takeStale(l) {
   const t = l + '.takeover';
   try { fs.writeFileSync(t, '', { flag: 'wx' }); } catch {
@@ -444,8 +458,25 @@ function takeStale(l) {
     const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmSync(t, { force: true }); } catch { /* */ }
     return false;
   }
-  try { const o = lockOwner(l); if (o.stale) { process.stderr.write(`Taking over the lock a stopped run left (${o.pid ? 'process ' + o.pid : 'no owner'}).\n`); try { fs.rmSync(join(l, 'owner'), { force: true }); fs.rmdirSync(l); } catch { /* */ } } } finally { try { fs.rmSync(t, { force: true }); } catch { /* */ } }
+  try {
+    const o = lockOwner(l);
+    if (o.stale) {
+      process.stderr.write(`Taking over the lock a stopped run left (${o.pid ? 'process ' + o.pid : 'no owner'}).\n`);
+      try { fs.rmSync(join(l, 'owner'), { force: true }); fs.rmdirSync(l); } catch { /* */ }
+    }
+  } finally { try { fs.rmSync(t, { force: true }); } catch { /* */ } }
   return true;
+}
+// Clause 5, for an uninstall that found no manifest: a harness folder that holds only a lock (and the takeover file)
+// and manifests being written is the leftover of a first install stopped before its first change.
+export function clearLockOnly(state, base) {
+  if (!isDir(join(state, 'lock')) || lstat(join(state, 'lock')).isSymbolicLink()) return;
+  const leftover = (n) => n === 'lock' || n === 'lock.takeover' || /^install-.*\.txt\.new$/.test(n);
+  if (!fs.readdirSync(state).every(leftover)) return;
+  let release;
+  try { release = lock(state, base); } catch (e) { if (e instanceof Stop) return; throw e; }   // a live lock: left as it is
+  for (const n of fs.readdirSync(state)) if (/^install-.*\.txt\.new$/.test(n)) fs.rmSync(join(state, n), { force: true });
+  release(true);
 }
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 // What a lock says about its run, and whether that run is over.
