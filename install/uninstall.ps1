@@ -1,13 +1,19 @@
 <#
   Removes what install.ps1 put in place for one agent, using the manifest it wrote
   (.makkov-harness\install-<agent>.txt in your home or project folder).
-  - Skill folders: removed only if they are still identical to the copy in this repository; a folder you
+  - Skill folders: removed only if they are still identical to a copy the harness put there; a folder you
     changed is moved to .makkov-harness\backups\<date>\removed\ instead. Folders another installed agent
     still uses from the same place are left alone.
   - Skills of yours that the install moved aside are put back.
   - The routing block, and the personal layer harness-onboarding wrote, are taken out of the instructions
-    file; a Cursor rule (and its personal rule) is deleted and your earlier rule, if there was one, is
-    restored. A file the install created and that is now empty is deleted.
+    file, unless another installed agent still reads that file. A file you had before the install is put back
+    byte for byte when you have not changed it since; otherwise the copy of it as it was stays in
+    .makkov-harness\backups\original\. A Cursor rule (and its personal rule) is deleted and your earlier rule,
+    if there was one, is restored. A file the install created and that is now empty is deleted, and so are the
+    folders the install created, once empty. A symlink is never deleted.
+  - The manifest names absolute paths; if the home or project folder was moved or renamed since the install,
+    they are read relative to the folder you pass now. A manifest that names paths the installer would not
+    use is refused, and nothing is changed.
 
   Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
 #>
@@ -19,115 +25,224 @@ param(
   [switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib.ps1')
 $repo = Split-Path -Parent $PSScriptRoot
-if ($Project) { $Project = (Resolve-Path $Project).Path }
-$base = if ($Project) { $Project } else { $env:USERPROFILE }
+$home_ = $env:USERPROFILE
+if ($Project) { $Project = (Resolve-Path -LiteralPath $Project).ProviderPath }
+if ($Project -and (Test-MhSamePath $Project ((Resolve-Path -LiteralPath $home_).ProviderPath))) {
+  [Console]::Error.WriteLine('The project path is your home folder. For a user-level install, leave -Project out.'); exit 2
+}
+$base = if ($Project) { $Project } else { $home_ }
 $state = Join-Path $base '.makkov-harness'
 $manifest = Join-Path $state "install-$Agent.txt"
-if (-not (Test-Path $manifest)) {
-  Write-Error ("No makkov-harness install for $Agent found in $base (no $manifest). " +
-    'If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.')
+if (-not (Test-Path -LiteralPath $manifest)) {
+  if (-not $DryRun) { Clear-MhLockOnly $state $base }
+  [Console]::Error.WriteLine("No makkov-harness install for $Agent found in $base (no $manifest).")
+  [Console]::Error.WriteLine('If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.')
+  exit 1
 }
+function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
+# Test hook, inert in normal use (see install.ps1): u-skills = after the skills, u-rules = after the file.
+function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
 
-$lines = Get-Content $manifest -Encoding UTF8
-function Get-Value([string]$Key) { (($lines | Where-Object { $_ -like "$Key=*" } | Select-Object -First 1) -replace "^$Key=", '') }
-$skillsDir = Get-Value 'skills_dir'; $rules = Get-Value 'rules'
-$rulesExisted = Get-Value 'rules_existed'; $rulesBackup = Get-Value 'rules_backup'
+# One run at a time in this folder (a dry run changes nothing, so it takes no lock). The lock is let go in the finally
+# at the end of this file, whichever way the run ends.
+$mhLock = if ($DryRun) { $null } else { Enter-MhLock $state $base }
+try {
+
+# 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
+#    files to change must be changeable.
+foreach ($m in @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File)) {
+  $why = Test-MhValidManifest $m.FullName $base $Project $home_
+  if ($why) { Stop-Mh "$($m.FullName) does not look like a manifest this installer wrote: $why. Move it out of $state and run this again." }
+}
+$paths = Get-MhPaths $Agent $Project $home_
+$skillsDir = $paths.Skills; $rules = $paths.Rules
+$lines = Read-MhManifest $manifest
+$ob = Get-MhOldBase $lines
+$rulesExisted = Get-MhRaw $lines 'rules_existed'; $rulesBackup = Get-MhPath $lines 'rules_backup' $base
+if ($ob -and $ob -ne $base) { Write-Output "Installed in $ob, which is now ${base}: reading the install from here." }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-# The routing block or the personal layer harness-onboarding wrote: each ends with its own end marker.
-$pattern = '(?s)<!-- makkov-harness:(?<p>(?:personal:)?)start -->.*?<!-- makkov-harness:\k<p>end -->'
+
+# Other installs in the same folder that read the same skills folder or the same instructions file.
+# (Compared by file name, all in the same folder: Get-ChildItem's FullName can spell an 8.3 short name out in full.)
+function Get-Others { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File | Where-Object { $_.Name -ne (Split-Path -Leaf $manifest) }) }
+function Test-SameSkills([string[]]$O) { Test-MhSamePath (Get-MhPath $O 'skills_dir' $base) $skillsDir }
+$rulesUsers = @()
+foreach ($m in Get-Others) {
+  $o = Read-MhManifest $m.FullName
+  if (Test-MhSamePath (Get-MhPath $o 'rules' $base) $rules) { $rulesUsers += (Get-MhRaw $o 'agent') }
+}
+$rulesIsFile = [IO.File]::Exists($rules) -and -not [IO.Directory]::Exists($rules)
+$dangling = Test-MhDangling $rules
+$editRules = $false
+if (-not $rulesUsers.Count -and $rulesIsFile -and -not $dangling) {
+  if ($Agent -eq 'cursor') { $editRules = $true }
+  else { $t = Read-MhText $rules; if ($t.Contains($MhStart) -or $t.Contains($MhPStart)) { $editRules = $true } }
+}
+if ($editRules) {
+  $why = Test-MhWritableFile $rules; if ($why) { Stop-Mh "$why." }
+  if ($Agent -ne 'cursor') {
+    $why = Test-MhMarkers $rules; if ($why) { Stop-MhMarkers $rules $why; exit 1 }
+    if (Test-MhWideText $rules) { Stop-Mh "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again." }
+  }
+}
 if ($DryRun) { Write-Output 'Dry run: nothing will be changed.' }
 
-function Get-TreeFingerprint([string]$Dir) {
-  $root = (Resolve-Path $Dir).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
-  (Get-ChildItem $root -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
-    $_.FullName.Substring($root.Length) + ':' + (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-  }) -join "`n"
-}
-function Test-Shared([string]$Name) {
-  foreach ($m in Get-ChildItem $state -Filter 'install-*.txt') {
-    if ($m.FullName -eq $manifest) { continue }
-    $o = Get-Content $m.FullName -Encoding UTF8
-    if ((($o | Where-Object { $_ -like 'skills_dir=*' } | Select-Object -First 1) -replace '^skills_dir=', '') -eq $skillsDir -and
-        ($o | Where-Object { $_ -eq "skill=$Name" -or $_ -like "skill=$Name *" })) { return $true }
-  }
-  return $false
-}
-function Get-TreeId([string]$Dir) {
-  $bytes = [Text.Encoding]::UTF8.GetBytes((Get-TreeFingerprint $Dir))
-  $sha = [Security.Cryptography.SHA256]::Create()
-  (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
-}
-
-# 1. Skills. A folder still matching the fingerprint the install recorded is ours and is removed; one that
-# changed since is moved aside. Installs from before 0.5.0 recorded no fingerprint: compare with this copy.
+# 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest
+# or another agent's) or this repository's copy; one that changed since is moved aside.
 if ($skillsDir) {
-  foreach ($entry in ($lines | Where-Object { $_ -like 'skill=*' } | ForEach-Object { $_ -replace '^skill=', '' })) {
-    $name, $id = $entry -split ' ', 2
+  $names = @($lines | Where-Object { $_.StartsWith('skill=') } | ForEach-Object { ($_.Substring(6) -split ' ')[0] } | Select-Object -Unique)
+  foreach ($name in $names) {
     $dst = Join-Path $skillsDir $name
-    if (-not (Test-Path $dst)) { continue }
-    if (Test-Shared $name) { Write-Output "  keep $dst (another installed agent uses it)"; continue }
-    $ours = Join-Path (Join-Path $repo 'skills') $name
-    if (($id -and (Get-TreeId $dst) -eq $id) -or
-        (-not $id -and (Test-Path $ours) -and ((Get-TreeFingerprint $ours) -eq (Get-TreeFingerprint $dst)))) {
-      Write-Output "  remove $dst"; if (-not $DryRun) { Remove-Item $dst -Recurse -Force }
+    if (-not (Test-Path -LiteralPath $dst)) { continue }
+    $shared = @()
+    foreach ($m in Get-Others) {
+      $o = Read-MhManifest $m.FullName
+      if ((Test-SameSkills $o) -and ($o | Where-Object { $_ -eq "skill=$name" -or $_.StartsWith("skill=$name ") })) { $shared += $m }
+    }
+    if ($shared.Count) {
+      Write-Output "  keep $dst (another installed agent uses it)"
+      # Hand on the fingerprints recorded here, so the last uninstall still knows this copy is the harness's.
+      foreach ($m in $shared) {
+        $o = Read-MhManifest $m.FullName
+        foreach ($l in @($lines | Where-Object { $_ -cmatch "^skill=$([regex]::Escape($name)) [0-9a-f]+$" })) {
+          if ($o -notcontains $l -and -not $DryRun) { [IO.File]::AppendAllText($m.FullName, "$l`r`n", $MhUtf8) }
+        }
+      }
+      continue
+    }
+    $ids = Get-MhTreeIds $dst
+    $ours = [bool](@($ids | Where-Object { $lines -contains "skill=$name $_" }).Count)
+    $mine = Join-Path (Join-Path $repo 'skills') $name
+    if (-not $ours -and (Test-Path -LiteralPath $mine)) { $ours = $ids -contains (Get-MhTreeId $mine) }
+    if (-not $ours) {
+      foreach ($m in Get-Others) {
+        $o = Read-MhManifest $m.FullName
+        if ((Test-SameSkills $o) -and @($ids | Where-Object { $o -contains "skill=$name $_" }).Count) { $ours = $true }
+      }
+    }
+    if ($ours) {
+      Write-Output "  remove $dst"; if (-not $DryRun) { Remove-MhSkill $dst }
     } else {
-      $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') $stamp) 'removed') $name
+      $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed') $name
       Write-Output "  move $dst to $to (you changed it)"
-      if (-not $DryRun) { New-Item -ItemType Directory -Force (Split-Path -Parent $to) | Out-Null; Move-Item $dst $to }
+      if (-not $DryRun) { New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null; Move-MhDir $dst $to }
     }
   }
   # 2. Put back the skills the install moved aside. While another agent still uses this skills folder,
   #    hand the record of those backups on to its manifest, so its uninstall restores them.
-  $myBackups = @($lines | Where-Object { $_ -like 'backup=*' })
-  foreach ($m in Get-ChildItem $state -Filter 'install-*.txt') {
-    if ($m.FullName -eq $manifest) { continue }
-    $o = @(Get-Content $m.FullName -Encoding UTF8)
-    if ((($o | Where-Object { $_ -like 'skills_dir=*' } | Select-Object -First 1) -replace '^skills_dir=', '') -ne $skillsDir) { continue }
-    foreach ($line in $myBackups) {
-      if ($o -notcontains $line) {
+  $myBackups = @($lines | Where-Object { $_.StartsWith('backup=') } | ForEach-Object { Get-MhRebased $_.Substring(7) $ob $base })
+  foreach ($m in Get-Others) {
+    $o = Read-MhManifest $m.FullName
+    if (-not (Test-SameSkills $o)) { continue }
+    foreach ($b in $myBackups) {
+      if ($o -notcontains "backup=$b") {
         Write-Output "  hand the backup record on to $($m.Name)"
-        if (-not $DryRun) { Add-Content $m.FullName $line -Encoding UTF8 }
+        if (-not $DryRun) { [IO.File]::AppendAllText($m.FullName, "backup=$b`r`n", $MhUtf8) }
       }
     }
   }
-  foreach ($b in ($lines | Where-Object { $_ -like 'backup=*' } | ForEach-Object { $_ -replace '^backup=', '' })) {
-    if (-not (Test-Path $b)) { continue }
-    foreach ($d in Get-ChildItem $b -Directory) {
+  foreach ($b in $myBackups) {
+    if (-not (Test-Path -LiteralPath $b)) { continue }
+    foreach ($d in @(Get-ChildItem -LiteralPath $b -Directory)) {
       $dst = Join-Path $skillsDir $d.Name
-      if (Test-Path $dst) { Write-Output "  leave your earlier $($d.Name) in $b ($dst exists)" }
-      else { Write-Output "  restore your $($d.Name) to $dst"; if (-not $DryRun) { Move-Item $d.FullName $dst } }
+      if (Test-Path -LiteralPath $dst) { Write-Output "  leave your earlier $($d.Name) in $b ($dst exists)" }
+      else { Write-Output "  restore your $($d.Name) to $dst"; if (-not $DryRun) { Move-MhDir $d.FullName $dst } }
     }
   }
+  # Copies an interrupted install left half made under a temporary name are the harness's own.
+  if (Test-Path -LiteralPath $skillsDir -PathType Container) {
+    foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) {
+      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-MhTree $t.FullName }
+    }
+  }
+  # The skills are done: a run after an interruption from here on does not take them up again.
+  if (-not $DryRun) {
+    $lines = @($lines | Where-Object { -not $_.StartsWith('skill=') -and -not $_.StartsWith('backup=') })
+    [IO.File]::WriteAllLines("$manifest.new", [string[]]$lines, $MhUtf8); Move-Item -LiteralPath "$manifest.new" -Destination $manifest -Force
+  }
 }
+Test-Checkpoint 'u-skills'
 
 # 3. Routing, and the personal layer harness-onboarding wrote next to it.
+$kept = Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed'
 $personalRule = Join-Path (Split-Path -Parent $rules) 'makkov-harness-personal.mdc'
-if ($Agent -eq 'cursor' -and (Test-Path $personalRule)) {
-  Write-Output "  delete $personalRule (a copy stays as $personalRule.bak-$stamp)"
-  if (-not $DryRun) { Copy-Item $personalRule "$personalRule.bak-$stamp"; Remove-Item $personalRule -Force }
+if ($Agent -eq 'cursor' -and (Test-Path -LiteralPath $personalRule)) {
+  Write-Output "  delete $personalRule (a copy stays in $kept)"
+  if (-not $DryRun) { New-Item -ItemType Directory -Force -Path $kept | Out-Null; Move-Item -LiteralPath $personalRule -Destination (Join-Path $kept 'makkov-harness-personal.mdc') }
 }
-if (Test-Path $rules) {
-  if ($Agent -eq 'cursor') {
-    Write-Output "  delete $rules"; if (-not $DryRun) { Remove-Item $rules -Force }
-    if ($rulesBackup -and (Test-Path $rulesBackup)) {
-      Write-Output "  restore your earlier rule from $rulesBackup"; if (-not $DryRun) { Copy-Item $rulesBackup $rules }
+# The copy of the file from before the first install, if this uninstall is the one to use it (a copy an
+# install from 0.5.0 or earlier left next to the file, *.bak-<date>, is used but left where it is).
+$oursBackup = $rulesBackup -and (Test-MhUnder $rulesBackup (Join-Path (Join-Path $state 'backups') 'original'))
+$haveBackup = $rulesBackup -and [IO.File]::Exists($rulesBackup)
+if ($rulesUsers.Count) {
+  Write-Output ("  keep the routing block in $rules (also installed there for: " + ($rulesUsers -join ', ') + ")")
+} elseif ($dangling) {
+  Write-Output "  leave $rules alone (a symlink to a file that does not exist)"
+} elseif ($editRules -and $Agent -eq 'cursor') {
+  if ($haveBackup) { Write-Output "  restore your earlier rule from $rulesBackup"; if (-not $DryRun) { Copy-MhBytes $rulesBackup $rules } }
+  elseif (Test-MhLink $rules) { Write-Output "  empty $rules (a symlink, so it is left in place)"; if (-not $DryRun) { Write-MhText $rules '' } }
+  else { Write-Output "  delete $rules"; if (-not $DryRun) { Remove-Item -LiteralPath $rules -Force } }
+} elseif ($editRules) {
+  Write-Output "  take the routing block and the personal layer out of $rules"
+  if (-not $DryRun) {
+    $layer = Get-MhPersonalLayer $rules
+    if ($layer) {
+      New-Item -ItemType Directory -Force -Path $kept | Out-Null; Write-MhText (Join-Path $kept 'personal-layer.md') $layer
+      Write-Output "  your personal layer is kept in $(Join-Path $kept 'personal-layer.md')"
     }
-  } else {
-    $old = [IO.File]::ReadAllText($rules)
-    if ($old -match $pattern) {
-      Write-Output "  take the routing block and the personal layer out of $rules"
-      if (-not $DryRun) {
-        Copy-Item $rules "$rules.bak-$stamp"
-        $new = [regex]::Replace($old, "(\r?\n)?$pattern(\r?\n)?", "`n")
-        if ($rulesExisted -ne '1' -and -not $new.Trim()) {
-          Remove-Item $rules, "$rules.bak-$stamp" -Force
-          Write-Output "  delete $rules (the install created it and it is now empty)"
-        } else { [IO.File]::WriteAllText($rules, $new, (New-Object System.Text.UTF8Encoding $false)) }
-      }
-    }
+    $new = Get-MhRemovedBlocks $rules
+    $tmp = Join-Path $state "removed-$stamp.tmp"; Write-MhText $tmp $new
+    # Unchanged since the install apart from the harness's blocks: put back byte for byte.
+    if ($haveBackup -and (Test-MhSameText $tmp $rulesBackup)) { Copy-MhBytes $rulesBackup $tmp }
+    if ($rulesExisted -ne '1' -and -not (Read-MhText $tmp).Trim() -and -not (Test-MhLink $rules)) {
+      Remove-Item -LiteralPath $rules -Force
+      Write-Output "  delete $rules (the install created it and it is now empty)"
+    } else { Copy-MhBytes $tmp $rules }
+    Remove-Item -LiteralPath $tmp -Force
   }
 }
+Test-Checkpoint 'u-rules'
+if (-not $DryRun -and [IO.File]::Exists("$rules.mh-tmp")) { Remove-Item -LiteralPath "$rules.mh-tmp" -Force }
+# The copy of the file as it was goes once the file is back as it was; otherwise it stays, and you are told.
+if (-not $rulesUsers.Count -and $oursBackup -and $haveBackup) {
+  if ([IO.File]::Exists($rules) -and ([Convert]::ToBase64String((Read-MhBytes $rules)) -ceq [Convert]::ToBase64String((Read-MhBytes $rulesBackup)))) {
+    if (-not $DryRun) { Remove-Item -LiteralPath $rulesBackup -Force }
+  } elseif (-not $DryRun) { Write-Output "  your $rules as it was before the first install is kept in $rulesBackup (it differs from the file now)" }
+}
 
-if (-not $DryRun) { Remove-Item $manifest -Force; Write-Output "makkov-harness removed for $Agent. Restart the agent." }
+# 4. The manifest, then the folders the install created, once empty (deepest first). A folder still in use is
+# handed on to another install in the same place, so the last uninstall takes it away.
+$createdDirs = @($lines | Where-Object { $_.StartsWith('created_dir=') } | ForEach-Object { $_.Substring(12) } | Sort-Object { $_.Length } -Descending)
+if (-not $DryRun) { Remove-Item -LiteralPath $manifest -Force }
+$left = @()
+foreach ($rel in $createdDirs) {
+  $d = Join-Path $base ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
+  if (-not (Test-Path -LiteralPath $d -PathType Container)) { continue }
+  if (-not (Test-MhLink $d) -and @(Get-ChildItem -LiteralPath $d -Force).Count -eq 0) { Write-Output "  remove the empty folder $d"; if (-not $DryRun) { Remove-Item -LiteralPath $d -Force } }
+  else { $left += "created_dir=$rel" }
+}
+if ($left.Count -and -not $DryRun) {
+  foreach ($m in Get-Others) {
+    $o = Read-MhManifest $m.FullName
+    foreach ($line in $left) { if ($o -notcontains $line) { [IO.File]::AppendAllText($m.FullName, "$line`r`n", $MhUtf8) } }
+  }
+}
+if (-not $DryRun -and (Test-Path -LiteralPath $state)) {
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'removed-*.tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  foreach ($t in @(Get-ChildItem -LiteralPath $state -Recurse -Force -Filter '*.mh-tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  # A copy an interrupted move left (.mh-tmp-move-<name>, across volumes).
+  foreach ($t in @(Get-ChildItem -LiteralPath (Join-Path $state 'backups') -Recurse -Force -Directory -Filter '.mh-tmp-*' -ErrorAction SilentlyContinue)) { Remove-MhTree $t.FullName }
+  foreach ($d in @(Get-ChildItem -LiteralPath $state -Recurse -Directory -Force | Sort-Object { $_.FullName.Length } -Descending)) {
+    if (@(Get-ChildItem -LiteralPath $d.FullName -Force).Count -eq 0) { Remove-Item -LiteralPath $d.FullName -Force }
+  }
+  if (@(Get-ChildItem -LiteralPath $state -Force).Count -eq 0) { Remove-Item -LiteralPath $state -Force }
+  # The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+  if ($mhLock) { $mhLock.DropState = $true }
+}
+if (-not $DryRun) { Write-Output "makkov-harness removed for $Agent. Restart the agent." }
 else { Write-Output "Dry run done for $Agent. Run again without -DryRun to uninstall." }
+
+} finally { Exit-MhLock $mhLock }
