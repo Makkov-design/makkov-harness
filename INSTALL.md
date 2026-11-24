@@ -100,7 +100,7 @@ What it does, per tool (from each tool's documentation, checked 2026-11-04):
 
 ## Step 5. Check and report
 
-1. List the skill folders now present in the target folder. With Node, `node ~/makkov-harness/bin/makkov-harness.mjs doctor [--project <path>]` reports what is installed where (add `--json` for a machine-readable form); it changes nothing, and exits with 1 when something needs attention.
+1. List the skill folders now present in the target folder. With Node, `node ~/makkov-harness/bin/makkov-harness.mjs doctor [--project <path>]` reports what is installed where (add `--json` for a machine-readable form); it changes nothing, and exits with 1 when something needs attention and 3 when it could not read a folder or finish.
 2. Show the marked block in the instructions file (between `<!-- makkov-harness:start -->` and `<!-- makkov-harness:end -->`).
 3. Tell the user in 3-4 lines: what was installed and where, that the tool may need a restart, and that `harness-onboarding` will personalize it ("run the harness-onboarding skill"). If they design for the web, mention they can now say "score localhost:3000" (or any URL) for a Design Score.
 4. Mention companion plugins from README.md that exist for their tool, without installing them.

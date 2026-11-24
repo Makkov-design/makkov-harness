@@ -82,6 +82,20 @@ happen within 2 days, or the setting expires and has to be made again.
 No npm token is stored in the repository or in its settings: the publish job proves who it is to npm with GitHub's
 OIDC token, and npm attaches a provenance statement to the version.
 
+## The rest of a release
+
+The npm steps above are one part. For every version, after the release pull request is merged:
+
+1. Tag the merged commit `v<version>` and push the tag (the CHANGELOG links compare tags, and the release workflow
+   starts on it). Then create a GitHub Release from that tag, with the version's CHANGELOG section as its text.
+2. Claude users get the new plugin version only after a Sync: claude.ai, Customize, Plugins, Manage marketplaces,
+   `makkov-harness`, ⋯, Sync, then quit and reopen the desktop app (README.md, "Getting updates"). Do it once on
+   your own account and check that the plugin shows the new version.
+3. Companion pins are not part of a release. A new companion version, Frame Lens included, gets its own pull
+   request after its tag exists upstream: the `third-party-install-guard` review (Frame Lens is the author's own
+   project and is pinned without one), then `sha` and `ref` in `.claude-plugin/marketplace.json` and its rows in
+   `SECURITY.md` and `docs/security-data.js` (CONTRIBUTING.md, "Updating pins").
+
 ## After the first version is live
 
 Until the package is on npm, the documentation describes only the clone (`install/install.sh`,
@@ -94,4 +108,4 @@ answers, add these sentences, in one pull request:
 - INSTALL.md, the section on the Node installer: "The same installer is on npm: `npx makkov-harness install
   --agent <agent> [--project <path>]`, then `npx makkov-harness doctor` to check. Use the same `--agent` and
   `--project` for update and uninstall."
-- COMPATIBILITY.md, the installer row: "Node installer: from the clone, or `npx makkov-harness` (Node.js 22+)."
+- COMPATIBILITY.md, the "Install route" row: "Node installer: from the clone, or `npx makkov-harness` (Node.js 22+)."
