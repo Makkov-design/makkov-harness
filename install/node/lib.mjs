@@ -437,7 +437,7 @@ function takeStale(l) {
     const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmdirSync(t); } catch { /* */ }
     return false;
   }
-  try { if (lockOwner(l).stale) removeTree(l); } finally { try { fs.rmdirSync(t); } catch { /* */ } }
+  try { const o = lockOwner(l); if (o.stale) { process.stderr.write(`Taking over the lock a stopped run left (${o.pid ? 'process ' + o.pid : 'no owner'}).\n`); removeTree(l); } } finally { try { fs.rmdirSync(t); } catch { /* */ } }
   return true;
 }
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

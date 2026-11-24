@@ -90,7 +90,10 @@ mh_take_stale() {
     [ -z "$(find "$t" -prune -mmin +1 2>/dev/null)" ] || rmdir "$t" 2>/dev/null || true
     return 1
   fi
-  if mh_lock_stale "$1"; then rm -rf "${1:?}"; fi
+  if mh_lock_stale "$1"; then
+    echo "Taking over the lock a stopped run left ($(sed -n 's/^pid=//p' "$1/owner" 2>/dev/null | head -n 1 | sed 's/^$/no owner/;s/^[0-9]/process &/'))." >&2
+    rm -rf "${1:?}"
+  fi
   rmdir "$t" 2>/dev/null || true
 }
 # Removes the lock this run took, and the harness folder when the run left it empty.
@@ -135,7 +138,7 @@ mh_check_markers() {
   [ -f "$1" ] || return 0
   local why
   # (awk still runs END after exit: `done` keeps it to the first problem, as the other installers report.)
-  why="$(awk '
+  why="$(awk -v BINMODE=3 '
     /<!-- makkov-harness:start -->/          { if (open != "") { print "line " NR ": a routing block starts inside another marked block"; done = 1; exit }
                                                open = "main"; at = NR; mains++
                                                if (mains > 1) { print "line " NR ": a second routing block"; done = 1; exit } next }
@@ -165,10 +168,12 @@ mh_write_through() {
   cat > "$t" && mv -f "$t" "$1"
 }
 
+# awk reads and writes the user's file with BINMODE=3: gawk in Git Bash otherwise drops the \r of CRLF lines (the
+# variable means nothing to other awks).
 # The file with the routing block replaced by $MH_BLOCK (exported by the caller). Lines outside the block
 # are kept as they are.
 mh_replace_block() {
-  BLK="$MH_BLOCK" awk '
+  BLK="$MH_BLOCK" awk -v BINMODE=3 '
     /<!-- makkov-harness:start -->/ { print ENVIRON["BLK"]; skip = 1; next }
     /<!-- makkov-harness:end -->/   { skip = 0; next }
     !skip { print }' "$1"
@@ -177,7 +182,7 @@ mh_replace_block() {
 # The file with the routing block and the personal layer taken out, each with the one blank line before it that
 # the installer (or harness-onboarding) put there when it appended the block. Every other line stays as it is.
 mh_remove_blocks() {
-  awk '
+  awk -v BINMODE=3 '
     /<!-- makkov-harness:(personal:)?start -->/ { if (n > 0 && line[n] ~ /^[ \t\r]*$/) n--; skip = 1; next }
     /<!-- makkov-harness:(personal:)?end -->/   { skip = 0; next }
     !skip { line[++n] = $0 }
@@ -186,7 +191,7 @@ mh_remove_blocks() {
 
 # The personal layer of a file, markers included (empty when there is none).
 mh_personal_layer() {
-  awk '/<!-- makkov-harness:personal:start -->/ { on = 1 } on { print } /<!-- makkov-harness:personal:end -->/ { on = 0 }' "$1"
+  awk -v BINMODE=3 '/<!-- makkov-harness:personal:start -->/ { on = 1 } on { print } /<!-- makkov-harness:personal:end -->/ { on = 0 }' "$1"
 }
 
 # A path relative to the base, for created_dir= lines (always with / separators).

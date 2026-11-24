@@ -31,6 +31,8 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }
 node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
 # PowerShell keeps caches in its own $HOME (.cache, .local): a folder of its own, outside the folders compared, so
 # they are not taken for something an installer left. install.ps1 reads USERPROFILE, the test's home.
+# What this system's awk does with a CRLF line, with and without BINMODE (Git Bash's gawk drops the \r without it).
+echo "awk here: $(printf 'a\r\n' | awk '{ print }' | od -An -c | tr -s ' ') / with BINMODE=3: $(printf 'a\r\n' | awk -v BINMODE=3 '{ print }' | od -An -c | tr -s ' ')"
 ps_home="$(mktemp -d)"; trap 'rm -rf "$ps_home"' EXIT
 # The command line of one run: <impl> install|uninstall <agent> [project] [--scope design]
 run_cmd() {
@@ -121,7 +123,7 @@ ${out:-}
 "
     # The instructions file's bytes outside the harness's block after each step, so a failure shows which step
     # changed them.
-    log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)$([ -f "$rules_dir/AGENTS.md" ] && printf ' AGENTS.md outside the block: %s' "$(grep -v -e 'makkov-harness' "$rules_dir/AGENTS.md" | head -c 60 | od -An -c | tr -s ' ' | tr -d '\n')" || true)
+    log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)$([ -f "$rules_dir/AGENTS.md" ] && printf ' AGENTS.md starts: %s' "$(head -c 60 "$rules_dir/AGENTS.md" | od -An -c | tr -s ' ' | tr -d '\n')" || true)
 "
     [ "$code" = 0 ] || fail "step $step: $op $a failed: $out"
   done

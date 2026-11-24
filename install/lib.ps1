@@ -112,7 +112,7 @@ function Enter-MhTakeover([string]$Lock) {
     try { if (([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.Directory]::Delete($t) } } catch { }
     return $false
   }
-  try { if ((Get-MhLockOwner $Lock).Stale) { Remove-MhTree $Lock } } finally { try { [IO.Directory]::Delete($t) } catch { } }
+  try { $o = Get-MhLockOwner $Lock; if ($o.Stale) { [Console]::Error.WriteLine("Taking over the lock a stopped run left ($(if ($o.Pid) { 'process ' + $o.Pid } else { 'no owner' }))."); Remove-MhTree $Lock } } finally { try { [IO.Directory]::Delete($t) } catch { } }
   $true
 }
 # Takes the lock, or stops the run when another one holds it. Returns what Exit-MhLock needs ($null: no lock taken,
