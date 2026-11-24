@@ -15,17 +15,19 @@
 #   they are read relative to the folder you pass now. A manifest that names paths the installer would not
 #   use is refused, and nothing is changed.
 #
-# Usage: uninstall.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]
+# Usage: uninstall.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--follow-links]
+#   --follow-links   in a project, follow a link of yours that leads outside it (see install.sh)
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 . "$here/lib.sh"
 
-dry=0
+dry=0 follow=0
 args=()
 for a in "$@"; do
   case "$a" in
     --dry-run) dry=1 ;;
+    --follow-links) follow=1 ;;
     *) args+=("$a") ;;
   esac
 done
@@ -34,7 +36,7 @@ project="${args[1]:-}"
 repo="$(cd "$here/.." && pwd)"
 case "$agent" in
   codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;;
-  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]" >&2; exit 2 ;;
+  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--follow-links]" >&2; exit 2 ;;
 esac
 if [ -n "$project" ]; then project="$(cd "$project" && pwd)"; fi
 if [ -n "$project" ] && { [ "$project" = "$(cd "$HOME" && pwd)" ] || [ "$(cd "$project" && pwd -P)" = "$(cd "$HOME" && pwd -P)" ]; }; then
@@ -47,9 +49,9 @@ manifest="$state/install-$agent.txt"
 stamp="$(date +%Y%m%d-%H%M%S)"
 mh_paths "$agent" "$project"
 skills_dir="$MH_SKILLS" rules="$MH_RULES"
-# Everything under .makkov-harness/ and in the skills folder may have come with the repository (install/lib.sh):
-# no link on the way to anything this run changes there.
-why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$state/backups/$stamp-$agent/removed" "$skills_dir")" ||
+# Everything under .makkov-harness/ may have come with the repository (install/lib.sh): no link on the way to
+# anything this run changes there.
+why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$state/backups/$stamp-$agent/removed")" ||
   { echo "$why." >&2; echo "Nothing was changed." >&2; exit 1; }
 if [ ! -f "$manifest" ]; then
   [ "$dry" = 1 ] || mh_clear_lock_only "$state" "$base"
@@ -97,6 +99,8 @@ if [ "$edit_rules" = 1 ]; then
 fi
 if [ -n "$skills_dir" ] && [ -d "$skills_dir" ]; then why="$(mh_writable_dir "$skills_dir")" || stop "$why."; fi
 why="$(mh_writable_dir "$state")" || stop "$why."
+# In a project, no link that leads outside it (unless --follow-links).
+why="$(mh_check_links "$project" "$follow" "$skills_dir" "$rules")" || stop "$why."
 [ "$dry" = 1 ] && echo "Dry run: nothing will be changed."
 
 # 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest

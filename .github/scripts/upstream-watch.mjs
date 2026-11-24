@@ -157,11 +157,33 @@ export function render({ rows, npmRows, errors }, date = new Date().toISOString(
   return lines.join("\n");
 }
 
-// The open issue this script owns: created by the workflow's bot and carrying LABEL. An issue anyone else opened with the
-// same title is never adopted, so its text can never become the body the workflow edits or the issue it closes.
+// The open issue this script owns: created by the workflow's bot (github-actions[bot], type Bot) with this exact title.
+// One that already carries LABEL comes first; one without it (opened before the label existed) is adopted and labelled.
+// An issue anyone else opened with the same title is never adopted, so its text can never become the body the
+// workflow edits or the issue it closes.
+const hasLabel = (i) => (i.labels || []).some((l) => (typeof l === "string" ? l : l && l.name) === LABEL);
 export function findOwnIssue(issues) {
-  return (issues || []).find((i) => i.title === TITLE && !i.pull_request && i.user && i.user.login === BOT && i.user.type === "Bot"
-    && (i.labels || []).some((l) => (typeof l === "string" ? l : l && l.name) === LABEL)) || null;
+  const own = (issues || []).filter((i) => i.title === TITLE && !i.pull_request && i.user && i.user.login === BOT && i.user.type === "Bot");
+  return own.find(hasLabel) || own[0] || null;
+}
+
+// Creates LABEL if the repository lacks it, finds the issue this script owns (labelling one adopted from before the
+// label), then updates, creates or closes it as decide() says.
+export async function syncIssue(gh, self, result, body) {
+  try { await gh(`/repos/${self}/labels/${LABEL}`); } catch (e) {
+    if (e.status !== 404) throw e;
+    await gh(`/repos/${self}/labels`, { method: "POST", body: JSON.stringify({ name: LABEL, color: "c5def5", description: "Opened by the upstream-watch workflow" }) });
+  }
+  const open = findOwnIssue(await gh(`/repos/${self}/issues?state=open&per_page=100&creator=${encodeURIComponent(BOT)}`));
+  const action = decide(result, open);
+  if (open && !hasLabel(open) && action !== "none") await gh(`/repos/${self}/issues/${open.number}/labels`, { method: "POST", body: JSON.stringify({ labels: [LABEL] }) });
+  if (action === "update") await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ body }) });
+  else if (action === "create") await gh(`/repos/${self}/issues`, { method: "POST", body: JSON.stringify({ title: TITLE, body, labels: [LABEL] }) });
+  else if (action === "close") {
+    await gh(`/repos/${self}/issues/${open.number}/comments`, { method: "POST", body: JSON.stringify({ body: "Everything pinned matches its upstream again. Closing." }) });
+    await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ state: "closed" }) });
+  }
+  return action;
 }
 
 // A GitHub workflow command line: upstream text is escaped so it cannot end the line and start a command of its own.
@@ -193,14 +215,7 @@ async function main() {
 
   if (dry) console.log(decide(result, null) === "none" ? "Everything pinned matches its upstream." : body);
   else {
-    const open = findOwnIssue(await gh(`/repos/${self}/issues?state=open&per_page=100&labels=${LABEL}&creator=${encodeURIComponent(BOT)}`));
-    const action = decide(result, open);
-    if (action === "update") await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ body }) });
-    else if (action === "create") await gh(`/repos/${self}/issues`, { method: "POST", body: JSON.stringify({ title: TITLE, body, labels: [LABEL] }) });
-    else if (action === "close") {
-      await gh(`/repos/${self}/issues/${open.number}/comments`, { method: "POST", body: JSON.stringify({ body: "Everything pinned matches its upstream again. Closing." }) });
-      await gh(`/repos/${self}/issues/${open.number}`, { method: "PATCH", body: JSON.stringify({ state: "closed" }) });
-    }
+    await syncIssue(gh, self, result, body);
   }
   console.log(summary);
   for (const e of result.errors) console.log(errorLine(e));

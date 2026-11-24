@@ -305,6 +305,49 @@ function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
   }
   ''
 }
+# Where a path really is: every symlink or junction on its way followed ('' for a loop of links).
+function Get-MhReal([string]$Path) {
+  $p = [IO.Path]::GetFullPath($Path)
+  $sep = [IO.Path]::DirectorySeparatorChar
+  for ($n = 0; $n -lt 64; $n++) {
+    $root = [IO.Path]::GetPathRoot($p)
+    $rest = @($p.Substring($root.Length) -split '[\\/]' | Where-Object { $_ })
+    $d = $root; $hit = $false
+    for ($i = 0; $i -lt $rest.Count; $i++) {
+      $d = Join-Path $d $rest[$i]
+      if (Test-MhLink $d) {
+        $t = @((Get-Item -LiteralPath $d -Force).Target)[0]
+        if (-not $t) { break }
+        if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $d) $t }
+        $tail = @($rest | Select-Object -Skip ($i + 1))
+        $p = [IO.Path]::GetFullPath($(if ($tail.Count) { Join-Path $t ($tail -join $sep) } else { $t }))
+        $hit = $true; break
+      }
+    }
+    if (-not $hit) { return $p }
+  }
+  ''
+}
+# In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
+# have come with the repository: one that leads outside the project, or an instructions file with more than one hard
+# link (its other name can be anywhere), stops the run unless the person passed -FollowLinks. A user-level install
+# keeps following the person's own links (dotfiles). Returns why, or ''.
+function Test-MhCheckLinks([string]$Project, [bool]$Follow, [string]$Skills, [string]$Rules) {
+  if (-not $Project -or $Follow) { return '' }
+  $rb = Get-MhReal $Project
+  foreach ($p in @($Skills, $Rules)) {
+    if (-not $p) { continue }
+    $r = Get-MhReal $p
+    if (-not $r -or -not ((Test-MhSamePath $r $rb) -or (Test-MhUnder $r $rb))) {
+      return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
+    }
+  }
+  $r = Get-MhReal $Rules
+  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force).LinkType -eq 'HardLink') {
+    return "$Rules has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with -FollowLinks"
+  }
+  ''
+}
 # A folder named by a skill= entry is one the installer may remove or move: a plain skill name and a SKILL.md in it.
 function Test-MhSkillFolder([string]$Name, [string]$Dir) { ($Name -cmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') -and [IO.File]::Exists((Join-Path $Dir 'SKILL.md')) }
 # The fingerprints of a folder with no regular file in it (install.ps1's, install.sh's): any such folder has them, so

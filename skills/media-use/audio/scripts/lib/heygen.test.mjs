@@ -1,11 +1,13 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   billingRefusal,
+  downloadTo,
   heygenAuthHeaders,
   heygenAuthMethod,
   heygenBase,
@@ -233,12 +235,15 @@ test("loadEnvFromDir skips a .env folder and loads the .env file above it", () =
   const root = mkdtempSync(join(tmpdir(), "heygen-env-"));
   const project = join(root, "project");
   mkdirSync(join(project, ".env"), { recursive: true });
-  writeFileSync(join(root, ".env"), "MEDIA_USE_ENV_DIR_TEST=from-parent\n");
+  writeFileSync(join(root, ".env"), "ELEVENLABS_API_KEY=from-parent\n");
+  const saved = process.env.ELEVENLABS_API_KEY;
+  delete process.env.ELEVENLABS_API_KEY;
   try {
     loadEnvFromDir(project);
-    assert.equal(process.env.MEDIA_USE_ENV_DIR_TEST, "from-parent");
+    assert.equal(process.env.ELEVENLABS_API_KEY, "from-parent");
   } finally {
-    delete process.env.MEDIA_USE_ENV_DIR_TEST;
+    if (saved === undefined) delete process.env.ELEVENLABS_API_KEY;
+    else process.env.ELEVENLABS_API_KEY = saved;
     rmSync(root, { recursive: true, force: true });
   }
 });
@@ -248,17 +253,16 @@ test("a project's .env cannot name the HeyGen base, so a shell key never leaves 
     const project = mkdtempSync(join(tmpdir(), "heygen-env-"));
     writeFileSync(
       join(project, ".env"),
-      "HEYGEN_API_BASE=https://proxy.example.com\nHEYGEN_ALLOW_HTTP=1\nMEDIA_USE_ENV_BASE_TEST=loaded\n",
+      "HEYGEN_API_BASE=https://proxy.example.com\nHEYGEN_ALLOW_HTTP=1\nHYPERFRAMES_API_KEY=loaded\n",
     );
     try {
       process.env.HEYGEN_API_KEY = "hg_shell_real";
       loadEnvFromDir(project);
-      assert.equal(process.env.MEDIA_USE_ENV_BASE_TEST, "loaded");
+      assert.equal(process.env.HYPERFRAMES_API_KEY, "loaded");
       assert.equal(process.env.HEYGEN_API_BASE, undefined);
       assert.equal(process.env.HEYGEN_ALLOW_HTTP, undefined);
       assert.equal(heygenBase(), "https://api.heygen.com/v3");
     } finally {
-      delete process.env.MEDIA_USE_ENV_BASE_TEST;
       rmSync(project, { recursive: true, force: true });
     }
   });
@@ -413,5 +417,77 @@ test("a refused HyperFrames-plan call becomes one line with the billing command"
   assert.equal(
     heygenMessage({ status: 400, body: JSON.stringify({ error: { message: "bad voice" } }) }),
     "bad voice",
+  );
+});
+
+test("a project's .env sets only the media settings, and never overrides the shell", () => {
+  const names = ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "HYPERFRAMES_PYTHON", "NODE_OPTIONS", "MEDIA_USE_TELEMETRY"];
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  withCleanHeygenEnv(() => {
+    const project = mkdtempSync(join(tmpdir(), "heygen-env-"));
+    writeFileSync(
+      join(project, ".env"),
+      [
+        "ELEVENLABS_API_KEY=from-file",
+        "GEMINI_API_KEY=from-file",
+        "HYPERFRAMES_CONFIG_DIR=/tmp/elsewhere",
+        "HYPERFRAMES_PYTHON=/tmp/evil-python",
+        "NODE_OPTIONS=--require /tmp/evil.js",
+        "MEDIA_USE_TELEMETRY=1",
+        "",
+      ].join("\n"),
+    );
+    try {
+      for (const name of names) delete process.env[name];
+      process.env.GEMINI_API_KEY = "from-shell";
+      loadEnvFromDir(project);
+      assert.equal(process.env.ELEVENLABS_API_KEY, "from-file");
+      assert.equal(process.env.GEMINI_API_KEY, "from-shell");
+      for (const name of ["HYPERFRAMES_CONFIG_DIR", "HYPERFRAMES_PYTHON", "NODE_OPTIONS", "MEDIA_USE_TELEMETRY"])
+        assert.equal(process.env[name], undefined, name);
+    } finally {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+});
+
+const SOUND_URL = "https://cdn.example.com/sound.mp3";
+
+test("a sound download stops at the size cap, whether the size is declared or not", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "heygen-dl-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dest = join(dir, "a.mp3");
+  const declared = async () =>
+    new Response("x", { headers: { "content-length": String(60 * 1024 * 1024) } });
+  await assert.rejects(downloadTo(SOUND_URL, dest, { fetchImpl: declared }), /exceeds/);
+  const chunked = async () =>
+    new Response(
+      new ReadableStream({
+        pull(controller) {
+          controller.enqueue(new Uint8Array(1024));
+        },
+      }),
+    );
+  await assert.rejects(downloadTo(SOUND_URL, dest, { fetchImpl: chunked, maxBytes: 4096 }), /exceeds/);
+  assert.equal(existsSync(dest), false);
+  const small = async () => new Response("ok");
+  assert.equal(await downloadTo(SOUND_URL, dest, { fetchImpl: small }), 2);
+});
+
+test("a sound download that never finishes stops after the time limit", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "heygen-dl-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // A real socket keeps the process alive while it waits; this timer stands in for it.
+  const keepAlive = setTimeout(() => {}, 5000);
+  t.after(() => clearTimeout(keepAlive));
+  const hang = (url, { signal }) =>
+    new Promise((resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+  await assert.rejects(
+    downloadTo(SOUND_URL, join(dir, "a.mp3"), { fetchImpl: hang, timeoutMs: 50 }),
+    /longer than/,
   );
 });

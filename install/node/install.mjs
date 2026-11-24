@@ -9,7 +9,7 @@ import os from 'node:os';
 import * as L from './lib.mjs';
 import { versionPrints } from './fingerprints.mjs';
 
-export function install({ repo, agent, project, scope: scopeArg, dry, update, out }) {
+export function install({ repo, agent, project, scope: scopeArg, dry, update, follow, out }) {
   const say = (s) => out.push(s);
   const home = L.home();
   const scopeGiven = scopeArg !== undefined;
@@ -28,9 +28,9 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   const original = L.join(state, 'backups', 'original', ...L.rel(rules, base).split('/'));
   const stop = (why) => { throw new L.Stop(`${why}\nNothing was changed.`); };
   if (dry) say('Dry run: nothing will be written.');
-  // No link on the way to anything this run writes under the harness folder or the skills folder.
+  // No link on the way to anything this run writes under the harness folder.
   { const why = L.checkInside(base, [state, manifest, manifest + '.new', original, original + '.mh-tmp',
-    L.join(backupRoot, 'skills'), L.join(backupRoot, 'removed'), L.join(backupRoot, 'earlier-harness'), skillsDir]); if (why) stop(`${why}.`); }
+    L.join(backupRoot, 'skills'), L.join(backupRoot, 'removed'), L.join(backupRoot, 'earlier-harness')]); if (why) stop(`${why}.`); }
   // One run at a time in this folder (a dry run writes nothing, so it takes no lock).
   const unlock = dry ? () => {} : L.lock(state, base);
   try {
@@ -88,6 +88,8 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   }
   if (skillsDir) { why = L.writableDir(skillsDir); if (why) stop(`${why}.`); }
   why = L.writableDir(state); if (why) stop(`${why}.`);
+  // In a project, no link that leads outside it (unless --follow-links).
+  why = L.checkLinks(project, follow, skillsDir, rules); if (why) stop(`${why}.`);
 
   // What earlier installs into this skills folder put there, from every manifest that points at it.
   const earlier = new Set();

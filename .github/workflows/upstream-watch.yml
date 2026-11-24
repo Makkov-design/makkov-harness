@@ -3,7 +3,8 @@ name: upstream-watch
 # Once a week: list what the harness pinned whose upstream has moved on, in one issue: the companion plugins in
 # .claude-plugin/marketplace.json, and the vendored skills and npm packages in .github/upstream-watch.json.
 # Read-only towards upstreams (GitHub API, npm registry); writes only that issue in this repository. Never changes a pin.
-# It adopts only an open issue that its own bot opened with the label upstream-watch, never one someone else opened.
+# It adopts only an open issue its own bot opened with this title (labelling it upstream-watch, a label it creates if
+# missing), never one someone else opened.
 # An upstream that cannot be checked is listed in the issue and fails the run, after the others were checked.
 on:
   schedule:

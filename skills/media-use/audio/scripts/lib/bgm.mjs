@@ -1,3 +1,4 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 // bgm.mjs — background music for the media audio engine. Two routes, gated the
 // same way as TTS/SFX:
 //
@@ -13,10 +14,12 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, openSync, closeSync, rmSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { downloadTo, searchSounds } from "./heygen.mjs";
 import { agentWritePath } from "./media-record.mjs";
-import { pythonInvocation } from "./python.mjs";
+import { pythonCommand, pythonInvocation } from "./python.mjs";
 
 const r3 = (x) => Number(x.toFixed(3));
 const lyriaKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
@@ -24,24 +27,36 @@ const lyriaKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY 
 import { bgmDefaultVolume } from "./bgm-volume.mjs";
 export { BGM_BED_VOLUME, BGM_SILENT_VOLUME, bgmDefaultVolume } from "./bgm-volume.mjs";
 
-const BGM_PY_DEPS = ["transformers", "torch", "soundfile", "numpy"];
+// makkov-harness: generation never installs packages. `node bgm-setup.mjs` makes a separate
+// Python environment with these exact versions, and generation uses it when it is there.
+export const BGM_PINS = {
+  musicgen: ["transformers==5.22.2", "torch==2.15.0", "soundfile==0.14.0", "numpy==2.4.4"],
+  lyria: ["google-genai==2.34.0"],
+};
 const BGM_PY_PROBE =
   "import transformers, soundfile, torch, numpy; from transformers import MusicgenForConditionalGeneration";
-const LYRIA_PY_DEPS = ["google-genai", "python-dotenv"];
 const LYRIA_PY_PROBE = "import google.genai";
+export const BGM_SETUP_SCRIPT = fileURLToPath(new URL("../bgm-setup.mjs", import.meta.url));
 
-function pyOk(probe) {
-  const { cmd, args } = pythonInvocation(["-c", probe]);
-  return spawnSync(cmd, args, { stdio: "ignore" }).status === 0;
+// The setup command's environment: in the user's cache folder, never in the project.
+export function bgmVenvDir(env = process.env, platform = process.platform) {
+  const cache =
+    env.XDG_CACHE_HOME ||
+    (platform === "win32" && env.LOCALAPPDATA) ||
+    join(homedir(), platform === "win32" ? "AppData/Local" : ".cache");
+  return join(cache, "media-use", "bgm-venv");
 }
-// `python -m pip`, not a bare `pip` binary: a Homebrew/system Python often
-// exposes only `python3`/`pip3` on PATH, so a plain `pip` spawn silently
-// no-ops (ENOENT) and the documented "auto-installed on demand" path never
-// actually installs. `-m pip` also guarantees the packages land in the SAME
-// interpreter pyOk() probes — a bare `pip`/`pip3` could resolve to a
-// different Python installation than `python3` if more than one is on PATH.
-function pipInstall(deps) {
-  const { cmd, args } = pythonInvocation(["-m", "pip", "install", "-q", ...deps]);
+export function bgmVenvPython(dir = bgmVenvDir(), platform = process.platform) {
+  return platform === "win32" ? join(dir, "Scripts", "python.exe") : join(dir, "bin", "python");
+}
+// The set-up environment when it exists, else the usual Python 3.
+function bgmPythonPrefix() {
+  const venvPython = bgmVenvPython();
+  return existsSync(venvPython) ? [venvPython] : pythonCommand();
+}
+
+function pyOk(probe, prefix) {
+  const { cmd, args } = pythonInvocation(["-c", probe], prefix);
   return spawnSync(cmd, args, { stdio: "ignore" }).status === 0;
 }
 
@@ -125,24 +140,18 @@ export function generateBgmDetached({
 
   const lyriaConfigured = !!lyriaKey() && !!lyriaRecipe && existsSync(lyriaRecipe);
 
-  // Make a backend runnable: prefer Lyria when configured (install google-genai
-  // on demand), else ensure local MusicGen deps. Installs are synchronous here —
-  // generation itself is detached, so the engine still returns promptly.
-  if (lyriaConfigured && !pyOk(LYRIA_PY_PROBE)) pipInstall(LYRIA_PY_DEPS);
-  const useLyria = lyriaConfigured && pyOk(LYRIA_PY_PROBE);
-  if (!useLyria && !pyOk(BGM_PY_PROBE)) pipInstall(BGM_PY_DEPS);
+  // makkov-harness: no installs here. A backend runs only when its packages are already there.
+  const py = bgmPythonPrefix();
+  const useLyria = lyriaConfigured && pyOk(LYRIA_PY_PROBE, py);
+  if (lyriaConfigured && !useLyria && anomalies)
+    anomalies.push(`bgm: Lyria needs google-genai; set it up with \`node ${BGM_SETUP_SCRIPT} lyria\``);
 
   const fd = openSync(log, "w");
   if (useLyria) {
-    const { cmd, args } = pythonInvocation([
-      lyriaRecipe,
-      "--output",
-      abs,
-      "--duration",
-      String(targetS),
-      "--prompt",
-      prompt,
-    ]);
+    const { cmd, args } = pythonInvocation(
+      [lyriaRecipe, "--output", abs, "--duration", String(targetS), "--prompt", prompt],
+      py,
+    );
     rmSync(abs, { force: true }); // wait-bgm takes any file here as the finished track
     const proc = spawn(cmd, args, { detached: true, stdio: ["ignore", fd, fd] });
     proc.unref();
@@ -157,11 +166,11 @@ export function generateBgmDetached({
     };
   }
 
-  if (pyOk(BGM_PY_PROBE)) {
+  if (pyOk(BGM_PY_PROBE, py)) {
     const seedS = Math.min(Math.max(seedSeconds, 10), 30);
     const loops = targetS > seedS ? Math.ceil(targetS / seedS) : 1;
     const script = musicgenScript({ prompt, abs, targetS, seedS });
-    const { cmd, args } = pythonInvocation(["-c", script]);
+    const { cmd, args } = pythonInvocation(["-c", script], py);
     rmSync(abs, { force: true });
     const proc = spawn(cmd, args, { detached: true, stdio: ["ignore", fd, fd] });
     proc.unref();
@@ -181,9 +190,7 @@ export function generateBgmDetached({
   closeSync(fd);
   return {
     disabled: true,
-    reason: lyriaConfigured
-      ? `Lyria configured but google-genai uninstallable, and local MusicGen unavailable (pip install ${BGM_PY_DEPS.join(" ")})`
-      : `no Lyria key/recipe and local MusicGen deps unavailable (pip install ${BGM_PY_DEPS.join(" ")})`,
+    reason: `local music generation is not set up. Run \`node ${BGM_SETUP_SCRIPT}\` once: it makes a separate Python environment with pinned packages`,
   };
 }
 

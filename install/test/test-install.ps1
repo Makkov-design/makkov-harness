@@ -710,16 +710,20 @@ try {
   } else { Write-Output '  skip (this volume makes no 8.3 short names)' }
   $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
 
-  # A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
+  # A hard-linked instructions file in a project may be a file outside it under another name: the run stops unless
+  # -FollowLinks. With it, the file stays one file under both names: it is written in place, not replaced.
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, AGENTS.md hard-linked to a file outside the project'
   $agentsMd = Join-Path $proj 'AGENTS.md'; $linked = Join-Path $h 'linked.md'; $exp = Join-Path $h 'expected'
   [IO.File]::WriteAllText($agentsMd, "# mine`n"); Copy-Item $agentsMd $exp
   $hard = $true; try { New-Item -ItemType HardLink -Path $linked -Target $agentsMd | Out-Null } catch { $hard = $false; Write-Output '  skip (no hard links on this file system)' }
   if ($hard) {
-    & $inst -Agent codex -Project $proj | Out-Null
+    $pbefore = Tree $proj
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'without -FollowLinks the install stops (exit 1), says why, changes nothing' { $script:code -eq 1 -and $script:out -match 'hard link' -and (Same $exp $linked) -and (Tree $proj) -eq $pbefore }
+    & $inst -Agent codex -Project $proj -FollowLinks | Out-Null
     Check 'the other name shows the routing block too' { (Markers $linked) -eq 1 }
-    & $uninst -Agent codex -Project $proj | Out-Null
+    & $uninst -Agent codex -Project $proj -FollowLinks | Out-Null
     Check 'after the uninstall, still linked and as it was' { (Same $exp $linked) -and (Same $exp $agentsMd) -and (Get-Item -LiteralPath $agentsMd).LinkType -eq 'HardLink' }
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
@@ -772,12 +776,18 @@ try {
   $linked = $true
   try { New-Item -ItemType SymbolicLink -Path (Join-Path $proj '.agents\skills') -Target $outside | Out-Null } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
   if ($linked) {
-    Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', '.ssh', 'emptyish e3b0c44298fc1c14')
+    Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', 'emptyish e3b0c44298fc1c14')
     $before = Tree $outside; $pbefore = Tree $proj
     Run-Child $uninst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code; $o1 = $script:out
     Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
-    Check 'uninstall and install stop (exit 1) and say it is a link' { $c1 -eq 1 -and $script:code -eq 1 -and $o1 -match 'is a link' -and $script:out -match 'is a link' }
+    Check 'uninstall and install stop (exit 1) and say it leads outside through a link' { $c1 -eq 1 -and $script:code -eq 1 -and $o1 -match 'outside the project through a link' -and $script:out -match 'outside the project through a link' }
     Check 'nothing moved or deleted outside the project, nothing changed in it' { (Tree $outside) -eq $before -and (Tree $proj) -eq $pbefore }
+    Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', '.ssh', 'emptyish e3b0c44298fc1c14')
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code; Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'with a .ssh entry too, both stop (exit 1)' { $c1 -eq 1 -and $script:code -eq 1 }
+    Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', 'emptyish e3b0c44298fc1c14')
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj, '-FollowLinks')
+    Check 'with -FollowLinks the uninstall goes through and leaves Documents and emptyish where they are' { $script:code -eq 0 -and (Test-Path (Join-Path $outside 'Documents\a.txt')) -and (Test-Path (Join-Path $outside 'emptyish')) -and (Test-Path (Join-Path $outside '.ssh\id')) }
     [IO.Directory]::Delete((Join-Path $proj '.agents\skills'))
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force
@@ -800,6 +810,26 @@ try {
   Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
   Check 'uninstall goes through and deletes neither (no SKILL.md, so neither is taken for ours)' { $script:code -eq 0 -and (Test-Path (Join-Path $proj '.agents\skills\Documents\a.txt')) -and (Test-Path (Join-Path $proj '.agents\skills\emptyish\sub')) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # In a project, an instructions file (or a folder on its way) that is a link leading outside the project may have
+  # come with the repository: the run stops unless -FollowLinks, and the file outside is never changed or copied.
+  $h = New-Temp; $proj = New-Temp; $outside = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md a link to a file outside the project'
+  $notes = Join-Path $outside 'notes.md'; $exp = Join-Path $h 'expected'; [IO.File]::WriteAllText($notes, "# not yours to change`n"); Copy-Item $notes $exp
+  $linked = $true
+  try { New-Item -ItemType SymbolicLink -Path (Join-Path $proj 'AGENTS.md') -Target $notes | Out-Null } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
+  if ($linked) {
+    $pbefore = Tree $proj
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'install stops (exit 1) and names -FollowLinks' { $script:code -eq 1 -and $script:out -match 'FollowLinks' }
+    Check 'the file outside is byte for byte as it was, and no copy of it is in the project' { (Same $exp $notes) -and (Tree $proj) -eq $pbefore }
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj, '-FollowLinks')
+    Check 'with -FollowLinks the install goes through and writes through the link' { $script:code -eq 0 -and (Markers $notes) -eq 1 }
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj); $c2 = $script:code
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj, '-FollowLinks')
+    Check 'the uninstall stops without -FollowLinks, and with it puts the file back as it was' { $c2 -eq 1 -and $script:code -eq 0 -and (Same $exp $notes) }
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force
 
   # A repository that ships backups\original\AGENTS.md as a dangling link to a file elsewhere: the first install's
   # copy of AGENTS.md is never written through it.

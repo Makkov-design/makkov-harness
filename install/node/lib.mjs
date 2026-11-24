@@ -100,6 +100,40 @@ export function checkInside(base, paths) {
   }
   return '';
 }
+// Where a path really is: its deepest existing part with every link followed, then the rest as written ('' for a
+// loop of links).
+export function realOf(p) {
+  let rest = [], d = p;
+  for (let n = 0; n < 64; n++) {
+    try { return path.join(fs.realpathSync.native(d), ...rest); } catch (e) {
+      if (e.code === 'ELOOP') return '';
+      const s = lstat(d);
+      if (s && s.isSymbolicLink()) {   // a dangling link: where it would land
+        const t = fs.readlinkSync(d);
+        d = path.resolve(dirname(d), t); continue;
+      }
+      if (dirname(d) === d) return path.join(d, ...rest);
+      rest = [basename(d), ...rest]; d = dirname(d);
+    }
+  }
+  return '';
+}
+// In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
+// have come with the repository: one that leads outside the project, or an instructions file with more than one hard
+// link (its other name can be anywhere), stops the run unless the person passed --follow-links. A user-level install
+// keeps following the person's own links (dotfiles). Returns why, or ''.
+export function checkLinks(project, follow, skills, rules) {
+  if (!project || follow) return '';
+  let rb; try { rb = fs.realpathSync.native(project); } catch { rb = project; }
+  for (const p of [skills, rules]) {
+    if (!p) continue;
+    const r = realOf(p);
+    if (!r || !(samePath(r, rb) || under(r, rb))) return `${p} leads outside the project through a link (to ${r || 'a loop of links'}). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with --follow-links`;
+  }
+  const s = stat(rules);
+  if (s && s.isFile() && s.nlink > 1) return `${rules} has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with --follow-links`;
+  return '';
+}
 // A folder named by a skill= entry is one the installer may remove or move: a plain skill name and a SKILL.md in it.
 export const skillFolder = (name, dir) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) && isFile(join(dir, 'SKILL.md'));
 // The fingerprints of a folder with no regular file in it (install.sh's, install.ps1's): any such folder has them,

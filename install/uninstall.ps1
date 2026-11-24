@@ -15,14 +15,16 @@
     they are read relative to the folder you pass now. A manifest that names paths the installer would not
     use is refused, and nothing is changed.
 
-  Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
+  Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun] [-FollowLinks]
+    -FollowLinks     in a project, follow a link of yours that leads outside it (see install.ps1)
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider')]
   [string]$Agent,
   [string]$Project,
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$FollowLinks
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib.ps1')
@@ -39,9 +41,9 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $paths = Get-MhPaths $Agent $Project $home_
 $skillsDir = $paths.Skills; $rules = $paths.Rules
 $kept = Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed'
-# Everything under .makkov-harness\ and in the skills folder may have come with the repository (install\lib.ps1): no
-# link on the way to anything this run changes there.
-$why = Test-MhCheckInside $base @($state, $manifest, "$manifest.new", (Join-Path $kept 'personal-layer.md'), (Join-Path $state "removed-$stamp.tmp"), $skillsDir)
+# Everything under .makkov-harness\ may have come with the repository (install\lib.ps1): no link on the way to
+# anything this run changes there.
+$why = Test-MhCheckInside $base @($state, $manifest, "$manifest.new", (Join-Path $kept 'personal-layer.md'), (Join-Path $state "removed-$stamp.tmp"))
 if ($why) { [Console]::Error.WriteLine("$why."); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
 if (-not (Test-Path -LiteralPath $manifest)) {
   if (-not $DryRun) { Clear-MhLockOnly $state $base }
@@ -92,6 +94,8 @@ if ($editRules) {
     if (Test-MhWideText $rules) { Stop-Mh "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again." }
   }
 }
+# In a project, no link that leads outside it (unless -FollowLinks).
+$why = Test-MhCheckLinks $Project ([bool]$FollowLinks) $skillsDir $rules; if ($why) { Stop-Mh "$why." }
 if ($DryRun) { Write-Output 'Dry run: nothing will be changed.' }
 
 # 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest

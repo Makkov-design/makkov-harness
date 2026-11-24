@@ -3,8 +3,10 @@
 # Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
 # file inside a marked block. Copies local files only; downloads nothing. Running it again updates.
 #
-# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design]
+# Usage: install.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design] [--follow-links]
 #   --dry-run        print every change it would make and write nothing
+#   --follow-links   in a project, follow a link of yours in the skills folder's or instructions file's path that
+#                    leads outside the project (without it the run stops: a link may have come with the repository)
 #   --scope design   route design work only: research reports, third-party installs and general coding
 #                    plugins are left out of the routing map (the skills are still copied). An update keeps
 #                    the scope of the earlier install unless you pass --scope again.
@@ -18,13 +20,14 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 . "$here/lib.sh"
-usage="Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design]"
+usage="Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--scope all|design] [--follow-links]"
 
-dry=0 scope="" scope_given=0
+dry=0 scope="" scope_given=0 follow=0
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry=1 ;;
+    --follow-links) follow=1 ;;
     --scope) [ $# -ge 2 ] || { echo "--scope needs a value: all or design" >&2; echo "$usage" >&2; exit 2; }
              scope="$2"; scope_given=1; shift ;;
     --scope=*) scope="${1#--scope=}"; scope_given=1 ;;
@@ -70,8 +73,8 @@ stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
 # install/test/ uses it to check that an interrupted run can be run again or uninstalled.
 checkpoint() { if [ "${MAKKOV_HARNESS_TEST:-}" = 1 ] && [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
 
-# No link on the way to anything this run writes under the harness folder or the skills folder.
-why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$original" "$original.mh-tmp" "$backup_root/skills" "$backup_root/removed" "$backup_root/earlier-harness" "$skills_dir")" || stop "$why."
+# No link on the way to anything this run writes under the harness folder.
+why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$original" "$original.mh-tmp" "$backup_root/skills" "$backup_root/removed" "$backup_root/earlier-harness")" || stop "$why."
 
 # One run at a time in this folder (a dry run writes nothing, so it takes no lock).
 if [ "$dry" = 0 ]; then mh_lock "$state" "$base" || exit 1; trap mh_unlock EXIT; fi
@@ -130,6 +133,8 @@ if [ "$agent" != cursor ]; then
 fi
 if [ -n "$skills_dir" ]; then why="$(mh_writable_dir "$skills_dir")" || stop "$why."; fi
 why="$(mh_writable_dir "$state")" || stop "$why."
+# In a project, no link that leads outside it (unless --follow-links).
+why="$(mh_check_links "$project" "$follow" "$skills_dir" "$rules")" || stop "$why."
 
 # What earlier installs into this skills folder put there, from every manifest that points at it.
 earlier=""

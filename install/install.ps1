@@ -3,8 +3,10 @@
   Copies skills/ into the folder the agent reads and puts ROUTING.md into the agent's instructions
   file inside a marked block. Copies local files only; downloads nothing. Running it again updates.
 
-  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun] [-Scope all|design]
+  Usage: install.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun] [-Scope all|design] [-FollowLinks]
     -DryRun          print every change it would make and write nothing
+    -FollowLinks     in a project, follow a link of yours in the skills folder's or instructions file's path that
+                     leads outside the project (without it the run stops: a link may have come with the repository)
     -Scope design    route design work only: research reports, third-party installs and general coding
                      plugins are left out of the routing map (the skills are still copied). An update keeps
                      the scope of the earlier install unless you pass -Scope again.
@@ -22,7 +24,8 @@ param(
   [string]$Project,
   [switch]$DryRun,
   [ValidateSet('all', 'design')]
-  [string]$Scope
+  [string]$Scope,
+  [switch]$FollowLinks
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib.ps1')
@@ -58,9 +61,9 @@ function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Er
 function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
 function Get-Manifests { if (Test-Path -LiteralPath $state) { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File) } else { @() } }
 
-# No link on the way to anything this run writes under the harness folder or the skills folder.
+# No link on the way to anything this run writes under the harness folder.
 $why = Test-MhCheckInside $base @($state, $manifest, "$manifest.new", $original, "$original.mh-tmp", (Join-Path $backupRoot 'skills'),
-  (Join-Path $backupRoot 'removed'), (Join-Path $backupRoot 'earlier-harness'), $skillsDir)
+  (Join-Path $backupRoot 'removed'), (Join-Path $backupRoot 'earlier-harness'))
 if ($why) { Stop-Mh "$why." }
 
 # One run at a time in this folder (a dry run writes nothing, so it takes no lock). The lock is let go in the finally
@@ -123,6 +126,8 @@ if ($Agent -ne 'cursor') {
 }
 if ($skillsDir) { $why = Test-MhWritableDir $skillsDir; if ($why) { Stop-Mh "$why." } }
 $why = Test-MhWritableDir $state; if ($why) { Stop-Mh "$why." }
+# In a project, no link that leads outside it (unless -FollowLinks).
+$why = Test-MhCheckLinks $Project ([bool]$FollowLinks) $skillsDir $rules; if ($why) { Stop-Mh "$why." }
 
 # What earlier installs into this skills folder put there, from every manifest that points at it.
 $earlier = @()

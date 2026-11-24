@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Design Score build. Bundles src/probe.js and src/ui.js into one file, mh-score.js, written to this skill folder,
-// to docs/score/ (the latest, for the bookmarklets) and to docs/score/<version>/ (identical copies); writes
-// docs/score/console.txt and docs/score/offline-bookmarklet.txt; refreshes the bookmarklet links in docs/score.html
-// between <!-- bookmarklet:start --> and <!-- bookmarklet:end -->.
-// docs/score/<version>/mh-score.js is what the agent's loader fetches, pinned by its SRI hash. A published version
-// never changes: docs/score/versions.json records each version's hash, and the build refuses to publish a different
-// bundle under a version that is already there (bump VERSION in src/probe.js and src/ui.js instead), so an install
-// that pinned an older bundle keeps loading it after the site moves on.
+// to docs/score/ (the latest, for "Try it on this page") and to docs/score/<version>/ (identical copies); writes
+// docs/score/console.txt and docs/score/offline-bookmarklet.txt; refreshes the bookmarklet links (and the version
+// they carry, in <span data-bookmarklet-version>) in docs/score.html between <!-- bookmarklet:start --> and
+// <!-- bookmarklet:end -->.
+// docs/score/<version>/mh-score.js is what the agent's loader and the loader bookmarklet fetch, pinned by its SRI
+// hash. A published version never changes: docs/score/versions.json records each version's hash, and the build
+// refuses to publish a different bundle under a version that is already there (bump VERSION in src/probe.js and
+// src/ui.js instead), so an install or a bookmark that pinned an older bundle keeps loading it after the site moves on.
 // Node only, no dependencies, no network. Deterministic: the same sources always give byte-identical files.
 //
 // Usage
@@ -41,7 +42,7 @@ const OUT = {
 const args = process.argv.slice(2);
 const CHECK = args.includes('--check');
 if (args.includes('--help') || args.includes('-h')) {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 11).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 12).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
   process.exit(0);
 }
 const unknown = args.filter((a) => !['--check'].includes(a));
@@ -206,22 +207,27 @@ if (packed.ok) {
 
 /* --------------------------------------------------------------- bookmarklets */
 
+// The bundle's Subresource Integrity hash: the loader bookmarklet and versions.json both carry it.
+const SRI = 'sha384-' + crypto.createHash('sha384').update(Buffer.from(bundle, 'utf8')).digest('base64');
+
 // The loader: a second click toggles the panel; a click while the bundle is still downloading does nothing (a second
-// copy would toggle the new panel shut), unless the first download has hung for 15 s. The request carries no referrer,
-// so GitHub Pages never learns which page is being scored. It names one URL only (.github/scripts/check.mjs holds it
-// to that and to what SECURITY.md says about the referrer).
+// copy would toggle the new panel shut), unless the first download has hung for 15 s. It fetches this version's copy,
+// score/<version>/mh-score.js, which never changes, with its SRI hash, so the browser runs only this bundle; a newer
+// release reaches it only when someone drags the pill again. The request carries no referrer, so GitHub Pages never
+// learns which page is being scored. It names one URL only (.github/scripts/check.mjs holds it to that, to the hash in
+// docs/score/versions.json and to what SECURITY.md says about the referrer).
 const loaderCode = [
   "(function(){var w=window,d=document;",
   "if(w.MHScoreUI&&typeof w.MHScoreUI.toggle==='function'){w.MHScoreUI.toggle();return}",
   "if(w.__mhScoreLoading&&Date.now()-w.__mhScoreLoading<15000)return;",
-  `var m='Design Score could not load on this site: it blocks scripts from other sites. Use the offline bookmarklet or the console snippet from ${SCORE_PAGE.replace(/^https:\/\//, '')}';`,
+  `var m='Design Score could not load on this site: it blocks scripts from other sites, or the download did not match its hash. Use the offline bookmarklet or the console snippet from ${SCORE_PAGE.replace(/^https:\/\//, '')}';`,
   "try{var s=d.createElement('script');s.referrerPolicy='no-referrer';",
-  `s.src='${PAGES_URL}/score/mh-score.js?v=${VERSION}';`,
+  `s.src='${PAGES_URL}/score/${VERSION}/mh-score.js';s.integrity='${SRI}';s.crossOrigin='anonymous';`,
   "s.async=true;s.onload=function(){w.__mhScoreLoading=0;s.remove()};s.onerror=function(){w.__mhScoreLoading=0;s.remove();alert(m)};",
   "w.__mhScoreLoading=Date.now();(d.head||d.documentElement).appendChild(s)}catch(e){w.__mhScoreLoading=0;alert(m)}})();void 0",
 ].join('');
 { const err = compiles(loaderCode, 'loader-bookmarklet.js'); if (err) die(`the loader bookmarklet does not parse: ${err.message}`); }
-if ((loaderCode.match(/\/\//g) || []).length !== 1) die('the loader bookmarklet must name exactly one URL (the bundle on GitHub Pages).');
+if ((loaderCode.split(SRI).join('').match(/\/\//g) || []).length !== 1) die('the loader bookmarklet must name exactly one URL (the bundle on GitHub Pages).');
 
 function asBookmarklet(code) {
   try { return 'javascript:' + encodeURIComponent(code); } catch (e) { die(`cannot encode the bookmarklet: ${e.message}`); }
@@ -282,7 +288,8 @@ function updatePage(html) {
       if (kind[1] === 'offline') return setAttrs(tag, { href: OFFLINE_PLACEHOLDER, 'data-bookmarklet-src': OFFLINE_SRC, 'data-version': VERSION });
       return setAttrs(tag, { href: LINKS.loader, 'data-version': VERSION });
     }).replace(/(<span\b[^>]*\sdata-bookmarklet-size\s*=\s*["']?(loader|offline)\b[^>]*>)[^<]*(<\/span>)/g,
-      (m, open, kind, close) => open + SIZE_LABEL(LINKS[kind]) + close);
+      (m, open, kind, close) => open + SIZE_LABEL(LINKS[kind]) + close)
+      .replace(/(<span\b[^>]*\sdata-bookmarklet-version\b[^>]*>)[^<]*(<\/span>)/g, (m, open, close) => open + VERSION + close);
     out += html.slice(pos, a + START.length) + region + END;
     pos = b + END.length;
   }
@@ -300,7 +307,6 @@ const page = updatePage(pageBefore);
 /* -------------------------------------------------------------- write / check */
 
 // The versioned copy and its record. versions.json: { "<version>": "sha384-…" }, oldest first.
-const SRI = 'sha384-' + crypto.createHash('sha384').update(Buffer.from(bundle, 'utf8')).digest('base64');
 const versionedBundle = path.join(DOCS, 'score', VERSION, 'mh-score.js');
 let published = {};
 if (fs.existsSync(OUT.versions)) {

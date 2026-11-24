@@ -7,7 +7,7 @@ import os from 'node:os';
 import * as L from './lib.mjs';
 import { versionPrints } from './fingerprints.mjs';
 
-export function uninstall({ repo, agent, project, dry, out }) {
+export function uninstall({ repo, agent, project, dry, follow, out }) {
   const say = (s) => out.push(s);
   const home = L.home();
   if (project && (L.samePath(project, home) || L.sameFolder(project, home))) throw new L.Stop('The project path is your home folder. For a user-level install, leave the project path out.', 2);
@@ -16,10 +16,10 @@ export function uninstall({ repo, agent, project, dry, out }) {
   const manifest = L.join(state, `install-${agent}.txt`);
   const stamp = L.stampNow();
   const { skills: skillsDir, rules } = L.agentPaths(agent, project, home);
-  // Everything under .makkov-harness/ and in the skills folder may have come with the repository (lib.mjs): no link
-  // on the way to anything this run changes there.
+  // Everything under .makkov-harness/ may have come with the repository (lib.mjs): no link on the way to anything
+  // this run changes there.
   const removedDir = L.join(state, 'backups', `${stamp}-${agent}`, 'removed');
-  { const why = L.checkInside(base, [state, manifest, manifest + '.new', removedDir, skillsDir]); if (why) throw new L.Stop(`${why}.\nNothing was changed.`); }
+  { const why = L.checkInside(base, [state, manifest, manifest + '.new', removedDir]); if (why) throw new L.Stop(`${why}.\nNothing was changed.`); }
   if (!L.isFile(manifest)) {
     if (!dry) L.clearLockOnly(state, base);
     throw new L.Stop(`No makkov-harness install for ${agent} found in ${base} (no ${manifest}).\nIf you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.`);
@@ -66,6 +66,8 @@ export function uninstall({ repo, agent, project, dry, out }) {
   }
   if (skillsDir && L.isDir(skillsDir)) { const why = L.writableDir(skillsDir); if (why) stop(`${why}.`); }
   { const why = L.writableDir(state); if (why) stop(`${why}.`); }
+  // In a project, no link that leads outside it (unless --follow-links).
+  { const why = L.checkLinks(project, follow, skillsDir, rules); if (why) stop(`${why}.`); }
   if (dry) say('Dry run: nothing will be changed.');
 
   // 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest or
