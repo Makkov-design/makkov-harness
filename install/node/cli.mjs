@@ -3,6 +3,7 @@
 //   makkov-harness doctor [--project <path>] [--agent <agent>] [--json]
 // The agent and the project path may also be given as words: `makkov-harness install codex ~/work/site`.
 // Exit codes, as the shell installers: 0 done, 1 stopped (nothing changed, or an uninstall found nothing), 2 usage.
+// doctor: 0 nothing needs attention, 1 something does, 2 usage, 3 it could not finish (with --json, always JSON).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +18,8 @@ const USAGE = `Usage: makkov-harness install|update|uninstall --agent ${L.AGENTS
   install     copy the skills and add the routing map to the agent's instructions file (run again to update)
   update      the same, for an agent already installed here
   uninstall   remove what the install put there, and put back what it moved aside
-  doctor      report what is installed where, and what needs attention (changes nothing)
+  doctor      report what is installed where, and what needs attention (changes nothing; exit code 0 nothing to do,
+              1 something needs attention, 3 something could not be read; --json for a machine-readable report)
   --project   a project folder; leave it out for a user-level install (cursor, copilot, windsurf, aider need one)
   --scope design   route design work only (the skills are still copied); an update keeps the earlier scope
   --dry-run   print every change it would make and write nothing`;
@@ -49,6 +51,22 @@ export function main(argv) {
     return 0;
   }
   const cmd = words.shift();
+  // doctor --json answers in JSON whatever happens, so a program reading it never gets a bare message.
+  if (cmd === 'doctor' && opt.json) {
+    const json = (o, code) => { process.stdout.write(JSON.stringify(o, null, 2) + '\n'); return code; };
+    if (opt.error) return json({ error: opt.error, usage: true }, 2);
+    if (words.length && !opt.agent && L.AGENTS.includes(words[0])) opt.agent = words.shift();
+    if (words.length && !opt.project) opt.project = words.shift();
+    if (words.length) return json({ error: `unexpected ${words[0]}`, usage: true }, 2);
+    if (opt.agent !== undefined && !L.AGENTS.includes(opt.agent)) return json({ error: `unknown agent ${opt.agent}`, usage: true }, 2);
+    if (opt.scope !== undefined) return json({ error: '--scope is for install and update', usage: true }, 2);
+    let project = '';
+    if (opt.project) { project = path.resolve(opt.project); if (!L.isDir(project)) return json({ error: `${opt.project}: no such folder` }, 3); }
+    try {
+      const r = doctor({ repo, project, agent: opt.agent });
+      return json(r, r.errors ? 3 : r.attention ? 1 : 0);
+    } catch (e) { return json({ error: String(e && e.message || e) }, 3); }
+  }
   if (opt.help || !cmd) { process.stdout.write(USAGE + '\n'); return opt.help ? 0 : 2; }
   if (opt.error) return fail(`${opt.error}.\n${USAGE}`, 2);
   if (!['install', 'update', 'uninstall', 'doctor'].includes(cmd)) return fail(`unknown command ${cmd}.\n${USAGE}`, 2);
@@ -58,18 +76,17 @@ export function main(argv) {
   if (opt.agent !== undefined && !L.AGENTS.includes(opt.agent)) return fail(`unknown agent ${opt.agent}.\n${USAGE}`, 2);
   if (cmd !== 'doctor' && !opt.agent) return fail(`${cmd} needs an agent (--agent ${L.AGENTS.join('|')}).\n${USAGE}`, 2);
   if (opt.scope !== undefined && (cmd === 'uninstall' || cmd === 'doctor')) return fail(`--scope is for install and update.\n${USAGE}`, 2);
-  if (opt.scope !== undefined && !['all', 'design'].includes(opt.scope)) return fail(`--scope is all or design.\n${USAGE}`, 2);
+  if (opt.scope !== undefined && !['all', 'design'].includes(opt.scope)) return fail(`--scope is all or design\n${USAGE}`, 2);
   let project = '';
   if (opt.project) {
     project = path.resolve(opt.project);
-    if (!L.isDir(project)) return fail(`${opt.project}: no such folder.`, 1);
+    if (!L.isDir(project)) return fail(`${opt.project}: no such folder.`, cmd === 'doctor' ? 3 : 1);
   }
   try {
     if (cmd === 'doctor') {
       const r = doctor({ repo, project, agent: opt.agent });
-      if (opt.json) process.stdout.write(JSON.stringify(r, null, 2) + '\n');
-      else process.stdout.write(doctorText(r).join('\n') + '\n');
-      return r.attention ? 1 : 0;
+      process.stdout.write(doctorText(r).join('\n') + '\n');
+      return r.errors ? 3 : r.attention ? 1 : 0;
     }
     const code = cmd === 'uninstall'
       ? uninstall({ repo, agent: opt.agent, project, dry: !!opt.dry, out })
@@ -79,7 +96,12 @@ export function main(argv) {
   } catch (e) {
     if (e instanceof L.Stop) return fail(e.message, e.code);
     flush();
-    process.stderr.write(`makkov-harness: ${e && e.stack ? e.stack : e}\n`);
-    return 1;
+    // Not a refusal the installer foresaw: what failed, without a stack (MAKKOV_HARNESS_DEBUG=1 prints it). An
+    // install or uninstall stopped here can be run again, as after an interruption.
+    const msg = e && e.message ? e.message : String(e);
+    process.stderr.write(`makkov-harness: ${e && e.code && !msg.startsWith(e.code) ? e.code + ': ' : ''}${msg}\n`);
+    if (process.env.MAKKOV_HARNESS_DEBUG === '1' && e && e.stack) process.stderr.write(e.stack + '\n');
+    process.stderr.write(`It stopped part way; run the same command again once that is fixed (the manifest records what was done).\n`);
+    return cmd === 'doctor' ? 3 : 1;
   }
 }

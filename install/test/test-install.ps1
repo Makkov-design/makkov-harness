@@ -287,6 +287,24 @@ try {
   Check 'no manifest left' { -not (Get-ChildItem (Join-Path $proj '.makkov-harness') -Filter 'install-*.txt' -ErrorAction SilentlyContinue) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
 
+  # Fingerprints recorded by earlier PowerShell installers stay recognised: an install by the released 0.5.0
+  # installer (culture-sorted ids) and by the one on main at 51cab04 (ordinal ids), of an animate that differs from
+  # this version's, is updated by this version without taking that copy for yours.
+  foreach ($legacy in @(@{ Name = '0.5.0'; Files = @('legacy-0.5.0\install.ps1') }, @{ Name = 'main at 51cab04'; Files = @('legacy-main-51cab04\install.ps1', 'legacy-main-51cab04\lib.ps1') })) {
+    $old = New-HarnessCopy
+    foreach ($f in $legacy.Files) { Copy-Item (Join-Path $repo "install\test\$f") (Join-Path $old ('install\' + (Split-Path -Leaf $f))) -Force }
+    [IO.File]::WriteAllText((Join-Path $old 'skills\animate\OLDER.md'), "an older animate`n")
+    $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+    Write-Output "codex project, an older animate installed by $($legacy.Name), updated by this version"
+    & (Join-Path $old 'install\install.ps1') -Agent codex -Project $proj | Out-Null
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'the update takes the older copy for the harness''s (moves nothing aside)' { $script:code -eq 0 -and $script:out -notmatch 'Kept your earlier versions' }
+    Check 'and replaces it with this version''s' { -not (Test-Path (Join-Path $proj '.agents\skills\animate\OLDER.md')) -and (Test-Path (Join-Path $proj '.agents\skills\animate\SKILL.md')) }
+    & $uninst -Agent codex -Project $proj | Out-Null
+    Check 'the uninstall leaves nothing' { (Entries $proj).Count -eq 0 }
+    $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
+  }
+
   # Paths with spaces and with [ ] (read as a wildcard without -LiteralPath).
   foreach ($pname in 'My Project', 'design [v2]') {
     $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent $pname; $env:USERPROFILE = $h

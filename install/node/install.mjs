@@ -14,7 +14,7 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   const scopeGiven = scopeArg !== undefined;
   let scope = scopeArg ?? '';
   if (L.PROJECT_ONLY.includes(agent) && !project) throw new L.Stop(`${agent} has no user-level instructions file this installer can edit. Pass a project path.`, 2);
-  if (project && L.samePath(project, home)) {
+  if (project && (L.samePath(project, home) || L.sameFolder(project, home))) {
     throw new L.Stop('The project path is your home folder, where a user-level install keeps its manifest. Leave the project path out for a user-level install, or pass a project folder.', 2);
   }
   const base = project || home;
@@ -27,6 +27,13 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   const original = L.join(state, 'backups', 'original', ...L.rel(rules, base).split('/'));
   const stop = (why) => { throw new L.Stop(`${why}\nNothing was changed.`); };
   if (dry) say('Dry run: nothing will be written.');
+  // One run at a time in this folder (a dry run writes nothing, so it takes no lock).
+  const unlock = dry ? () => {} : L.lock(state, base);
+  try {
+    return run();
+  } finally { unlock(); }
+
+  function run() {
 
   // 0. Before anything is written. Every manifest in this folder must be one the installer wrote for this folder.
   for (const m of L.manifestsIn(state)) {
@@ -85,7 +92,8 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   // This version's skills (rich-report needs Claude Artifacts, so it is skipped here) and their fingerprints.
   const names = [], fpOf = {};
   if (skillsDir) {
-    for (const name of fs.readdirSync(L.join(repo, 'skills')).sort()) {
+    // In install.sh's order: its glob sorts skills/*/ byte by byte with the slash, so animate-expo/ before animate/.
+    for (const name of fs.readdirSync(L.join(repo, 'skills')).sort((a, b) => Buffer.compare(Buffer.from(a + '/'), Buffer.from(b + '/')))) {
       if (name === 'rich-report' || name.startsWith('.') || !L.isDir(L.join(repo, 'skills', name))) continue;
       names.push(name);
       fpOf[name] = versionPrints(name, L.fingerprints(L.join(repo, 'skills', name)));
@@ -121,7 +129,7 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
     for (const name of names) {
       const dst = L.join(skillsDir, name);
       if (!L.exists(dst)) { say(`  would copy ${name} to ${dst}`); continue; }
-      const fps = L.fingerprints(dst);
+      const fps = L.fingerprints(dst, true);
       if (ours(name, fps)) continue;
       if (earlierHas(name, fps)) say(`  would update ${dst} (a copy this harness put there)`);
       else if (earlier.has(`skill=${name}`)) say(`  would move ${dst} (from an install before 0.5.0) to ${L.join(backupRoot, 'earlier-harness', name)}`);
@@ -154,17 +162,17 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
       const dst = L.join(skillsDir, name);
       let copy = true;
       if (L.exists(dst)) {
-        const fps = L.fingerprints(dst);
+        const fps = L.fingerprints(dst, true);
         if (ours(name, fps)) copy = false;
         else if (earlierHas(name, fps)) L.dropSkill(dst);
-        else if (earlier.has(`skill=${name}`)) { L.mkdirp(L.join(backupRoot, 'earlier-harness')); fs.renameSync(dst, L.join(backupRoot, 'earlier-harness', name)); older.push(name); }
-        else { L.mkdirp(L.join(backupRoot, 'skills')); fs.renameSync(dst, L.join(backupRoot, 'skills', name)); backed.push(name); }
+        else if (earlier.has(`skill=${name}`)) { L.mkdirp(L.join(backupRoot, 'earlier-harness')); L.moveDir(dst, L.join(backupRoot, 'earlier-harness', name)); older.push(name); }
+        else { L.mkdirp(L.join(backupRoot, 'skills')); L.moveDir(dst, L.join(backupRoot, 'skills', name)); backed.push(name); }
       }
       // Recorded before the copy goes in (your folder, if any, is already aside): a copy in place is always listed.
       appendManifest(skillLines(name));
       if (copy) {
         const tmp = L.join(skillsDir, '.mh-tmp-' + name);
-        fs.cpSync(L.join(repo, 'skills', name), tmp, { recursive: true });
+        L.copyTree(L.join(repo, 'skills', name), tmp);
         fs.renameSync(tmp, dst);
       }
       copied.push(name);
@@ -183,9 +191,9 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
         if (L.samePath(L.getPath(o, 'skills_dir', base), skillsDir) && o.some((l) => l === `skill=${name}` || l.startsWith(`skill=${name} `))) other = true;
       }
       if (other) { say(`  keep ${dst} (no longer part of the harness, but another installed agent lists it)`); continue; }
-      if (fp && L.fingerprints(dst).some((f) => oldSkills.includes(`skill=${name} ${f}`))) L.dropSkill(dst);
-      else if (fp) { L.mkdirp(L.join(backupRoot, 'removed')); fs.renameSync(dst, L.join(backupRoot, 'removed', name)); }
-      else { L.mkdirp(L.join(backupRoot, 'earlier-harness')); fs.renameSync(dst, L.join(backupRoot, 'earlier-harness', name)); }
+      if (fp && L.fingerprints(dst, true).some((f) => oldSkills.includes(`skill=${name} ${f}`))) L.dropSkill(dst);
+      else if (fp) { L.mkdirp(L.join(backupRoot, 'removed')); L.moveDir(dst, L.join(backupRoot, 'removed', name)); }
+      else { L.mkdirp(L.join(backupRoot, 'earlier-harness')); L.moveDir(dst, L.join(backupRoot, 'earlier-harness', name)); }
       dropped.push(name);
     }
   }
@@ -227,4 +235,5 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   if (agent === 'aider') say("Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project.");
   say('Restart the agent, then run the harness-onboarding skill to personalize it.');
   return 0;
+  }
 }

@@ -31,7 +31,55 @@ mh_drive_form() { case "$1" in /mnt/[a-z]/*) MH_DRV="/mnt/" ;; *) MH_DRV="/" ;; 
 
 # Deletes a skill folder the harness put there: renamed first to a temporary name (.mh-tmp-old-<name>, which
 # install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
-mh_drop() { local t; t="$(dirname "$1")/.mh-tmp-old-$(basename "$1")"; rm -rf "${t:?}"; mv "$1" "$t" && rm -rf "${t:?}"; }
+# (Folders copied from a read-only clone are read-only too: made writable first, so they can be removed.)
+mh_drop() { local t; t="$(dirname "$1")/.mh-tmp-old-$(basename "$1")"; if [ -e "$t" ]; then chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; fi; mv "$1" "$t" && { chmod -R u+w "$t" 2>/dev/null || true; rm -rf "${t:?}"; }; }
+
+# One run at a time in a folder: a lock folder, .makkov-harness/lock, that install.sh, install.ps1 and the Node
+# installer all make and honour. Its owner file says which process on which computer made it, and when. A lock whose
+# process no longer runs on this computer, or older than a day, was left by a run that was stopped and is taken over.
+# Usage: mh_lock <state folder> <folder for messages>; then trap mh_unlock EXIT. Prints why and returns 1 when held.
+MH_LOCK="" MH_LOCK_STATE=""
+mh_pid() { if [ -r "/proc/$$/winpid" ]; then cat "/proc/$$/winpid"; else echo "$$"; fi; }   # Git Bash: the Windows pid
+mh_host() { hostname 2>/dev/null || uname -n; }
+mh_lock_stale() {   # $1: lock folder
+  local o pid host started now age
+  o="$1/owner"; now="$(date +%s)"
+  if [ ! -f "$o" ]; then [ -n "$(find "$1" -prune -mmin +1 2>/dev/null)" ]; return; fi
+  pid="$(sed -n 's/^pid=//p' "$o" | head -n 1)"; host="$(sed -n 's/^host=//p' "$o" | head -n 1)"; started="$(sed -n 's/^started=//p' "$o" | head -n 1)"
+  case "$started" in ''|*[!0-9]*) started=0 ;; esac
+  age=$((now - started)); [ "$started" -gt 0 ] && [ "$age" -gt 86400 ] && return 0
+  if [ -z "$host" ] || [ "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" = "$(mh_host | tr '[:upper:]' '[:lower:]')" ]; then
+    case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+    [ -r "/proc/$$/winpid" ] && return 1   # Git Bash cannot ask Windows whether that process still runs
+    kill -0 "$pid" 2>/dev/null && return 1
+    # kill -0 fails for a running process of another user too: only a process that is gone makes the lock stale.
+    ps -p "$pid" >/dev/null 2>&1 && return 1
+    return 0
+  fi
+  return 1
+}
+mh_lock() {
+  local st="$1" l="$1/lock" i pid when
+  # (Another run may make the folder at the same moment: that is not "cannot write here".)
+  if [ ! -d "$st" ]; then mkdir "$st" 2>/dev/null || [ -d "$st" ] || return 0; fi   # cannot write: the checks before the first change say why
+  MH_LOCK_STATE="$st"
+  for i in 1 2 3; do
+    if mkdir "$l" 2>/dev/null; then
+      printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh\n' "$(mh_pid)" "$(mh_host)" "$(date +%s)" > "$l/owner" 2>/dev/null || true
+      MH_LOCK="$l"; return 0
+    fi
+    [ -d "$l" ] || { rmdir "$st" 2>/dev/null; return 0; }
+    if mh_lock_stale "$l"; then rm -rf "${l:?}"; continue; fi
+    pid="$(sed -n 's/^pid=//p' "$l/owner" 2>/dev/null | head -n 1)"
+    echo "Another makkov-harness run is working in $2 (process ${pid:-?}). Let it finish, then run this again. If none is running, delete the folder $l and run this again." >&2
+    echo "Nothing was changed." >&2
+    return 1
+  done
+  echo "Could not take the lock $l. Delete that folder if no makkov-harness run is going on, then run this again." >&2
+  return 1
+}
+# Removes the lock this run took, and the harness folder when the run left it empty.
+mh_unlock() { if [ -n "$MH_LOCK" ]; then rm -rf "${MH_LOCK:?}"; MH_LOCK=""; fi; if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi; return 0; }
 
 # The first value of key=... in a manifest, as written (after mh_cat).
 mh_raw() { mh_cat "$1" | sed -n "s/^$2=//p" | head -n 1; }
@@ -71,15 +119,17 @@ mh_get() { mh_rebase "$(mh_raw "$1" "$2")" "$(mh_old_base "$1")" "$3"; }
 mh_check_markers() {
   [ -f "$1" ] || return 0
   local why
+  # (awk still runs END after exit: `done` keeps it to the first problem, as the other installers report.)
   why="$(awk '
-    /<!-- makkov-harness:start -->/          { if (open != "") { print "line " NR ": a routing block starts inside another marked block"; exit }
+    /<!-- makkov-harness:start -->/          { if (open != "") { print "line " NR ": a routing block starts inside another marked block"; done = 1; exit }
                                                open = "main"; at = NR; mains++
-                                               if (mains > 1) { print "line " NR ": a second routing block"; exit } next }
-    /<!-- makkov-harness:personal:start -->/ { if (open != "") { print "line " NR ": a personal layer starts inside another marked block"; exit }
+                                               if (mains > 1) { print "line " NR ": a second routing block"; done = 1; exit } next }
+    /<!-- makkov-harness:personal:start -->/ { if (open != "") { print "line " NR ": a personal layer starts inside another marked block"; done = 1; exit }
                                                open = "personal"; at = NR; next }
-    /<!-- makkov-harness:end -->/            { if (open != "main") { print "line " NR ": an end marker with no routing block open"; exit } open = ""; next }
-    /<!-- makkov-harness:personal:end -->/   { if (open != "personal") { print "line " NR ": a personal end marker with no personal layer open"; exit } open = ""; next }
-    END { if (open == "main") print "line " at ": a routing block with no end marker"
+    /<!-- makkov-harness:end -->/            { if (open != "main") { print "line " NR ": an end marker with no routing block open"; done = 1; exit } open = ""; next }
+    /<!-- makkov-harness:personal:end -->/   { if (open != "personal") { print "line " NR ": a personal end marker with no personal layer open"; done = 1; exit } open = ""; next }
+    END { if (done) exit
+          if (open == "main") print "line " at ": a routing block with no end marker"
           else if (open == "personal") print "line " at ": a personal layer with no end marker" }' "$1")" ||
     why="it could not be read"
   [ -z "$why" ] && return 0

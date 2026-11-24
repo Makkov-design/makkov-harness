@@ -20,8 +20,12 @@ case "$impl" in sh) impls=(sh) ;; node) impls=(node) ;; mixed) impls=(sh node); 
 # name it C:\Users\...\Temp\x (read back as /c/Users/...), two spellings of one folder in one manifest, which the
 # installers rightly refuse. (A project of yours has one spelling: /c/Users/you/site is C:\Users\you\site.)
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) [ -n "${RUNNER_TEMP:-}" ] && export TMPDIR="$(cygpath -u "$RUNNER_TEMP")" ;; esac
-case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }; ps_exe="$(command -v pwsh || command -v powershell)" ;;
-  *) winpath() { printf '%s' "$1"; }; ps_exe="$(command -v pwsh || true)" ;; esac
+# On Windows both PowerShells run install.ps1 when both are there (PowerShell 7 and Windows PowerShell 5.1), each
+# step picking one.
+ps_exes=()
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }
+    for x in pwsh powershell; do command -v "$x" >/dev/null 2>&1 && ps_exes+=("$(command -v "$x")"); done ;;
+  *) winpath() { printf '%s' "$1"; }; command -v pwsh >/dev/null 2>&1 && ps_exes+=("$(command -v pwsh)") ;; esac
 # MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
 # `npm pack` (its skills miss the files npm never packs, such as a .gitignore); this repository's by default.
 node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
@@ -32,6 +36,7 @@ ps_home="$(mktemp -d)"; trap 'rm -rf "$ps_home"' EXIT
 run_cmd() {
   local i="$1" op="$2" a="$3" pr="$4" sc="$5" wp=""
   [ -n "$pr" ] && wp="$(winpath "$pr")"
+  case "$i" in ps) pick "${ps_exes[@]}"; ps_exe="$picked" ;; esac
   case "$i" in
     sh)   cmd=(bash "$repo/install/$op.sh" "$a"); [ -n "$pr" ] && cmd+=("$pr"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
     node) cmd=(env "USERPROFILE=$(winpath "$HOME")" node "$(winpath "$node_bin")" "$op" --agent "$a"); [ -n "$pr" ] && cmd+=(--project "$wp"); [ -n "$sc" ] && cmd+=(--scope "$sc") ;;
@@ -47,6 +52,8 @@ runs_total="${1:-20}" seed="${2:-1}"
 RANDOM="$seed"
 # pick sets $picked (not $(pick …): a subshell's $RANDOM does not advance the sequence, and newer bash reseeds it).
 pick() { local a=("$@"); picked="${a[$((RANDOM % ${#a[@]}))]}"; }
+# How many runs each implementation made, for the summary (bash 3.2 has no associative arrays).
+ran() { eval "runs_$1=\$(( \${runs_$1:-0} + 1 ))"; }
 # Everything under a folder, with checksums of files and targets of links.
 tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; then echo "$f -> $(readlink "$f")"; elif [ -f "$f" ]; then echo "$f $(cksum < "$f")"; else echo "$f/"; fi; done' _ {} + | LC_ALL=C sort); }
 # On a failure: the steps, then what each run printed.
@@ -108,7 +115,7 @@ for n in $(seq 1 "$runs_total"); do
       out="$("${cmd[@]}" 2>&1)"; code=$?
     fi
     set -e
-    ps_clean "$im"
+    ran "$im"; ps_clean "$im"
     said="$said--- $op $a ($im): ${cmd[*]}
 ${out:-}
 "
@@ -123,7 +130,7 @@ ${out:-}
       a="$(basename "$m" .txt)"; a="${a#install-}"
       pick "${impls[@]}"; im="$picked"; run_cmd "$im" uninstall "$a" "$p" ""
       out="$("${cmd[@]}" 2>&1)" || fail "final uninstall of $a ($im) failed: $out"
-      ps_clean "$im"
+      ran "$im"; ps_clean "$im"
       said="$said--- uninstall $a ($im, final): ${cmd[*]}
 $out
 "
@@ -139,4 +146,4 @@ $(diff <(printf '%s\n' "$start") <(printf '%s\n' "$now") || true)"
 $(diff <(printf '%s\n' "$outside") <(printf '%s\n' "$now_out") || true)"
   rm -rf "$parent"
 done
-echo "installer sequences: $runs_total passed (seed $seed, $impl: ${impls[*]})"
+echo "installer sequences: $runs_total passed (seed $seed, $impl: ${impls[*]}; runs: sh ${runs_sh:-0}, node ${runs_node:-0}, ps ${runs_ps:-0})"

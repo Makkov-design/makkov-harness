@@ -54,7 +54,7 @@ With Node.js 22 or later (`node --version`), on any system, the Node installer i
 node ~/makkov-harness/bin/makkov-harness.mjs install --agent <agent> [--project <path>] [--dry-run] [--scope design]
 ```
 
-(Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" install …`.) It is also published on npm as `makkov-harness` once the owner has released it: when `npm view makkov-harness version` prints a version, `npx makkov-harness@<that version> install --agent <agent> …` runs the same installer without a copy of the repository. When it prints an error, the package is not published yet: use the copy.
+(Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" install …`.)
 
 Without Node, the shell installers do the same.
 

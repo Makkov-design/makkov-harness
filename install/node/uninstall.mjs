@@ -10,7 +10,7 @@ import { versionPrints } from './fingerprints.mjs';
 export function uninstall({ repo, agent, project, dry, out }) {
   const say = (s) => out.push(s);
   const home = L.home();
-  if (project && L.samePath(project, home)) throw new L.Stop('The project path is your home folder. For a user-level install, leave the project path out.', 2);
+  if (project && (L.samePath(project, home) || L.sameFolder(project, home))) throw new L.Stop('The project path is your home folder. For a user-level install, leave the project path out.', 2);
   const base = project || home;
   const state = L.join(base, '.makkov-harness');
   const manifest = L.join(state, `install-${agent}.txt`);
@@ -18,6 +18,13 @@ export function uninstall({ repo, agent, project, dry, out }) {
     throw new L.Stop(`No makkov-harness install for ${agent} found in ${base} (no ${manifest}).\nIf you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.`);
   }
   const stop = (why) => { throw new L.Stop(`${why}\nNothing was changed.`); };
+  // One run at a time in this folder (a dry run changes nothing, so it takes no lock).
+  const unlock = dry ? () => {} : L.lock(state, base);
+  try {
+    return run();
+  } finally { unlock(); }
+
+  function run() {
 
   // 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
   //    files to change must be changeable.
@@ -71,7 +78,7 @@ export function uninstall({ repo, agent, project, dry, out }) {
         for (const o of shared) for (const l of mine) if (!o.lines.includes(l)) append(o.file, l);
         continue;
       }
-      const fps = L.fingerprints(dst);
+      const fps = L.fingerprints(dst, true);
       let ours = fps.some((f) => lines.includes(`skill=${name} ${f}`));
       const mineCopy = L.join(repo, 'skills', name);
       if (!ours && L.isDir(mineCopy)) { const r = versionPrints(name, L.fingerprints(mineCopy)); ours = fps.some((f) => r.includes(f)); }
@@ -79,7 +86,7 @@ export function uninstall({ repo, agent, project, dry, out }) {
       if (ours) { s(`remove ${dst}`); if (!dry) L.dropSkill(dst); }
       else {
         s(`move ${dst} to ${L.join(removedDir, name)} (you changed it)`);
-        if (!dry) { L.mkdirp(removedDir); fs.renameSync(dst, L.join(removedDir, name)); }
+        if (!dry) { L.mkdirp(removedDir); L.moveDir(dst, L.join(removedDir, name)); }
       }
     }
     // 2. Put back the skills the install moved aside. While another agent still uses this skills folder, hand the
@@ -97,7 +104,7 @@ export function uninstall({ repo, agent, project, dry, out }) {
         if (n.startsWith('.') || !L.isDir(L.join(b, n))) continue;
         const dst = L.join(skillsDir, n);
         if (L.exists(dst)) s(`leave your earlier ${n} in ${b} (${dst} exists)`);
-        else { s(`restore your ${n} to ${dst}`); if (!dry) fs.renameSync(L.join(b, n), dst); }
+        else { s(`restore your ${n} to ${dst}`); if (!dry) L.moveDir(L.join(b, n), dst); }
       }
     }
     // Copies an interrupted install left half made under a temporary name are the harness's own.
@@ -118,7 +125,7 @@ export function uninstall({ repo, agent, project, dry, out }) {
   const personalRule = L.join(L.dirname(rules), 'makkov-harness-personal.mdc');
   if (agent === 'cursor' && L.isFile(personalRule)) {
     s(`delete ${personalRule} (a copy stays in ${kept}${L.WIN ? '' : '/'})`);
-    if (!dry) { L.mkdirp(kept); fs.renameSync(personalRule, L.join(kept, 'makkov-harness-personal.mdc')); }
+    if (!dry) { L.mkdirp(kept); L.moveFile(personalRule, L.join(kept, 'makkov-harness-personal.mdc')); }
   }
   // The copy of the file from before the first install, if this uninstall is the one to use it (a *.bak-<date>
   // copy an install from 0.5.0 or earlier left next to the file is used but left where it is).
@@ -174,7 +181,8 @@ export function uninstall({ repo, agent, project, dry, out }) {
     const sweep = (d) => {
       for (const n of fs.readdirSync(d)) {
         const p = L.join(d, n), st = L.lstat(p);
-        if (st.isDirectory()) { sweep(p); if (fs.readdirSync(p).length === 0) fs.rmdirSync(p); }
+        if (st.isDirectory() && n.startsWith('.mh-tmp-')) L.removeTree(p);   // a copy an interrupted move left
+        else if (st.isDirectory() && n !== 'lock') { sweep(p); if (fs.readdirSync(p).length === 0) fs.rmdirSync(p); }
         else if (st.isFile() && n.endsWith('.mh-tmp')) fs.rmSync(p, { force: true });
       }
     };
@@ -183,4 +191,5 @@ export function uninstall({ repo, agent, project, dry, out }) {
   }
   say(dry ? `Dry run done for ${agent}. Run again without --dry-run to uninstall.` : `makkov-harness removed for ${agent}. Restart the agent.`);
   return 0;
+  }
 }

@@ -360,6 +360,92 @@ export function removeTree(p) {
 }
 export const mkdirp = (d) => fs.mkdirSync(d, { recursive: true });
 
+// Copies a folder as `cp -R` does: files are created with the source's mode less the umask (the system applies it
+// to a new file's mode), symlinks are copied as symlinks. With `keepModes`, as `mv` across file systems does, every
+// file and folder gets the source's mode exactly.
+export function copyTree(src, dst, keepModes = false) {
+  const s = fs.lstatSync(src);
+  if (s.isSymbolicLink()) { fs.symlinkSync(fs.readlinkSync(src), dst); return; }
+  if (s.isDirectory()) {
+    fs.mkdirSync(dst);
+    for (const n of fs.readdirSync(src)) copyTree(join(src, n), join(dst, n), keepModes);
+    if (keepModes) fs.chmodSync(dst, s.mode & 0o7777);
+    return;
+  }
+  fs.writeFileSync(dst, fs.readFileSync(src), { mode: s.mode & 0o777 });
+  if (keepModes) fs.chmodSync(dst, s.mode & 0o7777);
+}
+// Moves a folder between the skills folder and .makkov-harness/backups. A rename where it can; where the two are on
+// different file systems (EXDEV: a skills folder that is a link to another volume), a copy under a temporary name
+// next to the destination (.mh-tmp-move-<name>, which install and uninstall clear), checked to hold the same files,
+// renamed into place, and only then the source removed: an interruption leaves the source, or both, never neither.
+export function moveDir(src, dst) {
+  try { fs.renameSync(src, dst); return; } catch (e) { if (e.code !== 'EXDEV') throw e; }
+  const t = join(dirname(dst), '.mh-tmp-move-' + basename(dst));
+  removeTree(t);
+  copyTree(src, t, true);
+  if (fingerprintSh(src) !== fingerprintSh(t)) { removeTree(t); throw new Stop(`${src} could not be copied to ${dst} whole. Nothing of it was removed; run this again.`); }
+  fs.renameSync(t, dst);
+  removeTree(src);
+}
+
+// Moves a file the same way (a rename; across file systems a copy, then the source removed).
+export function moveFile(src, dst) {
+  try { fs.renameSync(src, dst); return; } catch (e) { if (e.code !== 'EXDEV') throw e; }
+  fs.copyFileSync(src, dst);
+  fs.rmSync(src, { force: true });
+}
+
+// One run at a time in a folder: a lock folder, .makkov-harness/lock, that install.sh, install.ps1 and this
+// installer all make and honour. It holds who made it (process id, computer, time). A lock whose process no longer
+// runs on this computer, or that is older than a day, is left from a run that was stopped, and is taken over.
+// Returns a function that removes the lock (and the harness folder, when the run left it empty), or throws Stop.
+export function lock(state, base) {
+  const l = join(state, 'lock');
+  let made = false;
+  // (Another run may make the folder at the same moment: that is not "cannot write here".)
+  if (!exists(state)) { try { fs.mkdirSync(state); made = true; } catch (e) { if (e.code !== 'EEXIST') return () => {}; } }   // cannot write: pre-flight says why
+  for (let i = 0; i < 3; i++) {
+    try {
+      fs.mkdirSync(l);
+      fs.writeFileSync(join(l, 'owner'), `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`);
+      let done = false;
+      const release = () => {
+        if (done) return; done = true;
+        try { fs.rmSync(l, { recursive: true, force: true }); } catch { /* */ }
+        try { if (fs.readdirSync(state).length === 0) fs.rmdirSync(state); } catch { /* */ }
+      };
+      process.once('exit', release);   // also when the run stops at a test point (process.exit)
+      return release;
+    } catch (e) {
+      if (e.code !== 'EEXIST' || !isDir(l)) { if (made) try { fs.rmdirSync(state); } catch { /* */ } return () => {}; }
+    }
+    const o = lockOwner(l);
+    if (o.stale) { removeTree(l); continue; }
+    throw new Stop(`Another makkov-harness run is working in ${base} (process ${o.pid || '?'}${o.host ? ' on ' + o.host : ''}, started ${o.when || 'just now'}). Let it finish, then run this again. If none is running, delete the folder ${l} and run this again.\nNothing was changed.`);
+  }
+  throw new Stop(`Could not take the lock ${l}. Delete that folder if no makkov-harness run is going on, then run this again.\nNothing was changed.`);
+}
+// What a lock says about its run, and whether that run is over.
+export function lockOwner(l) {
+  let t = '';
+  try { t = fs.readFileSync(join(l, 'owner'), 'utf8'); } catch { /* being written, or left half made */ }
+  const get = (k) => { const m = new RegExp(`^${k}=(.*)$`, 'm').exec(t); return m ? m[1].trim() : ''; };
+  const pid = Number(get('pid')), host = get('host'), started = Number(get('started'));
+  const st = lstat(l);
+  const age = started ? Date.now() / 1000 - started : st ? (Date.now() - st.mtimeMs) / 1000 : 0;
+  let stale = age > 86400;
+  if (!t) stale = stale || age > 60;   // no owner after a minute: a run stopped while making the lock
+  else if (!host || host.toLowerCase() === os.hostname().toLowerCase()) {
+    if (pid > 0) { try { process.kill(pid, 0); } catch (e) { if (e.code === 'ESRCH') stale = true; } }
+  }
+  const when = started ? new Date(started * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : '';
+  return { pid, host, when, stale };
+}
+
+// The Node versions this installer is tested on (package.json engines).
+export const NODE_MIN = 22;
+
 // ---- fingerprints -------------------------------------------------------------------------------------------
 
 // POSIX cksum (CRC-32, polynomial 0x04C11DB7, length appended, complemented), as install.sh computes it.
@@ -409,14 +495,38 @@ export function fingerprintPs(dir, sep = SEP) {
   const text = files.map(([r, p]) => r + ':' + crypto.createHash('sha256').update(readBytes(p)).digest('hex').toUpperCase()).join('\n');
   return crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex').slice(0, 16);
 }
-// Both: a manifest the Node installer writes lists a skill under both fingerprints, so either shell installer
-// recognises the copy, and a copy either of them recorded is recognised here.
-export const fingerprints = (dir) => [fingerprintSh(dir), fingerprintPs(dir)];
+// install.ps1 of 0.5.0 sorted the files by culture (Sort-Object FullName, not case-sensitive) before hashing.
+// PowerShell 7 compares like ICU; Windows PowerShell 5.1 like Windows' word sort, which gives hyphens and
+// apostrophes no weight. Both orders, to recognise a copy 0.5.0 recorded; never written.
+const ICU = new Intl.Collator('en-US', { sensitivity: 'accent' });
+const WORD = (a, b) => ICU.compare(a.replace(/[-']/g, ''), b.replace(/[-']/g, '')) || ICU.compare(a, b);
+export function fingerprintPsCulture(dir, cmp, sep = SEP) {
+  const files = walk(dir, true).map(([parts, p]) => [sep + parts.join(sep), p]);
+  files.sort((x, y) => cmp(x[0], y[0]));
+  const text = files.map(([r, p]) => r + ':' + crypto.createHash('sha256').update(readBytes(p)).digest('hex').toUpperCase()).join('\n');
+  return crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex').slice(0, 16);
+}
+export const CULTURE_SORTS = { icu: ICU.compare, word: WORD };
+// The fingerprints a manifest written here lists a skill under: install.sh's and install.ps1's, so either shell
+// installer recognises the copy. With `all`, also the ones only read (0.5.0's culture-sorted ids), to recognise a
+// copy any of them recorded.
+export const fingerprints = (dir, all = false) => {
+  const f = [fingerprintSh(dir), fingerprintPs(dir)];
+  if (all) for (const c of Object.values(CULTURE_SORTS)) f.push(fingerprintPsCulture(dir, c));
+  return [...new Set(f)];
+};
 
 // ---- the rest -----------------------------------------------------------------------------------------------
 
-// The home folder as the shell installers use it: $HOME (USERPROFILE on Windows), as written.
-export const home = () => os.homedir();
+// The home folder: $HOME (USERPROFILE on Windows), made absolute and normalised once (a trailing slash, `.` or a
+// relative path would otherwise be spelled two ways in one manifest, and the next run would refuse it).
+export const home = () => path.resolve(os.homedir());
+// Two folders are the same folder: compared through their real paths (a symlinked home, a trailing slash), as
+// `cd … && pwd` lets the shell installers compare them; as written when one of them cannot be resolved.
+export function sameFolder(a, b) {
+  const real = (p) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
+  return samePath(real(a), real(b));
+}
 export function stampNow() {
   const s = process.env.MAKKOV_HARNESS_TEST_STAMP;
   if (s && /^\d{8}-\d{6}$/.test(s)) return s;   // tests: the same second for several runs

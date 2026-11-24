@@ -3,7 +3,8 @@
 // lists each agent's install (scope, skills folder, instructions file, which of them other agents share), the
 // backups kept, the manifests that fail the installer's own checks and why, skills that are missing or differ from
 // this package's copies, files an interrupted run left, and leftovers from installs of 0.5.0 and earlier.
-// Exit code 1 when something needs attention, 0 otherwise.
+// Exit codes: 0 nothing needs attention, 1 something needs attention, 3 a folder could not be read (the report says
+// which; with --json it is still a complete JSON report), 2 a usage error.
 import fs from 'node:fs';
 import * as L from './lib.mjs';
 import { versionPrints } from './fingerprints.mjs';
@@ -21,11 +22,12 @@ export function doctor({ repo, project, agent }) {
   for (const name of fs.readdirSync(L.join(repo, 'skills')).sort()) {
     if (name !== 'rich-report' && !name.startsWith('.') && L.isDir(L.join(repo, 'skills', name))) pkg[name] = versionPrints(name, L.fingerprints(L.join(repo, 'skills', name)));
   }
-  const report = { folders: [], attention: 0 };
+  const report = { folders: [], attention: 0, errors: 0 };
   for (const { base, project: proj } of folders) {
     const state = L.join(base, '.makkov-harness');
     const f = { folder: base, level: proj ? 'project' : 'user', installs: [], invalid: [], backups: [], leftovers: [], findings: [] };
-    const note = (level, text) => { f.findings.push({ level, text }); if (level === 'attention') report.attention++; };
+    const note = (level, text) => { f.findings.push({ level, text }); if (level === 'attention') report.attention++; if (level === 'error') report.errors++; };
+    try {
     const manifests = L.manifestsIn(state);
     const valid = [];
     for (const m of manifests) {
@@ -50,7 +52,7 @@ export function doctor({ repo, project, agent }) {
       for (const name of names) {
         const dst = L.join(skillsDir, name);
         if (!L.isDir(dst)) { i.skills.missing.push(name); continue; }
-        const fps = L.fingerprints(dst);
+        const fps = L.fingerprints(dst, true);
         if (pkg[name] && fps.some((x) => pkg[name].includes(x))) i.skills.current.push(name);
         else if (fps.some((x) => lines.includes(`skill=${name} ${x}`))) i.skills.outdated.push(name);
         else if (!lines.some((l) => l.startsWith(`skill=${name} `))) i.skills.unrecorded.push(name);
@@ -102,24 +104,41 @@ export function doctor({ repo, project, agent }) {
     if (bak.length) note('info', `copies an install of 0.5.0 or earlier left (delete them once you no longer need them): ${bak.map((x) => x.path).join(', ')}.`);
     // A harness folder with nothing installed.
     if (L.isDir(state) && !manifests.length) note('info', `${state} holds no install (only backups or leftovers).`);
+    // A run going on, or the lock a stopped run left.
+    if (L.isDir(L.join(state, 'lock'))) {
+      const o = L.lockOwner(L.join(state, 'lock'));
+      note(o.stale ? 'attention' : 'info', o.stale ? `${L.join(state, 'lock')} was left by a run that was stopped (the next install or uninstall takes it over).` : `a makkov-harness run is going on here (process ${o.pid || '?'}); this report may change when it ends.`);
+    }
     if (manifests.length || L.isDir(state) || f.findings.length) report.folders.push(f);
+    } catch (e) {
+      // A folder that cannot be read: reported, and the report goes on with the next folder.
+      note('error', `${base}: could not be read (${e.code || e.message}); this part of the report is incomplete.`);
+      if (!report.folders.includes(f)) report.folders.push(f);
+    }
   }
   return report;
 }
 
+// Text for a terminal: every value from a manifest or a folder name with its control characters shown as \uXXXX
+// (a manifest that came with a cloned repository could otherwise carry terminal escape codes), and only an
+// installed= time and a scope= that look like the installer's own.
+const clean = (v) => String(v ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 export function doctorText(r) {
   const out = [];
   if (!r.folders.length) out.push('No makkov-harness install found in your home folder' + ' or this folder.');
   for (const f of r.folders) {
-    out.push(`${f.folder} (${f.level} level)`);
+    out.push(`${clean(f.folder)} (${f.level} level)`);
     if (!f.installs.length) out.push('  nothing installed here');
     for (const i of f.installs) {
-      out.push(`  ${i.agent}: scope ${i.scope}, installed ${i.installed || 'at an unknown time'}`);
-      if (i.skills_dir) out.push(`    skills: ${i.skills_dir} (${i.skills.current.length} current${i.skills.outdated.length ? `, ${i.skills.outdated.length} older` : ''}${i.skills.edited.length ? `, ${i.skills.edited.length} changed by you` : ''}${i.skills.missing.length ? `, ${i.skills.missing.length} missing` : ''})${i.shares_skills_with.length ? `; shared with ${i.shares_skills_with.join(', ')}` : ''}`);
-      out.push(`    instructions: ${i.rules} (routing block ${i.routing})${i.shares_rules_with.length ? `; shared with ${i.shares_rules_with.join(', ')}` : ''}`);
+      const when = /^\d{8}-\d{6}$/.test(i.installed) ? i.installed : 'at an unknown time';
+      const scope = i.scope === 'all' || i.scope === 'design' ? i.scope : 'unknown';
+      out.push(`  ${i.agent}: scope ${scope}, installed ${when}`);
+      if (i.skills_dir) out.push(`    skills: ${clean(i.skills_dir)} (${i.skills.current.length} current${i.skills.outdated.length ? `, ${i.skills.outdated.length} older` : ''}${i.skills.edited.length ? `, ${i.skills.edited.length} changed by you` : ''}${i.skills.missing.length ? `, ${i.skills.missing.length} missing` : ''})${i.shares_skills_with.length ? `; shared with ${i.shares_skills_with.join(', ')}` : ''}`);
+      out.push(`    instructions: ${clean(i.rules)} (routing block ${i.routing})${i.shares_rules_with.length ? `; shared with ${i.shares_rules_with.join(', ')}` : ''}`);
     }
-    for (const x of f.findings) out.push(`  ${x.level === 'attention' ? '!' : '-'} ${x.text}`);
+    for (const x of f.findings) out.push(`  ${x.level === 'error' ? 'x' : x.level === 'attention' ? '!' : '-'} ${clean(x.text)}`);
   }
+  if (r.errors) out.push(`${r.errors} folder(s) could not be read: the report is incomplete.`);
   out.push(r.attention ? `${r.attention} thing(s) need attention.` : 'Nothing needs attention.');
   return out;
 }

@@ -57,6 +57,11 @@ function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Er
 function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
 function Get-Manifests { if (Test-Path -LiteralPath $state) { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File) } else { @() } }
 
+# One run at a time in this folder (a dry run writes nothing, so it takes no lock). The lock is let go in the finally
+# at the end of this file, whichever way the run ends (exit and the test stop points included).
+$mhLock = if ($DryRun) { $null } else { Enter-MhLock $state $base }
+try {
+
 # 0. Before anything is written.
 # Every manifest in this folder must be one the installer wrote for this folder.
 foreach ($m in Get-Manifests) {
@@ -203,11 +208,11 @@ if ($skillsDir) {
         Remove-MhSkill $dst
       } elseif ($earlier -contains "skill=$name") {
         $keep = Join-Path (Join-Path $backupRoot 'earlier-harness') $name
-        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-Item -LiteralPath $dst -Destination $keep
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-MhDir $dst $keep
         $older += $name
       } else {
         $keep = Join-Path (Join-Path $backupRoot 'skills') $name
-        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-Item -LiteralPath $dst -Destination $keep
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-MhDir $dst $keep
         $backed += $name
       }
     }
@@ -242,7 +247,7 @@ if ($skillsDir) {
       Remove-MhSkill $dst
     } else {
       $keep = if ($id) { Join-Path (Join-Path $backupRoot 'removed') $name } else { Join-Path (Join-Path $backupRoot 'earlier-harness') $name }
-      New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-Item -LiteralPath $dst -Destination $keep
+      New-Item -ItemType Directory -Force -Path (Split-Path -Parent $keep) | Out-Null; Move-MhDir $dst $keep
     }
     $dropped += $name
   }
@@ -295,3 +300,5 @@ if ($dropped.Count) { Write-Output ("No longer part of the harness, taken out of
 Write-Output "Routing -> $rules"
 if ($Agent -eq 'aider') { Write-Output "Add 'read: [CONVENTIONS.md]' to .aider.conf.yml in the project." }
 Write-Output 'Restart the agent, then run the harness-onboarding skill to personalize it.'
+
+} finally { Exit-MhLock $mhLock }

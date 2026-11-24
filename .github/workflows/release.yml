@@ -7,6 +7,8 @@ name: release
 # No npm token is stored anywhere: npm trusted publishing (OIDC) lets this one workflow file publish, and npm adds
 # a provenance statement by itself. The package is published as a staged version (`npm stage publish`): it goes live
 # only when the owner approves it on npmjs.com with two-factor authentication, so this workflow alone cannot release.
+# The publish job also waits in the GitHub environment `npm-release`, which the owner protects with a required
+# reviewer (docs/release.md). YAML cannot check that the environment has one, so the workflow cannot fail closed on it.
 # Setup steps for the owner: docs/release.md. Requirements read from docs.npmjs.com/trusted-publishers and
 # docs.npmjs.com/staged-publishing on 2026-11-23: npm 11.15.0 or later (Node 24 ships 11.19), GitHub-hosted runner,
 # `id-token: write`, package.json's repository.url equal to this repository.
@@ -22,9 +24,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # The checks run without an OIDC token: nothing in them can ask npm for anything.
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: the version is the plugin's and the marketplace's, and the tag's when a tag started this
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          p="$(node -p "require('./.claude-plugin/plugin.json').version")"
+          m="$(node -p "require('./.claude-plugin/marketplace.json').plugins.find((x) => x.name === 'makkov-harness').version")"
+          [ "$v" = "$p" ] || { echo "::error::package.json is $v, plugin.json is $p"; exit 1; }
+          [ "$v" = "$m" ] || { echo "::error::package.json is $v, marketplace.json is $m"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then echo "::error::tag $GITHUB_REF_NAME, package $v"; exit 1; fi
+      - name: tests (unit, and every installer scenario run by the Node installer)
+        run: |
+          node --test install/node/node.test.mjs
+          MAKKOV_IMPL=node bash install/test/test-install.sh
+      - name: what goes into the package
+        run: npm pack --dry-run
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Waits here for the owner's approval when the environment has a required reviewer (docs/release.md).
+    environment: npm-release
     permissions:
       contents: read
       id-token: write
@@ -37,18 +71,10 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: the version is the plugin's, and the tag's when a tag started this
+      - name: npm is new enough for trusted publishing and staged versions (11.15.0 or later)
         run: |
-          v="$(node -p "require('./package.json').version")"
-          p="$(node -p "require('./.claude-plugin/plugin.json').version")"
-          [ "$v" = "$p" ] || { echo "::error::package.json is $v, plugin.json is $p"; exit 1; }
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then echo "::error::tag $GITHUB_REF_NAME, package $v"; exit 1; fi
-          npm --version
-      - name: tests (unit, and every installer scenario run by the Node installer)
-        run: |
-          node --test install/node/node.test.mjs
-          MAKKOV_IMPL=node bash install/test/test-install.sh
-      - name: what goes into the package
-        run: npm pack --dry-run
+          n="$(npm --version)"; echo "npm $n"
+          node -e 'const [a,b]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&b>=15)?0:1)' "$n" \
+            || { echo "::error::npm $n is older than 11.15.0"; exit 1; }
       - name: publish as a staged version (live once the owner approves it on npmjs.com)
         run: npm stage publish

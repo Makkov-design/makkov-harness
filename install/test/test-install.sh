@@ -570,6 +570,64 @@ bash "$inst" codex "$proj" >/dev/null; bash "$uninst" codex "$proj" >/dev/null
 check "the link is gone, the folder it pointed to is untouched" "[ ! -e '$proj/.agents/skills/.mh-tmp-animate' ] && [ ! -L '$proj/.agents/skills/.mh-tmp-animate' ] && grep -qx keep '$home/target/file'"
 rm -rf "$home" "$proj"
 
+# A home folder path spelled with a trailing slash: the manifest names one spelling, and update and uninstall read
+# it back (the Node installer once wrote both spellings, and then refused its own manifest).
+t="$(tmp)"; mkdir -p "$t/home/.codex"; printf '# my notes\n' > "$t/home/.codex/AGENTS.md"; export HOME="$t/home/"
+echo "codex at user level, the home folder given with a trailing slash"
+before="$(tree "$t/home")"
+runs bash "$inst" codex; c1=$code; runs bash "$inst" codex; c2=$code; runs bash "$uninst" codex; c3=$code
+check "install, update and uninstall all go through" "[ $c1 = 0 ] && [ $c2 = 0 ] && [ $c3 = 0 ]"
+check "the home folder is as it was" "[ \"\$(tree '$t/home')\" = \"\$before\" ]"
+rm -rf "$t"
+
+# A home folder that is a symlink, and the project path given as the folder it points to: still the home folder.
+t="$(tmp)"; mkdir -p "$t/real"; ln -s "$t/real" "$t/home"; export HOME="$t/home"
+echo "codex with the project path the real folder of a symlinked home"
+runs bash "$inst" codex "$t/real"
+check "install stops with exit code 2 and says why" "[ $code = 2 ] && printf '%s' \"\$out\" | grep -q 'home folder'"
+check "nothing written" "[ -z \"\$(find '$t/real' -mindepth 1)\" ]"
+rm -rf "$t"
+
+# A skills folder on another file system (.agents a link to /dev/shm): your skill is moved aside and put back
+# by copying, and nothing is left on either side.
+shm=""; if [ -d /dev/shm ] && [ -w /dev/shm ]; then shm="$(mktemp -d /dev/shm/mh-test.XXXXXX)"; fi
+if [ -n "$shm" ] && [ "$(df -P "$shm" | awk 'NR==2 {print $1}')" != "$(df -P "$(tmp)" | awk 'NR==2 {print $1}')" ]; then
+  home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+  echo "codex project, .agents on another file system (a link to /dev/shm)"
+  mkdir -p "$shm/skills/animate"; echo mine > "$shm/skills/animate/SKILL.md"; ln -s "$shm" "$proj/.agents"
+  before="$(tree "$shm")"
+  runs bash "$inst" codex "$proj"; c1=$code
+  check "install goes through, your animate set aside" "[ $c1 = 0 ] && grep -qx mine '$proj'/.makkov-harness/backups/*/skills/animate/SKILL.md"
+  runs bash "$uninst" codex "$proj"
+  check "uninstall goes through and puts your animate back" "[ $code = 0 ] && [ \"\$(tree '$shm')\" = \"\$before\" ] && [ ! -e '$proj/.makkov-harness' ]"
+  rm -rf "$home" "$proj"
+else echo "codex project, .agents on another file system: skip (no /dev/shm on another file system here)"; fi
+[ -n "$shm" ] && rm -rf "$shm"
+
+# One run at a time: a lock another running process holds stops the run before any change; a lock left by a run
+# that was stopped is taken over; four installs started at once leave your skill where an uninstall puts it back.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a lock held by a running process"
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$$" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops with exit code 1, says another run is working, changes nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'Another makkov-harness run' && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+echo "codex project, a lock left by a run that was stopped"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "it is taken over: install and uninstall go through, nothing left" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, four installs started at once"
+mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"; before="$(tree "$proj")"
+for i in 1 2 3 4; do bash "$inst" codex "$proj" > "$home/run$i" 2>&1 & done; wait || true
+ok4=1; for i in 1 2 3 4; do grep -q 'makkov-harness installed for codex\|Another makkov-harness run' "$home/run$i" || ok4=0; done
+check "each run either installs or says another run is working (no stack trace)" "[ $ok4 = 1 ] && ! grep -q 'at \|Error:' '$home'/run*"
+runs bash "$uninst" codex "$proj"
+check "the uninstall puts your animate back and leaves nothing else" "[ $code = 0 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+
 # A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "a manifest in install.ps1's form"

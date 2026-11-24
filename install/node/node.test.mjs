@@ -151,7 +151,9 @@ function snapshot(dir) {
 }
 
 test("the npm package holds the installer, the routing map and the skills, and nothing else of the repository", () => {
-  const r = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: repo, encoding: 'utf8', shell: process.platform === 'win32' });
+  // One command string: on Windows npm is a .cmd, which needs a shell, and Node warns (DEP0190) when arguments are
+  // passed to a shell as a list.
+  const r = spawnSync('npm pack --dry-run --json --ignore-scripts', { cwd: repo, encoding: 'utf8', shell: true });
   assert.equal(r.status, 0, r.stderr);
   const pkg = JSON.parse(r.stdout)[0];
   const files = pkg.files.map((f) => f.path.replace(/\\/g, '/'));
@@ -162,25 +164,41 @@ test("the npm package holds the installer, the routing map and the skills, and n
   if (tracked.status === 0) {
     const want = tracked.stdout.split('\n').filter((f) => f && !f.startsWith('skills/rich-report/') && !/(^|\/)\.gitignore$/.test(f));
     assert.deepEqual(files.filter((f) => f.startsWith('skills/')).sort(), want.sort());
+    // Nothing goes into the package that git does not track (a stray or ignored file in a packed folder).
+    const all = new Set(spawnSync('git', ['ls-files'], { cwd: repo, encoding: 'utf8' }).stdout.split('\n').filter(Boolean));
+    for (const f of files) assert.ok(all.has(f), `packed but not tracked by git: ${f}`);
   }
   for (const f of files) assert.ok(!/^(\.github|docs|hooks|adapters|cloud|install\/test)\/|\.test\.mjs$|^install\/[^/]+\.(sh|ps1)$/.test(f) || f.startsWith('skills/'), `not in the package: ${f}`);
   assert.ok(pkg.unpackedSize < 10 * 1024 * 1024, `unpacked ${pkg.unpackedSize} bytes`);
 });
 
-// install.ps1's own fingerprint code (lib.ps1), where PowerShell is installed: for this repository's skills and for a
-// copy under a temporary path with a space in it (on Windows that path holds 8.3 short names, RUNNER~1 and the like).
-const pwsh = ['pwsh', ...(process.platform === 'win32' ? ['powershell'] : [])].find((c) => spawnSync(c, ['-NoProfile', '-Command', 'exit 0'], { stdio: 'ignore' }).status === 0);
-test("the PowerShell fingerprint equals install.ps1's", { skip: !pwsh && 'no PowerShell here', timeout: 300000 }, () => {
-  const t = tmp(), copy = path.join(t, 'My Project', '.agents', 'skills');
-  fs.mkdirSync(copy, { recursive: true });
-  const names = fs.readdirSync(path.join(repo, 'skills')).filter((n) => n !== 'rich-report');
-  for (const n of ['animate', 'media-use', 'design-score']) fs.cpSync(path.join(repo, 'skills', n), path.join(copy, n), { recursive: true });
-  const dirs = [...names.map((n) => path.join(repo, 'skills', n)), ...['animate', 'media-use', 'design-score'].map((n) => path.join(copy, n))];
-  const script = `. '${path.join(repo, 'install', 'lib.ps1').replace(/'/g, "''")}'; foreach ($d in $input) { (@(Get-MhTreeIds $d))[0] }`;
-  const r = spawnSync(pwsh, ['-NoProfile', '-NonInteractive', '-Command', script], { input: dirs.join('\n'), encoding: 'utf8', env: { ...process.env, HOME: t } });
-  assert.equal(r.status, 0, r.stderr);
-  const ids = r.stdout.split(/\r?\n/).filter(Boolean);
-  assert.equal(ids.length, dirs.length, r.stdout + r.stderr);
-  dirs.forEach((d, i) => assert.equal(L.fingerprintPs(d), ids[i], d));
-  fs.rmSync(t, { recursive: true, force: true });
-});
+// install.ps1's own fingerprint code (lib.ps1), in every PowerShell installed (on Windows both Windows PowerShell 5.1
+// and PowerShell 7): for this repository's skills and for a copy under a temporary path with a space in it (on
+// Windows that path holds 8.3 short names, RUNNER~1 and the like); and 0.5.0's culture-sorted id (Sort-Object
+// FullName), which the Node installer must recognise in a manifest 0.5.0 wrote.
+const shells = ['pwsh', ...(process.platform === 'win32' ? ['powershell'] : [])].filter((c) => spawnSync(c, ['-NoProfile', '-Command', 'exit 0'], { stdio: 'ignore' }).status === 0);
+for (const sh of shells.length ? shells : ['']) {
+  test(`the PowerShell fingerprints equal install.ps1's (${sh || 'no PowerShell'})`, { skip: !sh && 'no PowerShell here', timeout: 300000 }, () => {
+    const t = tmp(), copy = path.join(t, 'My Project', '.agents', 'skills');
+    fs.mkdirSync(copy, { recursive: true });
+    const names = fs.readdirSync(path.join(repo, 'skills')).filter((n) => n !== 'rich-report');
+    for (const n of ['animate', 'media-use', 'design-score']) fs.cpSync(path.join(repo, 'skills', n), path.join(copy, n), { recursive: true });
+    const repoDirs = names.map((n) => path.join(repo, 'skills', n));
+    const dirs = [...repoDirs, ...['animate', 'media-use', 'design-score'].map((n) => path.join(copy, n))];
+    const script = `. '${path.join(repo, 'install', 'lib.ps1').replace(/'/g, "''")}'
+foreach ($d in $input) {
+  $root = (Resolve-Path -LiteralPath $d).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  $leg = Get-MhId ((Get-ChildItem -LiteralPath $root -Recurse -File -Force | Sort-Object FullName | ForEach-Object { $_.FullName.Substring($root.Length) + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "\`n")
+  "$((@(Get-MhTreeIds $d))[0]) $leg"
+}`;
+    const r = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', script], { input: dirs.join('\n'), encoding: 'utf8', env: { ...process.env, HOME: t } });
+    assert.equal(r.status, 0, r.stderr);
+    const rows = r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.split(' '));
+    assert.equal(rows.length, dirs.length, r.stdout + r.stderr);
+    dirs.forEach((d, i) => {
+      assert.equal(L.fingerprintPs(d), rows[i][0], `ordinal id of ${d}`);
+      if (i < repoDirs.length) assert.ok(L.fingerprints(d, true).includes(rows[i][1]), `0.5.0's culture-sorted id of ${d} (${sh}): ${rows[i][1]} not among ${L.fingerprints(d, true).join(' ')}`);
+    });
+    fs.rmSync(t, { recursive: true, force: true });
+  });
+}
