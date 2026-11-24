@@ -756,6 +756,78 @@ try {
   Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
   Check 'the uninstall accepts it and removes everything' { $script:code -eq 0 -and (Entries $proj).Count -eq 0 }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # Everything under .makkov-harness\ and in the skills folder may have come with a cloned repository.
+  function Write-Hostile([string]$File, [string[]]$Skills) {
+    $l = @('agent=codex', 'installed=20250101-000000', 'base=C:\x', 'skills_dir=C:\x\.agents\skills', 'rules=C:\x\AGENTS.md', 'rules_existed=0', 'rules_backup=', 'scope=all')
+    if ([IO.Path]::DirectorySeparatorChar -ne '\') { $l = @($l | ForEach-Object { $_ -replace 'C:\\x', '/x' -replace '\\', '/' }) }
+    [IO.File]::WriteAllText($File, ((@($l) + @($Skills | ForEach-Object { "skill=$_" })) -join "`n") + "`n")
+  }
+  # A repository that ships .agents\skills as a link to a folder outside the project and a manifest whose skill=
+  # entries name folders there: the installer follows no link there and changes nothing outside the project.
+  $h = New-Temp; $proj = New-Temp; $outside = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a cloned .agents\skills that links outside, with a manifest naming folders there'
+  New-Item -ItemType Directory -Force (Join-Path $outside 'Documents'), (Join-Path $outside '.ssh'), (Join-Path $outside 'emptyish'), (Join-Path $proj '.agents'), (Join-Path $proj '.makkov-harness') | Out-Null
+  Set-Content (Join-Path $outside 'Documents\a.txt') 'mine'; Set-Content (Join-Path $outside '.ssh\id') 'key'
+  $linked = $true
+  try { New-Item -ItemType SymbolicLink -Path (Join-Path $proj '.agents\skills') -Target $outside | Out-Null } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
+  if ($linked) {
+    Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', '.ssh', 'emptyish e3b0c44298fc1c14')
+    $before = Tree $outside; $pbefore = Tree $proj
+    Run-Child $uninst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code; $o1 = $script:out
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'uninstall and install stop (exit 1) and say it is a link' { $c1 -eq 1 -and $script:code -eq 1 -and $o1 -match 'is a link' -and $script:out -match 'is a link' }
+    Check 'nothing moved or deleted outside the project, nothing changed in it' { (Tree $outside) -eq $before -and (Tree $proj) -eq $pbefore }
+    [IO.Directory]::Delete((Join-Path $proj '.agents\skills'))
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a cloned manifest naming a dot folder'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\.ssh'), (Join-Path $proj '.makkov-harness') | Out-Null; Set-Content (Join-Path $proj '.agents\skills\.ssh\id') 'key'
+  Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('.ssh')
+  $pbefore = Tree $proj
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'uninstall refuses the manifest (exit 1), nothing changed' { $script:code -eq 1 -and $script:out -match 'not a plain folder name' -and (Tree $proj) -eq $pbefore }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a cloned manifest naming folders that are not skills (no SKILL.md, or no files at all)'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.agents\skills\Documents'), (Join-Path $proj '.agents\skills\emptyish\sub'), (Join-Path $proj '.makkov-harness') | Out-Null
+  Set-Content (Join-Path $proj '.agents\skills\Documents\a.txt') 'mine'
+  Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', 'emptyish e3b0c44298fc1c14', 'emptyish 4294967295')
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code
+  Check 'install goes through and leaves both folders as they were' { $c1 -eq 0 -and (Test-Path (Join-Path $proj '.agents\skills\Documents\a.txt')) -and (Test-Path (Join-Path $proj '.agents\skills\emptyish\sub')) }
+  Write-Hostile (Join-Path $proj '.makkov-harness\install-codex.txt') @('Documents 123', 'emptyish e3b0c44298fc1c14', 'emptyish 4294967295')
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'uninstall goes through and deletes neither (no SKILL.md, so neither is taken for ours)' { $script:code -eq 0 -and (Test-Path (Join-Path $proj '.agents\skills\Documents\a.txt')) -and (Test-Path (Join-Path $proj '.agents\skills\emptyish\sub')) }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A repository that ships backups\original\AGENTS.md as a dangling link to a file elsewhere: the first install's
+  # copy of AGENTS.md is never written through it.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a cloned backups\original\AGENTS.md that is a dangling link'
+  Set-Content (Join-Path $proj 'AGENTS.md') '# repo notes'; New-Item -ItemType Directory -Force (Join-Path $proj '.makkov-harness\backups\original') | Out-Null
+  $target = Join-Path $h 'profile.ps1'; $linked = $true
+  try { Set-Content $target 'x'; New-Item -ItemType SymbolicLink -Path (Join-Path $proj '.makkov-harness\backups\original\AGENTS.md') -Target $target | Out-Null; Remove-Item $target } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
+  if ($linked) {
+    $pbefore = Tree $proj
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'install stops (exit 1), says it is a link, creates nothing' { $script:code -eq 1 -and $script:out -match 'is a link' -and -not (Test-Path $target) -and (Tree $proj) -eq $pbefore }
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A repository that ships backups\original\.cursor\rules\makkov-harness.mdc: the uninstall never writes it into
+  # the Cursor rule, since no install here made that copy.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'cursor project, a cloned copy of the rule in backups\original'
+  $cp = Join-Path $proj '.makkov-harness\backups\original\.cursor\rules'; New-Item -ItemType Directory -Force $cp | Out-Null
+  [IO.File]::WriteAllText((Join-Path $cp 'makkov-harness.mdc'), "alwaysApply: true`nINJECTED`n")
+  Run-Child $inst @('-Agent', 'cursor', '-Project', $proj); $c1 = $script:code
+  Run-Child $uninst @('-Agent', 'cursor', '-Project', $proj)
+  Check 'install and uninstall go through, and no rule is left behind' { $c1 -eq 0 -and $script:code -eq 0 -and -not (Test-Path (Join-Path $proj '.cursor\rules\makkov-harness.mdc')) }
+  New-Item -ItemType Directory -Force (Join-Path $proj '.cursor\rules') | Out-Null; [IO.File]::WriteAllText((Join-Path $proj '.cursor\rules\makkov-harness.mdc'), "my rule`n"); $pbefore = Tree $proj
+  Run-Child $inst @('-Agent', 'cursor', '-Project', $proj)
+  Check 'with a rule of yours that differs from that copy, install stops (exit 1) and changes nothing' { $script:code -eq 1 -and (Tree $proj) -eq $pbefore }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 } finally { $env:USERPROFILE = $realHome }
 
 # Random sequences of install, update and uninstall for several agents, with interruptions: a bounded run here

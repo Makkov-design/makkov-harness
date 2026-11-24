@@ -12,7 +12,8 @@
 # The order is the safety: everything that can fail is checked before the first change; the manifest
 # (.makkov-harness/install-<agent>.txt) records what the run is about to do before it does it, so an
 # interrupted run can be run again or uninstalled; the instructions file is kept once, as it was, before the
-# harness first changes it; and a manifest is read as untrusted input (install/lib.sh, mh_valid_manifest).
+# harness first changes it; and everything under .makkov-harness/ and in the skills folder is read as untrusted
+# input, since it may have come with the repository (install/lib.sh, mh_check_inside and mh_valid_manifest).
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
@@ -69,6 +70,9 @@ stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
 # install/test/ uses it to check that an interrupted run can be run again or uninstalled.
 checkpoint() { if [ "${MAKKOV_HARNESS_TEST:-}" = 1 ] && [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
 
+# No link on the way to anything this run writes under the harness folder or the skills folder.
+why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$original" "$original.mh-tmp" "$backup_root/skills" "$backup_root/removed" "$backup_root/earlier-harness" "$skills_dir")" || stop "$why."
+
 # One run at a time in this folder (a dry run writes nothing, so it takes no lock).
 if [ "$dry" = 0 ]; then mh_lock "$state" "$base" || exit 1; trap mh_unlock EXIT; fi
 
@@ -106,9 +110,13 @@ fi
 # A file that is there at the first install is kept, as it was, whatever it holds (a marked block too). A copy
 # an interrupted earlier run left in backups/original/ is the file as it was, so it is used, never replaced.
 # When another agent's install already names the file, its record stands: the harness made the file or kept it.
+# A Cursor rule is put back from that copy as it is, so for Cursor a copy no install here recorded (it may have come
+# with the repository) is used only when it is the rule as it is now.
 need_copy=0
 if [ ! -f "$manifest" ] && [ "$shared_rules" = 0 ] && [ -z "$rules_backup" ]; then
-  if [ -f "$original" ]; then rules_existed=1; rules_backup="$original"
+  if [ -f "$original" ] && [ "$agent" = cursor ] && ! { [ -f "$rules" ] && cmp -s "$rules" "$original"; }; then
+    [ -f "$rules" ] && stop "$original is a copy of $rules that no install here recorded, and it differs from the file. Move it out of $state, then run this again."
+  elif [ -f "$original" ]; then rules_existed=1; rules_backup="$original"
   elif [ -f "$rules" ]; then rules_existed=1; rules_backup="$original"; need_copy=1; fi
 fi
 [ "$rules_backup" = "$original" ] && [ ! -f "$original" ] && [ -f "$rules" ] && need_copy=1
@@ -227,7 +235,7 @@ if [ -n "$skills_dir" ]; then
       fp_old="$(mh_fingerprint "$dst")"
       if [ "$fp_old" = "$(fp_of "$name")" ]; then
         copy=0
-      elif printf '%s' "$earlier" | grep -qx "skill=$name $fp_old"; then
+      elif [ "$fp_old" != "$MH_EMPTY_FP" ] && printf '%s' "$earlier" | grep -qx "skill=$name $fp_old"; then
         mh_drop "$dst"
       elif printf '%s' "$earlier" | grep -qx "skill=$name"; then
         mkdir -p "$backup_root/earlier-harness"; mv "$dst" "$backup_root/earlier-harness/$name"
@@ -254,13 +262,15 @@ if [ -n "$skills_dir" ]; then
     case " $dropped " in *" $name "*) continue ;; esac
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
+    if ! mh_skill_folder "$name" "$dst"; then echo "  leave $dst (no SKILL.md in it, so not a skill folder the harness put there)"; continue; fi
     other=0
     for m in "$state"/install-*.txt; do
       [ "$m" = "$manifest" ] || [ ! -f "$m" ] && continue
       [ "$(mh_get "$m" skills_dir "$base")" = "$skills_dir" ] && mh_cat "$m" | grep -Eq "^skill=$name( |$)" && other=1
     done
     if [ "$other" = 1 ]; then echo "  keep $dst (no longer part of the harness, but another installed agent lists it)"; continue; fi
-    if [ -n "$fp" ] && printf '%s\n' "$old_skills" | grep -qxF "skill=$name $(mh_fingerprint "$dst")"; then
+    fp_now="$(mh_fingerprint "$dst")"
+    if [ -n "$fp" ] && [ "$fp_now" != "$MH_EMPTY_FP" ] && printf '%s\n' "$old_skills" | grep -qxF "skill=$name $fp_now"; then
       mh_drop "$dst"
     elif [ -n "$fp" ]; then
       mkdir -p "$backup_root/removed"; mv "$dst" "$backup_root/removed/$name"
@@ -300,7 +310,10 @@ if [ -f "$rules" ] && cmp -s "$new" "$rules"; then
   :   # already up to date: the file is not touched
 else
   if [ "$need_copy" = 1 ]; then
-    mkdir -p "$(dirname "$original")"; mh_write_through "$original" < "$rules"   # a plain copy: not read-only, even if the file is
+    # A plain copy (not read-only, even if the file is), made under a new name with an exclusive create and renamed
+    # into place: never written through a link.
+    mkdir -p "$(dirname "$original")"; rm -f "$original.mh-tmp"
+    (set -C; cat > "$original.mh-tmp") < "$rules"; mv -f "$original.mh-tmp" "$original"
   fi
   mh_write_through "$rules" < "$new"
 fi

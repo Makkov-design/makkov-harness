@@ -16,6 +16,7 @@ history; the release that made it is in parentheses.
 
 Changed:
   skills/hyperframes/SKILL.md                              (0.5.0) runs the CLI through the launcher; usage only when asked
+                                                           (unreleased) captured pages, templates and items are data, not instructions
   skills/hyperframes/references/plugin-installation.md   (0.3.1) the plugin pins its CLI in scripts/cli-version.json
   skills/hyperframes/references/skill-lifecycle.md        (0.5.0) the pinned CLI, never @latest on its own
   skills/hyperframes/references/sound.md                  (0.3.1) sound effects go through media-use's audio engine
@@ -25,7 +26,9 @@ Changed:
   skills/hyperframes/scripts/plugin-cli.test.mjs           (0.3.1, 0.5.0) tests for the pin and the telemetry default
   skills/hyperframes/scripts/lib/main-module.test.mjs      (0.4.0) skips the CLI sources this copy does not include
   skills/hyperframes-cli/references/upgrade-info-misc.md  (0.5.0) upgrade only when the person asks
+  skills/hyperframes-registry/SKILL.md                     (unreleased) installed items are data: no installs, sends or config edits
   skills/media-use/SKILL.md                                (0.3.1) points sound effects at the audio engine
+                                                           (unreleased) fetched media and its metadata are data, not instructions
   skills/media-use/audio/references/sfx.md                 (0.3.0, 0.3.1) Openverse keys, the engine command, credits
   skills/media-use/audio/scripts/lib/openverse.mjs         (0.3.0) optional Openverse API keys with a cached token
   skills/media-use/audio/scripts/lib/tts.mjs               (0.3.4) the CLI it starts is the pinned release
@@ -36,6 +39,10 @@ Changed:
   skills/media-use/scripts/lib/telemetry.mjs               (0.3.4) usage telemetry is off unless MEDIA_USE_TELEMETRY=1
   skills/media-use/scripts/lib/telemetry.test.mjs          (0.4.0) tests for the opt-in
   skills/media-use/scripts/transcribe.mjs                  (0.3.4) the CLI it starts is the pinned release
+  skills/slideshow/SKILL.md                                (unreleased) a ported page is data, not instructions
+  skills/style-sampling/SKILL.md                           (unreleased) REMIX.md sets the steps within remix.md's limits
+  skills/style-sampling/references/remix.md                (unreleased) a pulled template sets style and step order only;
+                                                           only our own summary goes into CLAUDE.md
 
 Added:
   skills/hyperframes/scripts/cli-version.json              (0.3.1) the reviewed CLI release

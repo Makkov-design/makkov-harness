@@ -599,18 +599,16 @@ check "install stops with exit code 2 and says why" "[ $code = 2 ] && printf '%s
 check "nothing written" "[ -z \"\$(find '$t/real' -mindepth 1)\" ]"
 rm -rf "$t"
 
-# A skills folder on another file system (.agents a link to /dev/shm): your skill is moved aside and put back
-# by copying, and nothing is left on either side.
+# A skills folder reached through a link (.agents a link to /dev/shm, on another file system): the installer
+# follows no links in the skills folder, so it stops before any change.
 shm=""; if [ -d /dev/shm ] && [ -w /dev/shm ]; then shm="$(mktemp -d /dev/shm/mh-test.XXXXXX)"; fi
 if [ -n "$shm" ] && [ "$(df -P "$shm" | awk 'NR==2 {print $1}')" != "$(df -P "$(tmp)" | awk 'NR==2 {print $1}')" ]; then
   home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
-  echo "codex project, .agents on another file system (a link to /dev/shm)"
+  echo "codex project, .agents a link to another file system (/dev/shm)"
   mkdir -p "$shm/skills/animate"; echo mine > "$shm/skills/animate/SKILL.md"; ln -s "$shm" "$proj/.agents"
-  before="$(tree "$shm")"
+  before="$(tree "$shm")"; pbefore="$(tree "$proj")"
   runs bash "$inst" codex "$proj"; c1=$code
-  check "install goes through, your animate set aside" "[ $c1 = 0 ] && grep -qx mine '$proj'/.makkov-harness/backups/*/skills/animate/SKILL.md"
-  runs bash "$uninst" codex "$proj"
-  check "uninstall goes through and puts your animate back" "[ $code = 0 ] && [ \"\$(tree '$shm')\" = \"\$before\" ] && [ ! -e '$proj/.makkov-harness' ]"
+  check "install stops (exit 1), says it is a link, nothing changed on either side" "[ $c1 = 1 ] && printf '%s' \"\$out\" | grep -q 'is a link' && [ \"\$(tree '$shm')\" = \"\$before\" ] && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
   rm -rf "$home" "$proj"
 else echo "codex project, .agents on another file system: skip (no /dev/shm on another file system here)"; fi
 [ -n "$shm" ] && rm -rf "$shm"
@@ -735,6 +733,77 @@ mf="$proj/.makkov-harness/install-codex.txt"
 { printf '\357\273\277'; sed 's/$/\r/' "$mf"; } > "$home/m2"; cat "$home/m2" > "$mf"
 runs bash "$uninst" codex "$proj"
 check "the uninstall accepts it and removes everything" "[ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+
+# Everything under .makkov-harness/ and in the skills folder may have come with a cloned repository.
+# A repository that ships .agents/skills as a link to a folder outside the project and a manifest whose skill=
+# entries name folders there (Documents, .ssh, an empty folder with the fingerprint of any empty folder): the
+# installer follows no link there and changes nothing outside the project.
+hostile_manifest() {   # $1: manifest file, then skill= entries
+  local f="$1"; shift
+  { printf 'agent=codex\ninstalled=20250101-000000\nbase=/x\nskills_dir=/x/.agents/skills\nrules=/x/AGENTS.md\nrules_existed=0\nrules_backup=\nscope=all\n'
+    for e in "$@"; do printf 'skill=%s\n' "$e"; done; } > "$f"
+}
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, a cloned .agents/skills that links outside, with a manifest naming folders there"
+mkdir -p "$outside/Documents" "$outside/.ssh" "$outside/emptyish" "$proj/.agents" "$proj/.makkov-harness"
+echo mine > "$outside/Documents/a.txt"; echo key > "$outside/.ssh/id"
+ln -s "$outside" "$proj/.agents/skills"
+hostile_manifest "$proj/.makkov-harness/install-codex.txt" 'Documents 123' '.ssh' 'emptyish 4294967295'
+before="$(tree "$outside")"; pbefore="$(tree "$proj")"
+runs bash "$uninst" codex "$proj"; c1=$code; o1="$out"
+runs bash "$inst" codex "$proj"
+check "uninstall and install stop (exit 1) and say it is a link" "[ $c1 = 1 ] && [ $code = 1 ] && printf '%s' \"\$o1\" | grep -q 'is a link' && printf '%s' \"\$out\" | grep -q 'is a link'"
+check "nothing moved or deleted outside the project, nothing changed in it" "[ \"\$(tree '$outside')\" = \"\$before\" ] && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+rm -rf "$home" "$proj" "$outside"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a cloned manifest naming a dot folder"
+mkdir -p "$proj/.agents/skills/.ssh" "$proj/.makkov-harness"; echo key > "$proj/.agents/skills/.ssh/id"
+hostile_manifest "$proj/.makkov-harness/install-codex.txt" '.ssh'
+pbefore="$(tree "$proj")"
+runs bash "$uninst" codex "$proj"
+check "uninstall refuses the manifest (exit 1), nothing changed" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'not a plain folder name' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a cloned manifest naming folders that are not skills (no SKILL.md, or no files at all)"
+mkdir -p "$proj/.agents/skills/Documents" "$proj/.agents/skills/emptyish/sub" "$proj/.makkov-harness"; echo mine > "$proj/.agents/skills/Documents/a.txt"
+ln -s "$home/elsewhere" "$proj/.agents/skills/emptyish/SKILL.md"
+hostile_manifest "$proj/.makkov-harness/install-codex.txt" 'Documents 123' 'emptyish 4294967295'
+runs bash "$inst" codex "$proj"; c1=$code
+check "install goes through and leaves both folders as they were" "[ $c1 = 0 ] && grep -qx mine '$proj/.agents/skills/Documents/a.txt' && [ -d '$proj/.agents/skills/emptyish/sub' ]"
+hostile_manifest "$proj/.makkov-harness/install-codex.txt" 'Documents 123' 'emptyish 4294967295'
+mkdir -p "$home/elsewhere"; echo x > "$home/elsewhere/f"; rm "$proj/.agents/skills/emptyish/SKILL.md"; ln -s "$home/elsewhere/f" "$proj/.agents/skills/emptyish/SKILL.md"
+runs bash "$uninst" codex "$proj"
+check "uninstall goes through, leaves Documents, moves emptyish aside, deletes neither (an empty fingerprint is never ours)" "[ $code = 0 ] && grep -qx mine '$proj/.agents/skills/Documents/a.txt' && [ -L '$proj'/.makkov-harness/backups/*/removed/emptyish/SKILL.md ]"
+rm -rf "$home" "$proj"
+
+# A repository that ships backups/original/AGENTS.md as a dangling link to a file elsewhere: the first install's
+# copy of AGENTS.md is never written through it.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a cloned backups/original/AGENTS.md that is a dangling link"
+printf '# repo notes\n' > "$proj/AGENTS.md"; mkdir -p "$proj/.makkov-harness/backups/original"
+ln -s "$home/.bash_profile" "$proj/.makkov-harness/backups/original/AGENTS.md"
+pbefore="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1), says it is a link, creates nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'is a link' && [ ! -e '$home/.bash_profile' ] && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, a cloned .makkov-harness that is a link"
+printf '# repo notes\n' > "$proj/AGENTS.md"; ln -s "$outside" "$proj/.makkov-harness"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "install and uninstall stop (exit 1), nothing written there" "[ $c1 = 1 ] && [ $code = 1 ] && [ -z \"\$(ls -A '$outside')\" ]"
+rm -rf "$home" "$proj" "$outside"
+
+# A repository that ships backups/original/.cursor/rules/makkov-harness.mdc: the uninstall never writes it into
+# the Cursor rule, since no install here made that copy.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "cursor project, a cloned copy of the rule in backups/original"
+mkdir -p "$proj/.makkov-harness/backups/original/.cursor/rules"; printf 'alwaysApply: true\nINJECTED\n' > "$proj/.makkov-harness/backups/original/.cursor/rules/makkov-harness.mdc"
+runs bash "$inst" cursor "$proj"; c1=$code; runs bash "$uninst" cursor "$proj"
+check "install and uninstall go through, and no rule is left behind" "[ $c1 = 0 ] && [ $code = 0 ] && [ ! -e '$proj/.cursor/rules/makkov-harness.mdc' ]"
+mkdir -p "$proj/.cursor/rules"; printf 'my rule\n' > "$proj/.cursor/rules/makkov-harness.mdc"; pbefore="$(tree "$proj")"
+runs bash "$inst" cursor "$proj"
+check "with a rule of yours that differs from that copy, install stops (exit 1) and changes nothing" "[ $code = 1 ] && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
 rm -rf "$home" "$proj"
 
 # Random sequences of install, update and uninstall for several agents, with interruptions: a bounded run here

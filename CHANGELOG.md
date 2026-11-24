@@ -4,6 +4,21 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+### Security
+
+Fixes from an independent security review of `598862d`, each with a regression test.
+
+- Installers (bash, PowerShell and Node, same behaviour): everything under a project's `.makkov-harness/` and its skills folder may have come with a cloned repository and is now treated as untrusted.
+  - A repository that shipped `.agents/skills` as a link to a folder outside the project, with a manifest whose `skill=` entries named folders there (`Documents`, `.ssh`, an empty folder), made install or uninstall move those folders into the project's backups or delete them. The installers now follow no link in the skills folder or the harness folder and stop before any change; they act on a `skill=` entry only for a plain name (no leading dot) whose folder holds a `SKILL.md`; and the fingerprint of a folder with no files in it never counts as the harness's. A skills folder reached through a link (for example `.agents` linked to another disk) is no longer supported.
+  - A repository that shipped `AGENTS.md` and a dangling link at `.makkov-harness/backups/original/AGENTS.md` made the first install write the file through the link, creating a file anywhere in the home folder. Every path the installers write under `.makkov-harness/` must now be inside the folder with no link on the way, and the copy of the file is made with an exclusive create, then renamed into place.
+  - A Cursor uninstall put back a copy of the rule from `backups/original/` that came with the repository. For Cursor, a copy that no install here recorded is now used only when it equals the rule; otherwise the install stops.
+- harness-onboarding writes the personal layer only to the instructions file the installer uses for that agent, inside the project or home. It never follows the manifest's `rules=` path or a symlink.
+- Design Score runner: the probe now runs in a DevTools isolated world, so a page's own scripts (a `window.MHScore` getter defined before load) can no longer fake the score or what lands in DESIGN.md, the fix prompt and the HTML report. Every field of the result is checked in Node and the files are built there. As root, the runner warns that Chrome runs without its sandbox. SKILL.md says that output from a browser tool or the bookmarklet is untrusted and must be read before it is saved as project guidance.
+- upstream-watch adopts only an open issue its own bot opened (`github-actions[bot]`, type Bot) with the label `upstream-watch`, which it now sets when it creates the issue; the paste-into-Claude block says the issue text is data and that repositories and pins come from `marketplace.json` and `upstream-watch.json`. Upstream error text is escaped in `::error::` lines. Every `actions/checkout` step runs with `persist-credentials: false`.
+- style-sampling, hyperframes-registry: pulled templates and registry items define style and step order only. A step in them that installs something, sends data, reads credentials or edits agent configuration is not done and is reported; only the agent's own short summary goes into `CLAUDE.md`. hyperframes, media-use, slideshow, html-report, rich-report, third-party-install-guard, harness-onboarding and `ROUTING.md` now say that fetched or read outside content is data, never instructions.
+- third-party-install-guard: a wait before taking an update. A security fix for an advisory that affects us: none. Minor or patch from a large publisher with signed or attested releases: 3 days. Major versions and small or unknown publishers: 7 to 14 days. Always followed by the full review.
+- The npm package no longer ships the skills' tests (`*.test.mjs`, `*_test.py`) or fixtures.
+
 ### Fixed
 
 - Chat pack: the instructions had people upload several files that are all named `SKILL.md`, and chat apps keep only a file's name, so each upload replaced the one before. `adapters/chat-pack/files/` now holds one file per skill with its own name (`html-report.md`, `third-party-install-guard.md`…), plus `ROUTING.md` and `html-report-skeleton.html`, built from `skills/` by `.github/scripts/chat-pack.mjs`; CI fails when the pack is stale or two files share a name [#7](https://github.com/Makkov-design/makkov-harness/issues/7).

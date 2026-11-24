@@ -2,7 +2,8 @@
 // order. The order is the safety: everything that can fail is checked before the first change; the manifest
 // (.makkov-harness/install-<agent>.txt) records what the run is about to do before it does it, so an interrupted
 // run can be run again or uninstalled; the instructions file is kept once, as it was, before the harness first
-// changes it; and a manifest is read as untrusted input (validManifest).
+// changes it; and everything under .makkov-harness/ and in the skills folder is read as untrusted input, since it may
+// have come with the repository (checkInside, validManifest).
 import fs from 'node:fs';
 import os from 'node:os';
 import * as L from './lib.mjs';
@@ -27,6 +28,9 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   const original = L.join(state, 'backups', 'original', ...L.rel(rules, base).split('/'));
   const stop = (why) => { throw new L.Stop(`${why}\nNothing was changed.`); };
   if (dry) say('Dry run: nothing will be written.');
+  // No link on the way to anything this run writes under the harness folder or the skills folder.
+  { const why = L.checkInside(base, [state, manifest, manifest + '.new', original, original + '.mh-tmp',
+    L.join(backupRoot, 'skills'), L.join(backupRoot, 'removed'), L.join(backupRoot, 'earlier-harness'), skillsDir]); if (why) stop(`${why}.`); }
   // One run at a time in this folder (a dry run writes nothing, so it takes no lock).
   const unlock = dry ? () => {} : L.lock(state, base);
   try {
@@ -64,9 +68,13 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   // A file that is there at the first install is kept, as it was, whatever it holds. A copy an interrupted earlier
   // run left in backups/original/ is the file as it was, so it is used, never replaced. When another agent's install
   // already names the file, its record stands: the harness made the file or kept it.
+  // A Cursor rule is put back from that copy as it is, so for Cursor a copy no install here recorded (it may have come
+  // with the repository) is used only when it is the rule as it is now.
   let needCopy = false;
   if (!haveManifest && !sharedRules && !rulesBackup) {
-    if (L.isFile(original)) { rulesExisted = '1'; rulesBackup = original; }
+    if (L.isFile(original) && agent === 'cursor' && !(L.isFile(rules) && L.readBytes(rules).equals(L.readBytes(original)))) {
+      if (L.isFile(rules)) stop(`${original} is a copy of ${rules} that no install here recorded, and it differs from the file. Move it out of ${state}, then run this again.`);
+    } else if (L.isFile(original)) { rulesExisted = '1'; rulesBackup = original; }
     else if (L.isFile(rules)) { rulesExisted = '1'; rulesBackup = original; needCopy = true; }
   }
   if (rulesBackup && L.samePath(rulesBackup, original) && !L.isFile(original) && L.isFile(rules)) needCopy = true;
@@ -103,7 +111,7 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   }
   const skillLines = (name) => fpOf[name].map((f) => `skill=${name} ${f}`);
   const ours = (name, fps) => fps.some((f) => fpOf[name].includes(f));
-  const earlierHas = (name, fps) => fps.some((f) => earlier.has(`skill=${name} ${f}`));
+  const earlierHas = (name, fps) => fps.some((f) => !L.EMPTY_PRINTS.includes(f) && earlier.has(`skill=${name} ${f}`));
 
   // Folders this install creates, so the uninstaller can take them away again once they are empty.
   const created = [...oldCreated];
@@ -184,6 +192,7 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
       if (fpOf[name] || dropped.includes(name)) continue;
       const dst = L.join(skillsDir, name);
       if (!L.exists(dst)) continue;
+      if (!L.skillFolder(name, dst)) { say(`  leave ${dst} (no SKILL.md in it, so not a skill folder the harness put there)`); continue; }
       let other = false;
       for (const m of L.manifestsIn(state)) {
         if (L.samePath(m, manifest)) continue;
@@ -191,7 +200,7 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
         if (L.samePath(L.getPath(o, 'skills_dir', base), skillsDir) && o.some((l) => l === `skill=${name}` || l.startsWith(`skill=${name} `))) other = true;
       }
       if (other) { say(`  keep ${dst} (no longer part of the harness, but another installed agent lists it)`); continue; }
-      if (fp && L.fingerprints(dst, true).some((f) => oldSkills.includes(`skill=${name} ${f}`))) L.dropSkill(dst);
+      if (fp && L.fingerprints(dst, true).some((f) => !L.EMPTY_PRINTS.includes(f) && oldSkills.includes(`skill=${name} ${f}`))) L.dropSkill(dst);
       else if (fp) { L.mkdirp(L.join(backupRoot, 'removed')); L.moveDir(dst, L.join(backupRoot, 'removed', name)); }
       else { L.mkdirp(L.join(backupRoot, 'earlier-harness')); L.moveDir(dst, L.join(backupRoot, 'earlier-harness', name)); }
       dropped.push(name);
@@ -217,7 +226,12 @@ export function install({ repo, agent, project, scope: scopeArg, dry, update, ou
   else if (isFileNow && old.length > 0) content = old + (old.endsWith('\n') ? '' : '\n') + '\n' + block + '\n';
   else content = block + '\n';
   if (!(isFileNow && old === content)) {
-    if (needCopy) { L.mkdirp(L.dirname(original)); L.writeFile(original, L.readBytes(rules)); }   // a plain copy: not read-only
+    // A plain copy (not read-only), made under a new name with an exclusive create and renamed into place: never
+    // written through a link.
+    if (needCopy) {
+      L.mkdirp(L.dirname(original)); fs.rmSync(original + '.mh-tmp', { force: true });
+      fs.writeFileSync(original + '.mh-tmp', L.readBytes(rules), { flag: 'wx' }); fs.renameSync(original + '.mh-tmp', original);
+    }
     L.writeFile(rules, Buffer.from(content, 'latin1'));
   }
   L.checkpoint('rules');

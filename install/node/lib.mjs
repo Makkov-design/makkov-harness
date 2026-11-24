@@ -88,6 +88,23 @@ export function inside(p, base) {
   }
   return true;
 }
+// Untrusted input: everything under a project's .makkov-harness/ (manifests, backups, the copy in backups/original/,
+// the lock) and its skills folder may have come with the repository, not from an install on this computer. So the
+// installer acts on a path there only when it lies inside the base with no link on the way (checkInside), makes its
+// copies with an exclusive create (never through a link), takes a skill= entry only for a plain skill name whose
+// folder holds a SKILL.md (skillFolder), and reads every manifest as untrusted (validManifest).
+// Returns why a path is reached through a link, or ''.
+export function checkInside(base, paths) {
+  for (const p of paths) {
+    if (p && !inside(p, base)) return `${p} is a link or is reached through one (the harness and skills folders may have come with a repository, so the installer follows no links there). Replace the link with a folder of its own, then run this again`;
+  }
+  return '';
+}
+// A folder named by a skill= entry is one the installer may remove or move: a plain skill name and a SKILL.md in it.
+export const skillFolder = (name, dir) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) && isFile(join(dir, 'SKILL.md'));
+// The fingerprints of a folder with no regular file in it (install.sh's, install.ps1's): any such folder has them,
+// so they never show that a folder is the harness's.
+export const EMPTY_PRINTS = ['4294967295', 'e3b0c44298fc1c14'];
 // The folders between the base and a folder that do not exist yet, deepest first, relative to the base.
 export function missingDirs(dir, base) {
   const out = [];
@@ -193,7 +210,7 @@ export function validManifest(file, base, project, home) {
   for (const l of lines.filter((x) => x.startsWith('skill='))) {
     const e = l.slice(6);
     if (!e) continue;
-    if (!/^[A-Za-z0-9._-]+( [0-9a-f]+)?$/.test(e) || ['.', '..'].includes(e.split(' ')[0])) return 'a skill entry that is not a plain folder name';
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*( [0-9a-f]+)?$/.test(e)) return 'a skill entry that is not a plain folder name';
   }
   for (const l of lines.filter((x) => x.startsWith('created_dir='))) {
     const r = l.slice(12);
@@ -417,6 +434,7 @@ export function lock(state, base) {
   for (let i = 0; i < 6; i++) {
     // The harness folder, made again if another run just took it away; another run may make it at the same
     // moment, which is not "cannot write here".
+    if (isLink(state)) throw new Stop(`${state} is a link, not the harness's folder. Delete it, then run this again.\nNothing was changed.`);
     if (!isDir(state)) { try { fs.mkdirSync(state); made = true; } catch (e) { if (!isDir(state)) return () => {}; } }
     if (lstat(l)?.isSymbolicLink()) throw new Stop(`${l} is a link, not the harness's lock folder. Delete it, then run this again.\nNothing was changed.`);
     try { fs.mkdirSync(l); } catch (e) {
@@ -477,7 +495,7 @@ function takeStale(l) {
 // Clause 5, for an uninstall that found no manifest: a harness folder that holds only a lock (and the takeover file)
 // and manifests being written is the leftover of a first install stopped before its first change.
 export function clearLockOnly(state, base) {
-  if (!isDir(join(state, 'lock')) || lstat(join(state, 'lock')).isSymbolicLink()) return;
+  if (isLink(state) || !isDir(join(state, 'lock')) || lstat(join(state, 'lock')).isSymbolicLink()) return;
   const leftover = (n) => n === 'lock' || n === 'lock.takeover' || /^install-.*\.txt\.new$/.test(n);
   if (!fs.readdirSync(state).every(leftover)) return;
   let release;

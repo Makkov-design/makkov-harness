@@ -44,6 +44,13 @@ base="${project:-$HOME}"
 mh_drive_form "$base"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
+stamp="$(date +%Y%m%d-%H%M%S)"
+mh_paths "$agent" "$project"
+skills_dir="$MH_SKILLS" rules="$MH_RULES"
+# Everything under .makkov-harness/ and in the skills folder may have come with the repository (install/lib.sh):
+# no link on the way to anything this run changes there.
+why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$state/backups/$stamp-$agent/removed" "$skills_dir")" ||
+  { echo "$why." >&2; echo "Nothing was changed." >&2; exit 1; }
 if [ ! -f "$manifest" ]; then
   [ "$dry" = 1 ] || mh_clear_lock_only "$state" "$base"
   echo "No makkov-harness install for $agent found in $base (no $manifest)." >&2
@@ -63,12 +70,9 @@ for m in "$state"/install-*.txt; do
   [ -f "$m" ] || continue
   why="$(mh_valid_manifest "$m" "$base" "$project")" || stop "$m does not look like a manifest this installer wrote: $why. Move it out of $state and run this again."
 done
-mh_paths "$agent" "$project"
-skills_dir="$MH_SKILLS" rules="$MH_RULES"
 ob="$(mh_old_base "$manifest")"
 rules_existed="$(mh_raw "$manifest" rules_existed)"; rules_backup="$(mh_get "$manifest" rules_backup "$base")"
 [ -n "$ob" ] && [ "$ob" != "$base" ] && echo "Installed in $ob, which is now $base: reading the install from here."
-stamp="$(date +%Y%m%d-%H%M%S)"
 say() { echo "  $*"; }
 do_() { if [ "$dry" = 1 ]; then return 0; fi; "$@"; }
 
@@ -103,6 +107,8 @@ if [ -n "$skills_dir" ]; then
     [ -n "$name" ] || continue
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
+    # Only a skill folder (a SKILL.md in it) is taken for one the harness put there.
+    if ! mh_skill_folder "$name" "$dst"; then say "leave $dst (no SKILL.md in it, so not a skill folder the harness put there)"; continue; fi
     # The other installs that list this skill, one path per line (paths may hold spaces or [ ]).
     shared=""
     while IFS= read -r m; do
@@ -122,9 +128,10 @@ if [ -n "$skills_dir" ]; then
       continue
     fi
     fp_now="$(mh_fingerprint "$dst")" ours=0
-    { mh_cat "$manifest" | grep -qxF "skill=$name $fp_now" ||
+    # (A folder with no regular file in it has the fingerprint of any empty folder: never taken for ours.)
+    [ "$fp_now" != "$MH_EMPTY_FP" ] && { mh_cat "$manifest" | grep -qxF "skill=$name $fp_now" ||
       { [ -d "$repo/skills/$name" ] && [ "$(mh_fingerprint "$repo/skills/$name")" = "$fp_now" ]; }; } && ours=1
-    if [ "$ours" = 0 ]; then
+    if [ "$ours" = 0 ] && [ "$fp_now" != "$MH_EMPTY_FP" ]; then
       while IFS= read -r m; do [ -n "$m" ] && same_skills "$m" && mh_cat "$m" | grep -qxF "skill=$name $fp_now" && ours=1; done < <(others)
     fi
     if [ "$ours" = 1 ]; then
@@ -188,7 +195,7 @@ elif [ "$edit_rules" = 1 ]; then
   say "take the routing block and the personal layer out of $rules"
   if [ "$dry" = 0 ]; then
     if [ -n "$(mh_personal_layer "$rules")" ]; then
-      mkdir -p "$kept"; mh_personal_layer "$rules" > "$kept/personal-layer.md"
+      mkdir -p "$kept"; (set -C; mh_personal_layer "$rules" > "$kept/personal-layer.md")
       say "your personal layer is kept in $kept/personal-layer.md"
     fi
     new="$(mktemp)"; mh_remove_blocks "$rules" > "$new"
