@@ -831,6 +831,31 @@ try {
   }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force
 
+  $h = New-Temp; $proj = New-Temp; $outside = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md a link to lnk\..\notes.md, with lnk a link to a folder outside the project'
+  $notes = Join-Path $outside 'notes.md'; $exp = Join-Path $h 'expected'; [IO.File]::WriteAllText($notes, "# not yours to change`n"); Copy-Item $notes $exp
+  New-Item -ItemType Directory (Join-Path $outside 'sub') | Out-Null
+  $linked = $true
+  try {
+    New-Item -ItemType SymbolicLink -Path (Join-Path $proj 'lnk') -Target (Join-Path $outside 'sub') | Out-Null
+    # A relative target kept as written (New-Item in Windows PowerShell 5.1 would make it absolute, folding the ..).
+    $rt = 'lnk' + [IO.Path]::DirectorySeparatorChar + '..' + [IO.Path]::DirectorySeparatorChar + 'notes.md'
+    if ($PSVersionTable.PSVersion.Major -ge 7) { [void][IO.File]::CreateSymbolicLink((Join-Path $proj 'AGENTS.md'), $rt) }
+    else { Push-Location $proj; try { cmd /c mklink AGENTS.md $rt | Out-Null } finally { Pop-Location } }
+    if (-not (Test-Path -LiteralPath (Join-Path $proj 'AGENTS.md'))) { throw 'no link' }
+  } catch { $linked = $false; Write-Output '  skip (no right to create symlinks here)' }
+  if ($linked) {
+    $pbefore = Tree $proj
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    # (Windows reads the link's target as text, so there AGENTS.md names <project>\notes.md, which does not exist: the
+    # install stops for that. On macOS and Linux it leads outside the project and the install names -FollowLinks.)
+    Write-Output "    (exit $script:code) $($script:out.Substring(0, [Math]::Min(240, $script:out.Length)))"
+    $why = if ([IO.Path]::DirectorySeparatorChar -eq '\') { 'does not exist' } else { 'follow-?links' }
+    Check "install stops (exit 1) and says why ($why); the file outside unchanged, nothing in the project" { $script:code -eq 1 -and $script:out -match $why -and (Same $exp $notes) -and (Tree $proj) -eq $pbefore }
+    [IO.File]::Delete((Join-Path $proj 'AGENTS.md')); [IO.Directory]::Delete((Join-Path $proj 'lnk'))
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $outside -Recurse -Force
+
   # A repository that ships backups\original\AGENTS.md as a dangling link to a file elsewhere: the first install's
   # copy of AGENTS.md is never written through it.
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h

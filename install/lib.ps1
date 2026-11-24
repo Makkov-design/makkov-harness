@@ -12,6 +12,15 @@ $MhPStart = '<!-- makkov-harness:personal:start -->'
 $MhPEnd = '<!-- makkov-harness:personal:end -->'
 $MhUtf8 = New-Object System.Text.UTF8Encoding $false
 $MhRaw = [Text.Encoding]::GetEncoding(28591)
+# Two jobs, two rules for \. RESOLVING a real path on disk (Get-MhReal, Test-MhRealUnder) splits on the system's own
+# separators: on Windows \ and /, on macOS and Linux / only, where \ is an ordinary character in a name (a folder may
+# be called a\b). VALIDATING untrusted text (manifest lines, anything under .makkov-harness) stays strict on every
+# OS: Test-MhDotDot, Test-MhUnder, Test-MhSamePath, Test-MhEndsWith, Get-MhRebased, Get-MhRel and Test-MhInside read \
+# as a separator everywhere, and on macOS and Linux a manifest path with a \ in it is refused outright, since
+# PowerShell's file cmdlets may still read it as one.
+$MhWin = [IO.Path]::DirectorySeparatorChar -eq '\'
+$MhSplit = if ($MhWin) { '[\\/]' } else { '/' }
+function ConvertTo-MhSlash([string]$P) { if ($MhWin) { $P -replace '\\', '/' } else { $P } }
 
 # A fingerprint of a folder: every file's relative path and SHA-256, in ordinal order (the same in every
 # culture and in both PowerShell versions). Get-MhTreeIds also gives the id of the culture-sorted fingerprint
@@ -305,28 +314,44 @@ function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
   }
   ''
 }
-# Where a path really is: every symlink or junction on its way followed ('' for a loop of links).
+# Where a path really is: every symlink or junction on its way followed, part by part, as the system resolves it
+# ('' for a loop of links). On macOS and Linux a ".." after a link goes to the parent of where the link leads; Windows
+# reads a link's relative target as text against the link's folder, ".." included, so there it is folded first.
 function Get-MhReal([string]$Path) {
-  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux.)
-  $p = [IO.Path]::GetFullPath($Path)
-  for ($n = 0; $n -lt 64; $n++) {
-    $root = [IO.Path]::GetPathRoot($p)
-    $rest = @($p.Substring($root.Length) -split '[\\/]' | Where-Object { $_ })
-    $d = $root; $hit = $false
-    for ($i = 0; $i -lt $rest.Count; $i++) {
-      $d = [IO.Path]::Combine($d, $rest[$i])
-      if (Test-MhLink $d) {
-        $t = @((Get-Item -LiteralPath $d -Force).Target)[0]
-        if (-not $t) { break }
-        if (-not [IO.Path]::IsPathRooted($t)) { $t = [IO.Path]::Combine([IO.Path]::GetDirectoryName($d), $t) }
-        $tail = @($rest | Select-Object -Skip ($i + 1))
-        $p = [IO.Path]::GetFullPath([IO.Path]::Combine([string[]](@($t) + $tail)))
-        $hit = $true; break
+  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux;
+  # and no GetFullPath, which would fold "link/.." away as text before the link is followed.)
+  if (-not [IO.Path]::IsPathRooted($Path)) { $Path = [IO.Path]::Combine((Get-Location).ProviderPath, $Path) }
+  $cur = [IO.Path]::GetPathRoot($Path)
+  $todo = New-Object System.Collections.Generic.List[string]
+  foreach ($x in @($Path.Substring($cur.Length) -split $MhSplit)) { if ($x) { $todo.Add($x) } }
+  $links = 0
+  while ($todo.Count) {
+    $part = $todo[0]; $todo.RemoveAt(0)
+    if ($part -eq '.') { continue }
+    if ($part -eq '..') { $up = [IO.Path]::GetDirectoryName($cur); if ($up) { $cur = $up }; continue }
+    $next = [IO.Path]::Combine($cur, $part)
+    if (Test-MhLink $next) {
+      # (Off Windows the target is read with .NET, not Get-Item: a cmdlet may read a \ in the name as a separator.)
+      $t = if ($MhWin) { @((Get-Item -LiteralPath $next -Force).Target)[0] } else { (New-Object IO.FileInfo $next).LinkTarget }
+      if ($t) {
+        if (++$links -gt 40) { return '' }
+        if (-not [IO.Path]::IsPathRooted($t) -and $MhWin) { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
+        if ([IO.Path]::IsPathRooted($t)) { $cur = [IO.Path]::GetPathRoot($t); $t = $t.Substring($cur.Length) }
+        $parts = @($t -split $MhSplit | Where-Object { $_ })
+        $todo.InsertRange(0, [string[]]$parts)
+        continue
       }
     }
-    if (-not $hit) { return $p }
+    $cur = $next
   }
-  ''
+  $cur
+}
+# A real path (from Get-MhReal) is the base or below it, compared with the system's own separators: on macOS and Linux
+# a \ is part of a name, so /p\x is not below /p.
+function Test-MhRealUnder([string]$Path, [string]$Base) {
+  $p = ConvertTo-MhSlash $Path; $b = (ConvertTo-MhSlash $Base).TrimEnd('/')
+  $cmp = if ($MhWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+  [string]::Equals($p, $b, $cmp) -or $p.StartsWith($b + '/', $cmp)
 }
 # In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
 # have come with the repository: one that leads outside the project, or an instructions file with more than one hard
@@ -338,12 +363,12 @@ function Test-MhCheckLinks([string]$Project, [bool]$Follow, [string]$Skills, [st
   foreach ($p in @($Skills, $Rules)) {
     if (-not $p) { continue }
     $r = Get-MhReal $p
-    if (-not $r -or -not ((Test-MhSamePath $r $rb) -or (Test-MhUnder $r $rb))) {
+    if (-not $r -or -not (Test-MhRealUnder $r $rb)) {
       return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
     }
   }
   $r = Get-MhReal $Rules
-  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force).LinkType -eq 'HardLink') {
+  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force -ErrorAction SilentlyContinue).LinkType -eq 'HardLink') {
     return "$Rules has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with -FollowLinks"
   }
   ''
@@ -360,6 +385,8 @@ $MhEmptyIds = @('e3b0c44298fc1c14', '4294967295')
 # Returns why not, or '' when it is fine.
 function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [string]$HomeDir) {
   $lines = Read-MhManifest $Path
+  # On macOS and Linux no path the installer writes holds a \ (a manifest install.ps1 wrote on Windows is refused here).
+  if (-not $MhWin -and @($lines | Where-Object { $_ -cmatch '^(base|skills_dir|rules|rules_backup|backup|created_dir)=.*\\' }).Count) { return 'a path with a backslash' }
   $st = Join-Path $Base '.makkov-harness'
   $a = Get-MhRaw $lines 'agent'
   if (@('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider') -notcontains $a) { return 'it names no agent' }
@@ -406,19 +433,12 @@ function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [s
   ''
 }
 
-# The file a path finally names: a symlink is followed to its target (a relative target is read against the
-# link's folder), so writes go to the real file and the link itself is left as it is.
+# The file a path finally names: every link on the way followed as the system resolves it (Get-MhReal, so a ".."
+# after a link goes where the system takes it), so writes go to the real file and the link itself is left as it is.
 function Resolve-MhLink([string]$Path) {
-  $p = $Path
-  for ($i = 0; $i -lt 16; $i++) {
-    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
-    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.LinkType -ne 'SymbolicLink') { return $p }
-    $t = @($item.Target)[0]
-    if (-not $t) { return $p }
-    if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $p) $t }
-    $p = $t
-  }
-  $p
+  if (-not (Test-MhLink $Path)) { return $Path }
+  $r = Get-MhReal $Path
+  if ($r) { $r } else { $Path }
 }
 
 # Checks that a file can be changed in place: absent (with a folder it can be created in), or a regular file,
@@ -427,7 +447,7 @@ function Test-MhWritableFile([string]$File) {
   if (Test-MhDangling $File) { return "$File is a symlink to $(Resolve-MhLink $File), which does not exist" }
   if ([IO.Directory]::Exists($File)) { return "$File is not a regular file" }
   if ([IO.File]::Exists($File)) {
-    if ((Get-Item -LiteralPath (Resolve-MhLink $File) -Force).IsReadOnly) { return "$File is read-only" }
+    if ((New-Object IO.FileInfo (Resolve-MhLink $File)).IsReadOnly) { return "$File is read-only" }
     return ''
   }
   Test-MhWritableDir (Split-Path -Parent $File)

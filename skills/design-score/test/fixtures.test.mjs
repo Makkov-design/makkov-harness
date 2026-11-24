@@ -46,3 +46,19 @@ for (const [label, flags] of [["desktop", []], ["phone", ["--phone"]]]) {
     assert.ok(s < 45, `bad.html scored ${s}`);
   });
 }
+
+// The checked result keeps a check's scalar value (a11y-lang records the page's lang, "en"), as the runner did
+// before it checked every field.
+test("--json keeps a check's scalar value (a11y-lang is \"en\")", { skip: !ready && "no Chrome or puppeteer-core for the runner" }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "ds-fixture-"));
+  try {
+    const out = join(dir, "result.json");
+    const run = spawnSync(process.execPath, [RUNNER, join(HERE, "fixtures", "good.html"), "--json", out], { encoding: "utf8", timeout: 120000 });
+    assert.equal(run.status, 0, run.stderr);
+    const data = JSON.parse(readFileSync(out, "utf8"));
+    const checks = (Array.isArray(data) ? data[0] : data).categories.flatMap((c) => c.checks);
+    assert.equal(checks.find((c) => c.id === "a11y-lang").value, "en");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

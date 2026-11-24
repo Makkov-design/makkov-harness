@@ -813,6 +813,63 @@ runs bash "$uninst" codex "$proj"; c2=$code; runs bash "$uninst" codex "$proj" -
 check "the uninstall stops without --follow-links, and with it puts the file back as it was" "[ $c2 = 1 ] && [ $code = 0 ] && cmp -s '$home/expected' '$outside/notes.md' && [ -L '$proj/AGENTS.md' ]"
 rm -rf "$home" "$proj" "$outside"
 home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, AGENTS.md a link to lnk/../notes.md, with lnk a link to a folder outside the project"
+mkdir -p "$outside/sub"; printf '# not yours to change\n' > "$outside/notes.md"; cp "$outside/notes.md" "$home/expected"
+ln -s "$outside/sub" "$proj/lnk"; ln -s "lnk/../notes.md" "$proj/AGENTS.md"; pbefore="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1) and names --follow-links; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'follow-links' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+# The same with install.ps1 under PowerShell 7 on macOS or Linux, when pwsh is installed (as on CI's Ubuntu runner).
+if command -v pwsh >/dev/null 2>&1; then
+  echo "  install.ps1 (pwsh) on the same project"
+  cp "$outside/notes.md" "$home/expected"
+  runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+  printf '%s\n' "$out" | head -n 4 | sed 's/^/    (exit '"$code"') /'
+  check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
+rm -rf "$home" "$proj" "$outside"
+# On macOS and Linux "\" is an ordinary character in a name: a folder called a\b\c is one folder, so
+# AGENTS.md -> a\b\c/../../../.secret leads two folders above the project.
+home="$(tmp)"; outside="$(tmp)"; export HOME="$home"; proj="$outside/w/proj"
+echo "codex project, AGENTS.md a link to a\\b\\c/../../../.secret, with a folder named a\\b\\c in the project"
+mkdir -p "$proj/a\\b\\c"; printf 'SECRET\n' > "$outside/.secret"; cp "$outside/.secret" "$home/expected"
+printf 'INSIDE\n' > "$proj/.secret"   # a same-named file in the project: a walk that reads \ as / would land on it
+ln -s 'a\b\c/../../../.secret' "$proj/AGENTS.md"; pbefore="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1) and names --follow-links; the file outside unchanged, no copy of it in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'follow-links' && cmp -s '$home/expected' '$outside/.secret' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ] && ! grep -rqs SECRET '$proj'"
+if command -v pwsh >/dev/null 2>&1; then
+  echo "  install.ps1 (pwsh) on the same project"
+  runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+  printf '%s\n' "$out" | head -n 4 | sed 's/^/    (exit '"$code"') /'
+  check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, no copy of it in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/.secret' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ] && ! grep -rqs SECRET '$proj'"
+else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
+rm -rf "$home" "$outside"
+# install.ps1 under pwsh on macOS and Linux: what a cmdlet makes of a \ in a path (printed, so CI shows it), and
+# manifests from a cloned repository whose backup= or rules_backup= paths climb out with \.. parts: refused (a path
+# with a backslash), nothing outside moved or deleted, the project unchanged.
+if command -v pwsh >/dev/null 2>&1; then
+  t="$(tmp)"; mkdir -p "$t/x/y"
+  echo "pwsh here: Test-Path -LiteralPath 'x\\y' with only x/y on disk -> $(cd "$t" && pwsh -NoProfile -NonInteractive -Command "Test-Path -LiteralPath 'x\\y'")"
+  rm -rf "$t"
+  for key in backup rules_backup; do
+    home="$(tmp)"; outside="$(tmp)"; export HOME="$home"; proj="$outside/w/proj"
+    echo "codex project (install.ps1, pwsh), a cloned manifest whose $key= climbs out with \\.. parts"
+    mkdir -p "$proj/.agents/skills" "$proj/.makkov-harness/backups/x" "$proj/.makkov-harness/backups/original" "$outside/w/victim"
+    echo mine > "$outside/w/victim/SKILL.md"; printf '# notes\n' > "$outside/w/secret.md"
+    printf '# notes\n\n<!-- makkov-harness:start -->\nx\n<!-- makkov-harness:end -->\n' > "$proj/AGENTS.md"
+    hostile_manifest "$proj/.makkov-harness/install-codex.txt"
+    if [ "$key" = backup ]; then printf 'backup=/x/.makkov-harness/backups/x\\..\\..\\..\\..\n' >> "$proj/.makkov-harness/install-codex.txt"
+    else sed 's#^rules_backup=$#rules_backup=/x/.makkov-harness/backups/original/a\\..\\..\\..\\..\\..\\secret.md#' "$proj/.makkov-harness/install-codex.txt" > "$home/m" && cat "$home/m" > "$proj/.makkov-harness/install-codex.txt"
+      sed -i.bak 's#^rules_existed=0$#rules_existed=1#' "$proj/.makkov-harness/install-codex.txt" && rm -f "$proj/.makkov-harness/install-codex.txt.bak"; fi
+    before="$(tree "$outside")"
+    runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/uninstall.ps1" -Agent codex -Project "$proj"
+    printf '%s\n' "$out" | head -n 2 | sed 's/^/    (exit '"$code"') /'
+    check "uninstall.ps1 refuses the manifest (exit 1, a path with a backslash); nothing outside or in the project moved or deleted" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'backslash' && [ \"\$(tree '$outside')\" = \"\$before\" ]"
+    runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+    check "install.ps1 refuses it too (exit 1); nothing changed" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'backslash' && [ \"\$(tree '$outside')\" = \"\$before\" ]"
+    rm -rf "$home" "$outside"
+  done
+else echo "install.ps1 (pwsh): manifests with \\.. parts: skip (no pwsh here)"; fi
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
 echo "cursor project, .cursor a link to a folder outside the project"
 mkdir -p "$outside/rules"; ln -s "$outside" "$proj/.cursor"; before="$(tree "$outside")"
 runs bash "$inst" cursor "$proj"

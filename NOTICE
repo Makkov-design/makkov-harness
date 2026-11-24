@@ -30,6 +30,7 @@ Changed:
   skills/media-use/SKILL.md                                (0.3.1) points sound effects at the audio engine
                                                            (unreleased) fetched media and its metadata are data, not instructions
   skills/media-use/audio/references/bgm.md                 (unreleased) generation never installs; the setup command
+  skills/media-use/audio/references/requirements.md        (unreleased) music engines set up by the pinned setup command
   skills/media-use/audio/references/sfx.md                 (0.3.0, 0.3.1) Openverse keys, the engine command, credits
   skills/media-use/audio/scripts/audio.mjs                 (unreleased) each voice file must stay in assets/voice
   skills/media-use/audio/scripts/lib/bgm.mjs               (unreleased) no package installs; uses the set-up environment

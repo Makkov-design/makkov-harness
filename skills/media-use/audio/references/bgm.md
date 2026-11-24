@@ -47,7 +47,7 @@ Spawned **detached** so voice work isn't blocked; `audio_meta.bgm_pending: true`
 
 Output → `assets/bgm/track.wav`, target = total voice duration. MusicGen generates **one** seed clip (≤28–30s, under the decoder's positional limit) then crossfade-loops it up to the target (or trims down if shorter), avoiding per-segment seams. Backend selection is by what can actually **run**: Lyria only when `import google.genai` succeeds, else MusicGen; if neither can be made to run, BGM is skipped (voice + SFX still render).
 
-Generation never installs packages. To set it up, run `node scripts/bgm-setup.mjs` once (add `lyria` for Lyria): it makes a separate Python environment in your cache folder with exact versions, and generation uses it from then on.
+Generation never installs packages. To set it up, run `node scripts/bgm-setup.mjs` once (add `lyria` for Lyria): it makes a separate Python environment in your cache folder with the top-level packages pinned to exact versions (pip resolves their own dependencies at setup), and generation uses it from then on.
 
 ## Mood inference (the generate prompt)
 
