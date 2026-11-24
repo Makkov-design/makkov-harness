@@ -51,11 +51,11 @@ test('the PowerShell fingerprint is 16 hex digits and changes with the content',
 });
 
 test('install/node/fingerprints.json is current (node install/node/fingerprints.mjs --write after changing a skill)', async () => {
-  const { compute, recorded } = await import('./fingerprints.mjs');
+  const { computeTracked, recorded } = await import('./fingerprints.mjs');
   // A clone with Windows line ends has other fingerprints; the file is checked where the skills are as in git.
   const crlf = fs.readFileSync(path.join(repo, 'ROUTING.md')).includes('\r\n');
   if (crlf) return;
-  assert.deepEqual(recorded(), compute(repo));
+  assert.deepEqual(recorded(), computeTracked(repo));
 });
 
 test('the package version is the plugin version', () => {

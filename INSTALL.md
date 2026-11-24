@@ -134,3 +134,4 @@ Limits worth knowing:
 - Use installers of this version or newer on a folder this version installed into. The installers of 0.5.0 and earlier do not know the per-agent backup folders, the record of folders the install created or the shared-file rules, so a run of theirs on such a folder can leave things for you to delete by hand.
 - An instructions file with more than one hard link is written in place, so every name keeps the same file; any other file is replaced in one step, so an interruption never leaves half of it.
 - On macOS and Linux, a home or project path that contains a backslash (`\`) is read back from a manifest as a Windows path; such paths are not supported.
+- A manifest written by `install.ps1` on Windows uses `\` in its paths, so the PowerShell installers on macOS and Linux (`pwsh`) refuse it ("a path with a backslash") and change nothing. Run the uninstaller on the system that made the install.
