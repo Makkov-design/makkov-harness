@@ -54,6 +54,9 @@ if (-not (Test-Path -LiteralPath $manifest)) {
 function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
 # Test hook, inert in normal use (see install.ps1): u-skills = after the skills, u-rules = after the file.
 function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
+# On macOS and Linux no name with a \ in it under the skills folder or .makkov-harness (Find-MhBackslashName).
+$bad = Find-MhBackslashName @($skillsDir, $state)
+if ($bad) { Stop-Mh "$bad has a backslash (\) in its name. PowerShell on macOS and Linux reads a \ in a path as a separator, so this installer would take the name for a path somewhere else. Rename or remove it, or use install.sh or the Node installer here." }
 
 # One run at a time in this folder (a dry run changes nothing, so it takes no lock). The lock is let go in the finally
 # at the end of this file, whichever way the run ends.
