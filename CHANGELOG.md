@@ -4,6 +4,11 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- Frame Lens pin: v2.1.0 → v2.2.0 (`0c34347`), checked on 2026-11-24 with `third-party-install-guard`. The tag and the npm release point at that commit, and the npm package's files are byte for byte the tag's. 2.2.0 hardens the tools it already had: links that redirect to this computer, the local network or a cloud metadata address are refused, child tools no longer inherit the Gemini, Google, Figma and cobalt keys, and a `.framelens/` folder that came with a project is no longer trusted blindly. The download hosts are unchanged, and so is the plugin entry (the same MCP server, no hooks).
+- docs/release.md: "The rest of a release" points back to the one-time steps before the first tag.
+
 ## [0.6.0] - 2026-11-24
 
 A Node installer and npm package, fixes from an independent security review, and installers that update and uninstall cleanly. The npm package is prepared but not yet published: until it is, install from a clone of this repository.

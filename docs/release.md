@@ -88,6 +88,9 @@ The npm steps above are one part. For every version, after the release pull requ
 
 1. Tag the merged commit `v<version>` and push the tag (the CHANGELOG links compare tags, and the release workflow
    starts on it). Then create a GitHub Release from that tag, with the version's CHANGELOG section as its text.
+   Before the first tag ever, do the "Once" sections above: create and protect the `npm-release` environment and
+   the tag ruleset before pushing it, do not approve the publish job that tag starts (it waits in `npm-release`),
+   and publish the first version by hand.
 2. Claude users get the new plugin version only after a Sync: claude.ai, Customize, Plugins, Manage marketplaces,
    `makkov-harness`, ⋯, Sync, then quit and reopen the desktop app (README.md, "Getting updates"). Do it once on
    your own account and check that the plugin shows the new version.
