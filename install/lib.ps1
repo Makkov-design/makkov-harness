@@ -107,7 +107,9 @@ function Get-MhLockOwner([string]$Lock) {
   $started = 0L; [void][long]::TryParse((& $get 'started'), [ref]$started)
   $host_ = & $get 'host'
   $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-  $age = if ($started -gt 0) { $now - $started } else { try { ([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($Lock)).TotalSeconds } catch { 0 } }
+  # With no start time (no owner file yet, or one with nothing in it): the age of the owner file, else the folder.
+  $ownerAt = Join-Path $Lock 'owner'
+  $age = if ($started -gt 0) { $now - $started } elseif (Test-Path -LiteralPath $ownerAt) { try { ([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($ownerAt)).TotalSeconds } catch { 0 } } else { try { ([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($Lock)).TotalSeconds } catch { 0 } }
   $stale = $age -gt 86400
   if (-not $t) { $stale = $stale -or $age -gt 60 }   # no owner after a minute: a run stopped while making the lock
   elseif (-not $host_ -or [string]::Equals($host_, (Get-MhHost), [StringComparison]::OrdinalIgnoreCase)) {
@@ -119,11 +121,20 @@ function Get-MhLockOwner([string]$Lock) {
 # lock of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 function Enter-MhTakeover([string]$Lock) {
   $t = "$Lock.takeover"
-  try { [IO.File]::Open($t, [IO.FileMode]::CreateNew).Dispose() } catch {
-    # One left by a run stopped while taking over (it holds it for a moment only).
-    try { if (([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.File]::Delete($t) } } catch { }
+  $f = $null
+  try { $f = [IO.File]::Open($t, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write) } catch {
+    # One left by a run stopped while taking over (it holds it for a moment only): its process gone on this
+    # computer, or a minute old.
+    try {
+      $x = [IO.File]::ReadAllText($t); $tp = 0
+      if ($x -match '(?m)^pid=(\d+)') { [void][int]::TryParse($Matches[1], [ref]$tp) }
+      $th = if ($x -match '(?m)^host=(.*)$') { $Matches[1].Trim() } else { '' }
+      $gone = $tp -gt 0 -and [string]::Equals($th, (Get-MhHost), [StringComparison]::OrdinalIgnoreCase) -and -not (Get-Process -Id $tp -ErrorAction SilentlyContinue)
+      if ($gone -or ([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.File]::Delete($t) }
+    } catch { }
     return $false
   }
+  try { $b = $MhUtf8.GetBytes("pid=$PID`nhost=$(Get-MhHost)`n"); $f.Write($b, 0, $b.Length) } finally { $f.Dispose() }
   try {
     $o = Get-MhLockOwner $Lock
     if ($o.Stale) {

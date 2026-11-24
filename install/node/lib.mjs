@@ -453,9 +453,16 @@ export function lock(state, base) {
 // the lock of a run that just finished could remove the lock a third run has just made, and two runs would go on.
 function takeStale(l) {
   const t = l + '.takeover';
-  try { fs.writeFileSync(t, '', { flag: 'wx' }); } catch {
-    // One left by a run stopped while taking over (it holds it for a moment only).
-    const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmSync(t, { force: true }); } catch { /* */ }
+  try { fs.writeFileSync(t, `pid=${process.pid}\nhost=${os.hostname()}\n`, { flag: 'wx' }); } catch {
+    // One left by a run stopped while taking over (it holds it for a moment only): its process gone on this
+    // computer, or a minute old.
+    const st = lstat(t);
+    let gone = false;
+    try {
+      const x = fs.readFileSync(t, 'utf8'), pid = Number((/^pid=(\d+)/m.exec(x) || [])[1]), host = (/^host=(.*)$/m.exec(x) || [])[1] || '';
+      if (pid > 0 && host.trim().toLowerCase() === os.hostname().toLowerCase()) { try { process.kill(pid, 0); } catch (e) { gone = e.code === 'ESRCH'; } }
+    } catch { /* */ }
+    if (st && (gone || Date.now() - st.mtimeMs > 60000)) try { fs.rmSync(t, { force: true }); } catch { /* */ }
     return false;
   }
   try {
@@ -485,7 +492,8 @@ export function lockOwner(l) {
   try { t = fs.readFileSync(join(l, 'owner'), 'utf8'); } catch { /* being written, or left half made */ }
   const get = (k) => { const m = new RegExp(`^${k}=(.*)$`, 'm').exec(t); return m ? m[1].trim() : ''; };
   const pid = Number(get('pid')), host = get('host'), started = Number(get('started'));
-  const st = lstat(l);
+  // With no start time (no owner file yet, or one with nothing in it): the age of the owner file, else the folder.
+  const st = lstat(join(l, 'owner')) || lstat(l);
   const age = started ? Date.now() / 1000 - started : st ? (Date.now() - st.mtimeMs) / 1000 : 0;
   let stale = age > 86400;
   if (!t) stale = stale || age > 60;   // no owner after a minute: a run stopped while making the lock

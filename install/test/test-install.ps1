@@ -334,8 +334,8 @@ try {
   Check 'install stops with exit code 1, says another run is working, changes nothing' { $script:code -eq 1 -and $script:out -match 'Another makkov-harness run' -and (Listing $proj) -eq $before }
   Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
   Check 'an uninstall with no install leaves the live lock as it is' { $script:code -eq 1 -and $script:out -match 'No makkov-harness install' -and (Listing $proj) -eq $before }
-  Write-Output 'codex project, a lock a stopped run left'
-  Set-Owner $proj $deadPid
+  Write-Output 'codex project, a lock a stopped run left, and the takeover file of a run killed while taking it over'
+  Set-Owner $proj $deadPid; [IO.File]::WriteAllText((Join-Path $proj '.makkov-harness\lock.takeover'), "pid=$deadPid`nhost=$mhHost`n")
   Run-Child $inst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code
   Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
   Check 'it is taken over: install and uninstall go through, nothing left' { $c1 -eq 0 -and $script:code -eq 0 -and (Entries $proj).Count -eq 0 }

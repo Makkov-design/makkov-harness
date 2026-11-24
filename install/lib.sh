@@ -58,6 +58,8 @@ mh_lock_stale() {   # $1: lock folder
   o="$1/owner"; now="$(date +%s)"
   if [ ! -f "$o" ]; then [ -n "$(find "$1" -prune -mmin +1 2>/dev/null)" ]; return; fi
   pid="$(sed -n 's/^pid=//p' "$o" | head -n 1)"; host="$(sed -n 's/^host=//p' "$o" | head -n 1)"; started="$(sed -n 's/^started=//p' "$o" | head -n 1)"
+  # An owner file with nothing in it yet (a run stopped between making it and writing it): as a missing one.
+  if [ -z "$pid$host$started" ]; then [ -n "$(find "$o" -prune -mmin +1 2>/dev/null)" ]; return; fi
   case "$started" in ''|*[!0-9]*) started=0 ;; esac
   age=$((now - started)); [ "$started" -gt 0 ] && [ "$age" -gt 86400 ] && return 0
   if [ -z "$host" ] || [ "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" = "$(mh_host | tr '[:upper:]' '[:lower:]')" ]; then
@@ -104,10 +106,14 @@ mh_lock() {
 # Clause 3: removes a lock judged stale, holding lock.takeover while it looks again; without it, a run that judged the
 # lock of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 mh_take_stale() {
-  local t="$1.takeover"
-  if ! (set -C; : > "$t") 2>/dev/null; then
-    # One left by a run stopped while taking over (it holds it for a moment only).
-    [ -z "$(find "$t" -prune -mmin +1 2>/dev/null)" ] || rm -f "$t"
+  local t="$1.takeover" tp th
+  if ! (set -C; printf 'pid=%s\nhost=%s\n' "$(mh_pid)" "$(mh_host)" > "$t") 2>/dev/null; then
+    # One left by a run stopped while taking over (it holds it for a moment only): its process gone on this
+    # computer, or a minute old.
+    tp="$(sed -n 's/^pid=//p' "$t" 2>/dev/null | head -n 1)"; th="$(sed -n 's/^host=//p' "$t" 2>/dev/null | head -n 1)"
+    if [ -n "$(find "$t" -prune -mmin +1 2>/dev/null)" ]; then rm -f "$t"
+    elif [ -n "$tp" ] && [ ! -r "/proc/$$/winpid" ] && [ "$(printf '%s' "$th" | tr '[:upper:]' '[:lower:]')" = "$(mh_host | tr '[:upper:]' '[:lower:]')" ] && ! kill -0 "$tp" 2>/dev/null && ! ps -p "$tp" >/dev/null 2>&1; then rm -f "$t"
+    fi
     return 1
   fi
   if mh_lock_stale "$1"; then

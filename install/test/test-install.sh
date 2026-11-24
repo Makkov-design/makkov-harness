@@ -692,6 +692,18 @@ mkdir -p "$proj/.makkov-harness"; ln -s "$outside" "$proj/.makkov-harness/lock";
 runs bash "$inst" codex "$proj"
 check "install stops (exit 1), says it is a link, nothing written there or here" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'is a link' && [ -z \"\$(ls -A '$outside')\" ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
 rm -rf "$home" "$proj" "$outside"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a lock a run killed during a takeover left (lock.takeover of a process that is gone)"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+printf 'pid=%s\nhost=%s\n' "$dead" "$(hostname 2>/dev/null || uname -n)" > "$proj/.makkov-harness/lock.takeover"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "install takes it over at once and goes through; the uninstall leaves nothing" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+echo "codex project, an empty owner file a run killed while making the lock left, a minute old"
+mkdir -p "$proj/.makkov-harness/lock"; : > "$proj/.makkov-harness/lock/owner"; touch -t "$(date -d '-5 minutes' +%Y%m%d%H%M 2>/dev/null || date -v-5M +%Y%m%d%H%M)" "$proj/.makkov-harness/lock/owner"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "install takes it over and goes through; the uninstall leaves nothing" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
 echo "the lock's release removes only its own owner file"
 proj="$(tmp)"
 ( . "$repo/install/lib.sh"; mh_lock "$proj/.makkov-harness" "$proj" 2>/dev/null; printf 'pid=1\nhost=elsewhere\nstarted=1\nby=test\n' > "$proj/.makkov-harness/lock/owner"; mh_unlock )
