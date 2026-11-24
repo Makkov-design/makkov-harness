@@ -67,7 +67,7 @@ $why = Test-MhCheckInside $base @($state, $manifest, "$manifest.new", $original,
 if ($why) { Stop-Mh "$why." }
 # On macOS and Linux no name with a \ in it under the skills folder or .makkov-harness (Find-MhBackslashName).
 $bad = Find-MhBackslashName @($skillsDir, $state)
-if ($bad) { Stop-Mh "$bad has a \ in its name. PowerShell on macOS and Linux reads a \ in a path as a separator, so this installer would take the name for a path somewhere else. Rename or remove it, or use install.sh or the Node installer here." }
+if ($bad) { Stop-Mh "$bad has a backslash (\) in its name. PowerShell on macOS and Linux reads a \ in a path as a separator, so this installer would take the name for a path somewhere else. Rename or remove it, or use install.sh or the Node installer here." }
 
 # One run at a time in this folder (a dry run writes nothing, so it takes no lock). The lock is let go in the finally
 # at the end of this file, whichever way the run ends (exit and the test stop points included).
