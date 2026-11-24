@@ -501,10 +501,19 @@ export function fingerprintPs(dir, sep = SEP) {
   return crypto.createHash('sha256').update(Buffer.from(fingerprintPsLines(dir, sep).join('\n'), 'utf8')).digest('hex').slice(0, 16);
 }
 // install.ps1 of 0.5.0 sorted the files by culture (Sort-Object FullName, not case-sensitive) before hashing.
-// PowerShell 7 compares like ICU; Windows PowerShell 5.1 like Windows' word sort, which gives hyphens and
-// apostrophes no weight. Both orders, to recognise a copy 0.5.0 recorded; never written.
+// PowerShell 7 compares like ICU; Windows PowerShell 5.1 like Windows' word sort (below). Both orders, to recognise a copy 0.5.0 recorded; never written.
 const ICU = new Intl.Collator('en-US', { sensitivity: 'accent' });
-const WORD = (a, b) => ICU.compare(a.replace(/[-']/g, ''), b.replace(/[-']/g, '')) || ICU.compare(a, b);
+// Windows' word sort (NLS), as Windows PowerShell 5.1 compares: hyphens and apostrophes left out, case ignored,
+// other symbols before digits before letters, the symbols in this order (checked against Windows PowerShell 5.1's
+// Sort-Object on this repository's skills in CI).
+const NLS_SYMBOLS = ' !"#$%&()*,./:;?@[\\]^_`{|}~+<=>';
+const nlsKey = (s) => [...s.toLowerCase()].filter((c) => c !== '-' && c !== "'").map((c) => (/[0-9]/.test(c) ? 1000 + c.charCodeAt(0)
+  : /[a-z]/.test(c) ? 2000 + c.charCodeAt(0) : NLS_SYMBOLS.includes(c) ? NLS_SYMBOLS.indexOf(c) : 100 + c.charCodeAt(0)));
+const WORD = (a, b) => {
+  const x = nlsKey(a), y = nlsKey(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return x.length - y.length || (a < b ? -1 : a > b ? 1 : 0);
+};
 export function fingerprintPsCulture(dir, cmp, sep = SEP) {
   const files = walk(dir, true).map(([parts, p]) => [sep + parts.join(sep), p]);
   files.sort((x, y) => cmp(x[0], y[0]));
