@@ -45,7 +45,7 @@ case "$agent" in
   cursor|copilot|windsurf|aider)
     if [ -z "$project" ]; then echo "$agent has no user-level instructions file this installer can edit. Pass a project path." >&2; exit 2; fi ;;
 esac
-if [ -n "$project" ] && [ "$project" = "$(cd "$HOME" && pwd)" ]; then
+if [ -n "$project" ] && { [ "$project" = "$(cd "$HOME" && pwd)" ] || [ "$(cd "$project" && pwd -P)" = "$(cd "$HOME" && pwd -P)" ]; }; then
   echo "The project path is your home folder, where a user-level install keeps its manifest. Leave the project path out for a user-level install, or pass a project folder." >&2
   exit 2
 fi
@@ -68,6 +68,9 @@ stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
 # run stops at that point (skill = after the first skill is in place, skills, rules), as an interruption would.
 # install/test/ uses it to check that an interrupted run can be run again or uninstalled.
 checkpoint() { if [ "${MAKKOV_HARNESS_TEST:-}" = 1 ] && [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
+
+# One run at a time in this folder (a dry run writes nothing, so it takes no lock).
+if [ "$dry" = 0 ]; then mh_lock "$state" "$base" || exit 1; trap mh_unlock EXIT; fi
 
 # 0. Before anything is written.
 # Every manifest in this folder must be one the installer wrote for this folder.
@@ -111,6 +114,8 @@ fi
 [ "$rules_backup" = "$original" ] && [ ! -f "$original" ] && [ -f "$rules" ] && need_copy=1
 # Files and folders it is about to change: they must be there to change, or creatable.
 why="$(mh_writable_file "$rules")" || stop "$why."
+# The file is replaced through a temporary file next to it, so its folder must be writable too.
+if [ -f "$rules" ] && [ ! -L "$rules" ]; then why="$(mh_writable_dir "$(dirname "$rules")")" || stop "$why."; fi
 if [ "$agent" != cursor ]; then
   mh_check_markers "$rules" || exit 1
   if mh_wide_text "$rules"; then stop "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again."; fi

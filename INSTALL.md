@@ -44,7 +44,19 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\m
 
 ## Step 4. Run the installer for your tool
 
-The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. Before it first changes an instructions file you already had (even one that already holds a marked block), it keeps one copy of it as it was, in `.makkov-harness/backups/original/` in the same home or project folder; the uninstaller uses that copy to put the file back byte for byte. It checks everything that could stop it before it changes anything: if the instructions file is a folder, read-only, a symlink to a file that does not exist, or saved as UTF-16, it says so and changes nothing. It writes its manifest before its first change, so an install that is interrupted can be run again or uninstalled. If a skill folder with the same name is already there and differs from ours (your own skill, or one you changed), it moves it to `.makkov-harness/backups/<date>-<agent>/skills/` instead of replacing it. If the markers in your file are broken (a start marker without its end marker, or two routing blocks), it stops, says on which line, and changes nothing. A manifest that names paths the installer would not use (edited by hand, or one that came with a cloned repository) is refused the same way, by the installer and the uninstaller.
+The installer copies `skills/` into the folder your tool reads and adds the routing map (ROUTING.md) to your instructions file inside a marked block, so running it again updates instead of duplicating. Before it first changes an instructions file you already had (even one that already holds a marked block), it keeps one copy of it as it was, in `.makkov-harness/backups/original/` in the same home or project folder; the uninstaller uses that copy to put the file back byte for byte. It checks everything that could stop it before it changes anything: if the instructions file is a folder, read-only, a symlink to a file that does not exist, or saved as UTF-16, it says so and changes nothing. It writes its manifest before its first change, so an install that is interrupted can be run again or uninstalled. If a skill folder with the same name is already there and differs from ours (your own skill, or one you changed), it moves it to `.makkov-harness/backups/<date>-<agent>/skills/` instead of replacing it. If the markers in your file are broken (a start marker without its end marker, or two routing blocks), it stops, says on which line, and changes nothing. A manifest that names paths the installer would not use (edited by hand, or one that came with a cloned repository) is refused the same way, by the installer and the uninstaller. One run at a time: an install or uninstall holds a lock in `.makkov-harness/lock/` while it works, and a second run started meanwhile on the same folder stops, says so and changes nothing. A lock a stopped run left (closed terminal, crash) is taken over by the next install or uninstall once its process is gone on this computer; when the lock was made on another computer, or by `install.sh` in Git Bash (which cannot see whether a Windows process still runs), it is taken over only after a day, so delete `.makkov-harness/lock` yourself if you know no run is going on.
+
+There are three installers with the same behaviour; use one of them.
+
+With Node.js 22 or later (`node --version`), on any system, the Node installer in the copy:
+
+```
+node ~/makkov-harness/bin/makkov-harness.mjs install --agent <agent> [--project <path>] [--dry-run] [--scope design]
+```
+
+(Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" install …`.)
+
+Without Node, the shell installers do the same.
 
 Windows (PowerShell):
 
@@ -57,6 +69,8 @@ macOS / Linux:
 ```
 bash ~/makkov-harness/install/install.sh <agent> [project-path] [--dry-run] [--scope design]
 ```
+
+The three read and write the same manifest, so an install made with one can be updated or removed with another.
 
 Run it with `-DryRun` / `--dry-run` first to see every folder it would copy or move and the file it would edit; nothing is written. Show that list to the user before the real run.
 
@@ -86,7 +100,7 @@ What it does, per tool (from each tool's documentation, checked 2026-11-04):
 
 ## Step 5. Check and report
 
-1. List the skill folders now present in the target folder.
+1. List the skill folders now present in the target folder. With Node, `node ~/makkov-harness/bin/makkov-harness.mjs doctor [--project <path>]` reports what is installed where (add `--json` for a machine-readable form); it changes nothing, and exits with 1 when something needs attention.
 2. Show the marked block in the instructions file (between `<!-- makkov-harness:start -->` and `<!-- makkov-harness:end -->`).
 3. Tell the user in 3-4 lines: what was installed and where, that the tool may need a restart, and that `harness-onboarding` will personalize it ("run the harness-onboarding skill"). If they design for the web, mention they can now say "score localhost:3000" (or any URL) for a Design Score.
 4. Mention companion plugins from README.md that exist for their tool, without installing them.
@@ -103,13 +117,20 @@ This step applies to the Claude marketplace route in Step 1 too: ask after the u
 
 ## Updating and removing
 
-Update: `git -C ~/makkov-harness pull` (Windows: `git -C "$HOME\makkov-harness" pull`), then run the installer again with the same agent and project path. It recognises the copies an earlier install put there (the manifest keeps a fingerprint of each) and replaces them; only folders that changed since, or are not ours, are moved aside. A skill this version no longer has (removed or renamed) is taken out, or moved to `.makkov-harness/backups/<date>-<agent>/removed/` if you changed it. The scope stays as it was unless you pass it again. Run against files that are already current, it changes nothing.
+Update: `git -C ~/makkov-harness pull` (Windows: `git -C "$HOME\makkov-harness" pull`), then run the installer again with the same agent and project path (the Node installer also takes `update`, which refuses when nothing is installed there yet). It recognises the copies an earlier install put there (the manifest keeps a fingerprint of each) and replaces them; only folders that changed since, or are not ours, are moved aside. A skill this version no longer has (removed or renamed) is taken out, or moved to `.makkov-harness/backups/<date>-<agent>/removed/` if you changed it. The scope stays as it was unless you pass it again. Run against files that are already current, it changes nothing.
 
 Remove: run the uninstaller with the same agent and project path you installed with (add `-DryRun` / `--dry-run` to see the list first):
 
 ```
+node ~/makkov-harness/bin/makkov-harness.mjs uninstall --agent <agent> [--project <path>] [--dry-run]
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\uninstall.ps1" -Agent <agent> [-Project <path>] [-DryRun]
 bash ~/makkov-harness/install/uninstall.sh <agent> [project-path] [--dry-run]
 ```
 
 It reads the manifest the installer wrote (`.makkov-harness/install-<agent>.txt` in the home or project folder) and removes only what the install put there: skill folders still matching what the install put there are deleted, ones you changed since are moved to `.makkov-harness/backups/<date>-<agent>/removed/`, skills of yours the install had moved aside are put back, and the routing block is taken out, with the personal layer `harness-onboarding` wrote between its own markers (a Cursor rule and its personal rule are deleted and your earlier rule restored). An instructions file you had before is put back byte for byte if you have not changed it since; if you have, your changes stay and the copy of the file as it was before the install stays in `.makkov-harness/backups/original/` (delete it once you no longer need it); a file the install created is deleted once empty, and so are the folders the install created. Skills another installed agent still reads from the same folder stay, and so does the routing block in a file another installed agent still reads (Codex, Copilot, Windsurf, Cline and OpenCode all use `<project>/AGENTS.md`): the last uninstall takes it out. A personal layer it takes out is kept in `.makkov-harness/backups/<date>-<agent>/removed/`. If you moved or renamed the project folder since the install, pass the new path: the uninstaller reads the install from there. Installs made before 0.3.3 have no manifest: delete the copied skill folders and the marked block by hand, and restore from `.bak-<date>` if needed; installs from 0.5.0 and earlier left a `.bak-<date>` copy next to the instructions file for each run, and created folders they did not record (`.agents/skills`, `.gemini`, `.cursor/rules`); after the uninstall, delete the `.bak-<date>` files and any of those folders that are empty.
+
+Limits worth knowing:
+
+- Use installers of this version or newer on a folder this version installed into. The installers of 0.5.0 and earlier do not know the per-agent backup folders, the record of folders the install created or the shared-file rules, so a run of theirs on such a folder can leave things for you to delete by hand.
+- An instructions file with more than one hard link is written in place, so every name keeps the same file; any other file is replaced in one step, so an interruption never leaves half of it.
+- On macOS and Linux, a home or project path that contains a backslash (`\`) is read back from a manifest as a Windows path; such paths are not supported.

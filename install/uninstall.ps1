@@ -36,6 +36,7 @@ $base = if ($Project) { $Project } else { $home_ }
 $state = Join-Path $base '.makkov-harness'
 $manifest = Join-Path $state "install-$Agent.txt"
 if (-not (Test-Path -LiteralPath $manifest)) {
+  if (-not $DryRun) { Clear-MhLockOnly $state $base }
   [Console]::Error.WriteLine("No makkov-harness install for $Agent found in $base (no $manifest).")
   [Console]::Error.WriteLine('If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.')
   exit 1
@@ -43,6 +44,11 @@ if (-not (Test-Path -LiteralPath $manifest)) {
 function Stop-Mh([string]$Why) { [Console]::Error.WriteLine($Why); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
 # Test hook, inert in normal use (see install.ps1): u-skills = after the skills, u-rules = after the file.
 function Test-Checkpoint([string]$Name) { if ($env:MAKKOV_HARNESS_TEST -eq '1' -and $env:MAKKOV_HARNESS_TEST_STOP -eq $Name) { [Console]::Error.WriteLine("(test) stopped after $Name"); exit 1 } }
+
+# One run at a time in this folder (a dry run changes nothing, so it takes no lock). The lock is let go in the finally
+# at the end of this file, whichever way the run ends.
+$mhLock = if ($DryRun) { $null } else { Enter-MhLock $state $base }
+try {
 
 # 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
 #    files to change must be changeable.
@@ -59,7 +65,8 @@ if ($ob -and $ob -ne $base) { Write-Output "Installed in $ob, which is now ${bas
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 # Other installs in the same folder that read the same skills folder or the same instructions file.
-function Get-Others { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File | Where-Object { -not (Test-MhSamePath $_.FullName $manifest) }) }
+# (Compared by file name, all in the same folder: Get-ChildItem's FullName can spell an 8.3 short name out in full.)
+function Get-Others { @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File | Where-Object { $_.Name -ne (Split-Path -Leaf $manifest) }) }
 function Test-SameSkills([string[]]$O) { Test-MhSamePath (Get-MhPath $O 'skills_dir' $base) $skillsDir }
 $rulesUsers = @()
 foreach ($m in Get-Others) {
@@ -120,7 +127,7 @@ if ($skillsDir) {
     } else {
       $to = Join-Path (Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed') $name
       Write-Output "  move $dst to $to (you changed it)"
-      if (-not $DryRun) { New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null; Move-Item -LiteralPath $dst -Destination $to }
+      if (-not $DryRun) { New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null; Move-MhDir $dst $to }
     }
   }
   # 2. Put back the skills the install moved aside. While another agent still uses this skills folder,
@@ -141,13 +148,13 @@ if ($skillsDir) {
     foreach ($d in @(Get-ChildItem -LiteralPath $b -Directory)) {
       $dst = Join-Path $skillsDir $d.Name
       if (Test-Path -LiteralPath $dst) { Write-Output "  leave your earlier $($d.Name) in $b ($dst exists)" }
-      else { Write-Output "  restore your $($d.Name) to $dst"; if (-not $DryRun) { Move-Item -LiteralPath $d.FullName -Destination $dst } }
+      else { Write-Output "  restore your $($d.Name) to $dst"; if (-not $DryRun) { Move-MhDir $d.FullName $dst } }
     }
   }
   # Copies an interrupted install left half made under a temporary name are the harness's own.
   if (Test-Path -LiteralPath $skillsDir -PathType Container) {
     foreach ($t in @(Get-ChildItem -LiteralPath $skillsDir -Force -Filter '.mh-tmp-*')) {
-      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-Item -LiteralPath $t.FullName -Recurse -Force }
+      Write-Output "  remove $($t.FullName) (left by an interrupted install)"; if (-not $DryRun) { Remove-MhTree $t.FullName }
     }
   }
   # The skills are done: a run after an interruption from here on does not take them up again.
@@ -226,10 +233,16 @@ if (-not $DryRun -and (Test-Path -LiteralPath $state)) {
   foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
   foreach ($t in @(Get-ChildItem -LiteralPath $state -Force -Filter 'removed-*.tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
   foreach ($t in @(Get-ChildItem -LiteralPath $state -Recurse -Force -Filter '*.mh-tmp' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+  # A copy an interrupted move left (.mh-tmp-move-<name>, across volumes).
+  foreach ($t in @(Get-ChildItem -LiteralPath (Join-Path $state 'backups') -Recurse -Force -Directory -Filter '.mh-tmp-*' -ErrorAction SilentlyContinue)) { Remove-MhTree $t.FullName }
   foreach ($d in @(Get-ChildItem -LiteralPath $state -Recurse -Directory -Force | Sort-Object { $_.FullName.Length } -Descending)) {
     if (@(Get-ChildItem -LiteralPath $d.FullName -Force).Count -eq 0) { Remove-Item -LiteralPath $d.FullName -Force }
   }
   if (@(Get-ChildItem -LiteralPath $state -Force).Count -eq 0) { Remove-Item -LiteralPath $state -Force }
+  # The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+  if ($mhLock) { $mhLock.DropState = $true }
 }
 if (-not $DryRun) { Write-Output "makkov-harness removed for $Agent. Restart the agent." }
 else { Write-Output "Dry run done for $Agent. Run again without -DryRun to uninstall." }
+
+} finally { Exit-MhLock $mhLock }

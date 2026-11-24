@@ -4,7 +4,11 @@
 # behaviours for install.ps1 / uninstall.ps1. Run from anywhere: bash install/test/test-install.sh
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-inst="$repo/install/install.sh"; uninst="$repo/install/uninstall.sh"
+# MAKKOV_IMPL=node runs every scenario against the Node installer (through install/test/node/, which takes the
+# shell installers' command line); the default is install.sh / uninstall.sh.
+if [ "${MAKKOV_IMPL:-sh}" = node ]; then ri="install/test/node/install.sh"; ru="install/test/node/uninstall.sh"
+else ri="install/install.sh"; ru="install/uninstall.sh"; fi
+inst="$repo/$ri"; uninst="$repo/$ru"
 expected="$(find "$repo/skills" -mindepth 1 -maxdepth 1 -type d ! -name rich-report | wc -l | tr -d ' ')"
 fails=0
 ok()   { echo "  ok   $*"; }
@@ -19,7 +23,7 @@ tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; t
 runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
 root=0; [ "$(id -u)" = 0 ] && root=1
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$d/"; echo "$d"; }
+harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$repo/bin" "$repo/package.json" "$d/"; echo "$d"; }
 
 run_agent() {
   local agent="$1" scope="$2" home proj base skills rules
@@ -201,18 +205,18 @@ rm -rf "$home" "$parent"
 # changed it), unless another installed agent still lists it.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex and copilot project, skills renamed upstream"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
 mv "$src/skills/animate" "$src/skills/animate-renamed"; mv "$src/skills/design-score" "$src/skills/design-score-renamed"
 echo "my change" >> "$proj/.agents/skills/design-score/SKILL.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "while copilot still lists them, the old copies stay" "[ -d '$proj/.agents/skills/animate' ] && [ -d '$proj/.agents/skills/design-score' ]"
 check "the renamed skills are copied" "[ -d '$proj/.agents/skills/animate-renamed' ]"
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
 check "the last update takes the unchanged old copy out" "[ ! -e '$proj/.agents/skills/animate' ]"
 check "and sets the one you changed aside" "[ ! -e '$proj/.agents/skills/design-score' ] && grep -q 'my change' '$proj'/.makkov-harness/backups/*/removed/design-score/SKILL.md"
 check "neither is in a manifest any more" "! grep -q -e '^skill=animate ' -e '^skill=design-score ' '$proj'/.makkov-harness/install-*.txt"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null; bash "$src/install/uninstall.sh" copilot "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null; bash "$src/$ru" copilot "$proj" >/dev/null
 check "uninstall leaves no skills folder" "[ ! -e '$proj/.agents' ]"
 rm -rf "$home" "$proj" "$src"
 
@@ -220,25 +224,25 @@ rm -rf "$home" "$proj" "$src"
 # and the uninstall then leaves nothing of either behind.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, update in place, then uninstall"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 echo "new in this version" > "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "the update replaced our animate" "[ -f '$proj/.agents/skills/animate/CHANGES.md' ]"
 check "the update made no backup of ours" "[ ! -e '$proj/.makkov-harness/backups' ] || [ -z \"\$(ls -A '$proj/.makkov-harness/backups')\" ]"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null
 check "nothing of the harness left after uninstall" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
 rm -rf "$home" "$proj"
 
 # An install made before 0.5.0 (no fingerprints in its manifest): its copies are set aside, not restored.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, update over an install from before 0.5.0"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 sed 's/^\(skill=[^ ]*\) .*/\1/' "$proj/.makkov-harness/install-codex.txt" | grep -v '^base=' > "$home/m" && cat "$home/m" > "$proj/.makkov-harness/install-codex.txt"
 echo "newer still" >> "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 check "the old copy went to earlier-harness" "ls '$proj'/.makkov-harness/backups/*/earlier-harness/animate >/dev/null 2>&1"
 check "nothing went to the restore list" "! grep -q '^backup=' '$proj/.makkov-harness/install-codex.txt'"
-bash "$src/install/uninstall.sh" codex "$proj" >/dev/null
+bash "$src/$ru" codex "$proj" >/dev/null
 check "the uninstall restores no old harness copy" "[ ! -e '$proj/.agents/skills/animate' ]"
 rm -rf "$home" "$proj" "$src"
 
@@ -436,10 +440,10 @@ fi
 # A skill another agent's newer install updated is still the harness's own when the older agent goes last.
 src="$(harness_copy)"; home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex from an older copy, copilot from a newer one, uninstalled copilot first"
-bash "$src/install/install.sh" codex "$proj" >/dev/null
+bash "$src/$ri" codex "$proj" >/dev/null
 echo "newer" > "$src/skills/animate/CHANGES.md"
-bash "$src/install/install.sh" copilot "$proj" >/dev/null
-bash "$src/install/uninstall.sh" copilot "$proj" >/dev/null
+bash "$src/$ri" copilot "$proj" >/dev/null
+bash "$src/$ru" copilot "$proj" >/dev/null
 bash "$inst" codex "$proj" --dry-run >/dev/null
 bash "$uninst" codex "$proj" >/dev/null
 check "nothing taken for yours, nothing left" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
@@ -501,7 +505,7 @@ check "no half-made copies left" "[ \"\$(ls -A '$proj/.agents/skills')\" = style
 echo "the test hook needs MAKKOV_HARNESS_TEST=1"
 rm -rf "$proj/.agents"
 MAKKOV_HARNESS_TEST_STOP=skills bash "$inst" codex "$proj" >/dev/null
-check "without it, the install runs to the end" "grep -q '^rules=' '$proj/.makkov-harness/install-codex.txt' && [ \"\$(grep -c '^skill=' '$proj/.makkov-harness/install-codex.txt')\" = $expected ]"
+check "without it, the install runs to the end" "grep -q '^rules=' '$proj/.makkov-harness/install-codex.txt' && [ \"\$(sed -n 's/^skill=\\([^ ]*\\).*/\\1/p' '$proj/.makkov-harness/install-codex.txt' | sort -u | wc -l | tr -d ' ')\" = $expected ]"
 bash "$uninst" codex "$proj" >/dev/null
 rm -rf "$home" "$proj"
 
@@ -530,11 +534,194 @@ printf '#!/bin/sh\necho 20260101-000000\n' > "$shim/date"; chmod +x "$shim/date"
 echo "two agents installed in the same second"
 mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
 before="$(tree "$proj")"
+# (The shim names the second for install.sh; MAKKOV_HARNESS_TEST_STAMP for the Node installer.)
+export MAKKOV_HARNESS_TEST_STAMP=20260101-000000
 PATH="$shim:$PATH" bash "$inst" codex "$proj" >/dev/null; PATH="$shim:$PATH" bash "$inst" cline "$proj" >/dev/null
 check "the backup folder is named for the agent" "[ -f '$proj/.makkov-harness/backups/20260101-000000-codex/skills/animate/SKILL.md' ]"
 PATH="$shim:$PATH" bash "$uninst" cline "$proj" >/dev/null; PATH="$shim:$PATH" bash "$uninst" codex "$proj" >/dev/null
 check "your animate is back where it was, nothing else left" "[ \"\$(tree '$proj')\" = \"\$before\" ]"
-rm -rf "$home" "$proj" "$shim"
+rm -rf "$home" "$proj" "$shim"; unset MAKKOV_HARNESS_TEST_STAMP
+
+# A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, AGENTS.md hard-linked to a file outside the project"
+printf '# mine\n' > "$proj/AGENTS.md"; ln "$proj/AGENTS.md" "$home/linked.md"; cp "$proj/AGENTS.md" "$home/expected"
+bash "$inst" codex "$proj" >/dev/null
+check "still one file under both names, with the routing block" "[ '$proj/AGENTS.md' -ef '$home/linked.md' ] && [ \"\$(markers '$home/linked.md')\" = 1 ]"
+bash "$uninst" codex "$proj" >/dev/null
+check "after the uninstall, still linked and as it was" "[ '$proj/AGENTS.md' -ef '$home/linked.md' ] && cmp -s '$home/expected' '$home/linked.md'"
+rm -rf "$home" "$proj"
+
+# The instructions file's folder must be writable (the file is replaced through a temporary file next to it).
+if [ "$root" = 0 ]; then
+  home="$(tmp)"; export HOME="$home"
+  echo "gemini user level, ~/.gemini is read-only"
+  mkdir -p "$home/.gemini"; printf '# mine\n' > "$home/.gemini/GEMINI.md"; chmod a-w "$home/.gemini"; before="$(tree "$home")"
+  runs bash "$inst" gemini
+  check "install stops with exit code 1, says why, changes nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'read-only' && [ \"\$(tree '$home')\" = \"\$before\" ]"
+  chmod u+w "$home/.gemini"; rm -rf "$home"
+else echo "gemini user level, ~/.gemini is read-only: skip (running as root, every folder is writable)"; fi
+
+# A link left under a temporary name is removed as a link: the folder it points to keeps its files.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a symlink to a folder of yours left as .mh-tmp-animate"
+mkdir -p "$home/target" "$proj/.agents/skills"; echo keep > "$home/target/file"; ln -s "$home/target" "$proj/.agents/skills/.mh-tmp-animate"
+bash "$inst" codex "$proj" >/dev/null; bash "$uninst" codex "$proj" >/dev/null
+check "the link is gone, the folder it pointed to is untouched" "[ ! -e '$proj/.agents/skills/.mh-tmp-animate' ] && [ ! -L '$proj/.agents/skills/.mh-tmp-animate' ] && grep -qx keep '$home/target/file'"
+rm -rf "$home" "$proj"
+
+# A home folder path spelled with a trailing slash: the manifest names one spelling, and update and uninstall read
+# it back (the Node installer once wrote both spellings, and then refused its own manifest).
+t="$(tmp)"; mkdir -p "$t/home/.codex"; printf '# my notes\n' > "$t/home/.codex/AGENTS.md"; export HOME="$t/home/"
+echo "codex at user level, the home folder given with a trailing slash"
+before="$(tree "$t/home")"
+runs bash "$inst" codex; c1=$code; runs bash "$inst" codex; c2=$code; runs bash "$uninst" codex; c3=$code
+check "install, update and uninstall all go through" "[ $c1 = 0 ] && [ $c2 = 0 ] && [ $c3 = 0 ]"
+check "the home folder is as it was" "[ \"\$(tree '$t/home')\" = \"\$before\" ]"
+rm -rf "$t"
+
+# A home folder given as a relative path (HOME=home, run from the folder above it): install, update and uninstall
+# read back what they wrote, and the home folder ends as it began.
+t="$(tmp)"; mkdir -p "$t/home/.codex"; printf '# my notes\n' > "$t/home/.codex/AGENTS.md"
+echo "codex at user level, the home folder given as a relative path"
+before="$(tree "$t/home")"
+rc() { (cd "$t" && HOME=home bash "$@" >/dev/null 2>&1); echo $?; }
+c1="$(rc "$inst" codex)"; c2="$(rc "$inst" codex)"; c3="$(rc "$uninst" codex)"
+check "install, update and uninstall all go through" "[ $c1 = 0 ] && [ $c2 = 0 ] && [ $c3 = 0 ]"
+check "the home folder is as it was" "[ \"\$(tree '$t/home')\" = \"\$before\" ]"
+rm -rf "$t"
+
+# A home folder that is a symlink, and the project path given as the folder it points to: still the home folder.
+t="$(tmp)"; mkdir -p "$t/real"; ln -s "$t/real" "$t/home"; export HOME="$t/home"
+echo "codex with the project path the real folder of a symlinked home"
+runs bash "$inst" codex "$t/real"
+check "install stops with exit code 2 and says why" "[ $code = 2 ] && printf '%s' \"\$out\" | grep -q 'home folder'"
+check "nothing written" "[ -z \"\$(find '$t/real' -mindepth 1)\" ]"
+rm -rf "$t"
+
+# A skills folder on another file system (.agents a link to /dev/shm): your skill is moved aside and put back
+# by copying, and nothing is left on either side.
+shm=""; if [ -d /dev/shm ] && [ -w /dev/shm ]; then shm="$(mktemp -d /dev/shm/mh-test.XXXXXX)"; fi
+if [ -n "$shm" ] && [ "$(df -P "$shm" | awk 'NR==2 {print $1}')" != "$(df -P "$(tmp)" | awk 'NR==2 {print $1}')" ]; then
+  home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+  echo "codex project, .agents on another file system (a link to /dev/shm)"
+  mkdir -p "$shm/skills/animate"; echo mine > "$shm/skills/animate/SKILL.md"; ln -s "$shm" "$proj/.agents"
+  before="$(tree "$shm")"
+  runs bash "$inst" codex "$proj"; c1=$code
+  check "install goes through, your animate set aside" "[ $c1 = 0 ] && grep -qx mine '$proj'/.makkov-harness/backups/*/skills/animate/SKILL.md"
+  runs bash "$uninst" codex "$proj"
+  check "uninstall goes through and puts your animate back" "[ $code = 0 ] && [ \"\$(tree '$shm')\" = \"\$before\" ] && [ ! -e '$proj/.makkov-harness' ]"
+  rm -rf "$home" "$proj"
+else echo "codex project, .agents on another file system: skip (no /dev/shm on another file system here)"; fi
+[ -n "$shm" ] && rm -rf "$shm"
+
+# One run at a time: a lock another running process holds stops the run before any change; a lock left by a run
+# that was stopped is taken over; four installs started at once leave your skill where an uninstall puts it back.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a lock held by a running process"
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$$" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops with exit code 1, says another run is working, changes nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'Another makkov-harness run' && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+echo "codex project, a lock left by a run that was stopped"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "it is taken over: install and uninstall go through, nothing left" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, four installs started at once"
+mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"; before="$(tree "$proj")"
+# (Each run's shell trace goes to its own file, shown only when the check fails.)
+# How often more than one of four processes "wins" a mkdir, a symlink or a noclobber file made at the same moment
+# (informational: the lock relies on mkdir failing when the folder exists).
+probe="$(tmp)"; m=0 ln_=0 nc=0
+for k in $(seq 1 40); do
+  w="$probe/r$k"; mkdir "$w"
+  for j in 1 2 3 4; do (mkdir "$w/d" 2>/dev/null && echo m >> "$w/won"; ln -s x "$w/l" 2>/dev/null && echo l >> "$w/won"; (set -C; : > "$w/f") 2>/dev/null && echo f >> "$w/won") & done; wait
+  [ "$(grep -c m "$w/won")" -gt 1 ] && m=$((m + 1)); [ "$(grep -c l "$w/won")" -gt 1 ] && ln_=$((ln_ + 1)); [ "$(grep -c f "$w/won")" -gt 1 ] && nc=$((nc + 1))
+done
+echo "  (rounds of 40 with more than one winner: mkdir $m, ln -s $ln_, noclobber $nc)"; rm -rf "$probe"
+# (bash 3.2, macOS's, has no BASH_XTRACEFD: no trace there, it would go into what the run prints.)
+tr4=""; [ "$(bash -c 'echo "${BASH_VERSINFO[0]}"')" -ge 5 ] && tr4=-x
+for i in 1 2 3 4; do PS4='+ $EPOCHREALTIME $BASHPID ' BASH_XTRACEFD=7 bash $tr4 "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
+ok4=1; for i in 1 2 3 4; do grep -q 'makkov-harness installed for codex\|Another makkov-harness run' "$home/run$i" || ok4=0; done
+check "each run either installs or says another run is working (no stack trace)" "[ $ok4 = 1 ] && ! grep -q 'at \|Error:' '$home'/run*"
+[ "$ok4" = 1 ] || for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
+runs bash "$uninst" codex "$proj"
+check "the uninstall puts your animate back and leaves nothing else" "[ $code = 0 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+if [ "$ok4" != 1 ] || [ "$code" != 0 ] || [ "$(tree "$proj")" != "$before" ]; then
+  echo "    uninstall (exit $code) said: $out"; diff <(printf '%s\n' "$before") <(tree "$proj") | sed 's/^/    /' || true
+  for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; echo "    run $i, the lock in its trace:"; grep -E 'mkdir|lock|stale|takeover|kill|find |rm |mv |\.new|exit' "$home/trace$i" | grep -v -e cksum -e 'skills/[a-z-]*/$' | head -60 | sed 's/^/      /'; done
+fi
+rm -rf "$home" "$proj"
+
+# The lock's clauses (install/lib.sh): 5, an uninstall with no manifest clears a harness folder that holds only a
+# stale lock (a first install killed just after it took the lock; seed 4242 of the kill sequences) but never a live
+# one; 4, the harness folder goes only when this run made it; 4, the release removes only its own owner file.
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, only a lock and a manifest being written, left by a stopped first install, then an uninstall"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+printf 'agent=cline\n' > "$proj/.makkov-harness/install-cline.txt.new"
+runs bash "$uninst" codex "$proj"
+check "uninstall says no install was found (exit 1), takes the lock over and leaves nothing" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'No makkov-harness install' && printf '%s' \"\$out\" | grep -q 'Taking over' && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+echo "codex project, only a lock a running process holds, then an uninstall"
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$$" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+before="$(tree "$proj")"
+runs bash "$uninst" codex "$proj"
+check "uninstall says no install was found (exit 1) and leaves the live lock as it is" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'No makkov-harness install' && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, an empty .makkov-harness of yours, an install that stops before any change"
+mkdir -p "$proj/.makkov-harness" "$proj/AGENTS.md"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1) and the folder it did not make is still there" "[ $code = 1 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj"
+if [ "$root" = 1 ]; then echo "codex project, a read-only .makkov-harness"; echo "  skip (running as root, which can write a read-only folder)"; else
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a read-only .makkov-harness"
+mkdir -p "$proj/.makkov-harness"; chmod 555 "$proj/.makkov-harness"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$inst" codex "$proj"
+check "install stops (exit 1) twice, the folder is still there and nothing changed" "[ $c1 = 1 ] && [ $code = 1 ] && [ -d '$proj/.makkov-harness' ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+chmod 755 "$proj/.makkov-harness"; rm -rf "$home" "$proj"
+fi
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, .makkov-harness/lock is a link to a folder elsewhere"
+mkdir -p "$proj/.makkov-harness"; ln -s "$outside" "$proj/.makkov-harness/lock"; before="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1), says it is a link, nothing written there or here" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'is a link' && [ -z \"\$(ls -A '$outside')\" ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
+rm -rf "$home" "$proj" "$outside"
+home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
+echo "codex project, a lock a run killed during a takeover left (lock.takeover of a process that is gone)"
+sh -c 'exit 0' & dead=$!; wait "$dead" || true
+mkdir -p "$proj/.makkov-harness/lock"; printf 'pid=%s\nhost=%s\nstarted=%s\nby=test\n' "$dead" "$(hostname 2>/dev/null || uname -n)" "$(date +%s)" > "$proj/.makkov-harness/lock/owner"
+printf 'pid=%s\nhost=%s\n' "$dead" "$(hostname 2>/dev/null || uname -n)" > "$proj/.makkov-harness/lock.takeover"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "install takes it over at once and goes through; the uninstall leaves nothing" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+echo "codex project, an empty owner file a run killed while making the lock left, a minute old"
+mkdir -p "$proj/.makkov-harness/lock"; : > "$proj/.makkov-harness/lock/owner"; touch -t "$(date -d '-5 minutes' +%Y%m%d%H%M 2>/dev/null || date -v-5M +%Y%m%d%H%M)" "$proj/.makkov-harness/lock/owner"
+runs bash "$inst" codex "$proj"; c1=$code; runs bash "$uninst" codex "$proj"
+check "install takes it over and goes through; the uninstall leaves nothing" "[ $c1 = 0 ] && [ $code = 0 ] && [ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$home" "$proj"
+echo "the lock's release removes only its own owner file"
+proj="$(tmp)"
+( . "$repo/install/lib.sh"; mh_lock "$proj/.makkov-harness" "$proj" 2>/dev/null; printf 'pid=1\nhost=elsewhere\nstarted=1\nby=test\n' > "$proj/.makkov-harness/lock/owner"; mh_unlock )
+check "another run's owner file stays" "grep -q '^host=elsewhere' '$proj/.makkov-harness/lock/owner'"
+( . "$repo/install/lib.sh"; rm -rf "$proj/.makkov-harness"; mh_lock "$proj/.makkov-harness" "$proj" 2>/dev/null; mh_unlock )
+check "its own owner file, the lock and the folder it made go" "[ -z \"\$(find '$proj' -mindepth 1)\" ]"
+rm -rf "$proj"
+# A skill folder that is a link to a copy of yours outside the project: removing the link leaves the copy and its
+# modes alone (chmod -R would follow the link).
+home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
+echo "codex project, the animate skill a link to a read-only copy outside the project, then uninstall"
+runs bash "$inst" codex "$proj"
+cp -R "$proj/.agents/skills/animate" "$outside/animate"; chmod -R a-w "$outside/animate"
+rm -rf "$proj/.agents/skills/animate"; ln -s "$outside/animate" "$proj/.agents/skills/animate"
+modes="$(ls -lR "$outside" | awk '{print $1}')"
+runs bash "$uninst" codex "$proj"
+check "uninstall goes through and the copy outside keeps its files and modes" "[ $code = 0 ] && [ -f '$outside/animate/SKILL.md' ] && [ \"\$(ls -lR '$outside' | awk '{print \$1}')\" = \"\$modes\" ]"
+chmod -R u+w "$outside"; rm -rf "$home" "$proj" "$outside"
 
 # A manifest written by install.ps1 (a BOM, CRLF line ends, Windows paths) is read by the bash installer.
 home="$(tmp)"; proj="$(tmp)"; export HOME="$home"

@@ -37,7 +37,7 @@ case "$agent" in
   *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]" >&2; exit 2 ;;
 esac
 if [ -n "$project" ]; then project="$(cd "$project" && pwd)"; fi
-if [ -n "$project" ] && [ "$project" = "$(cd "$HOME" && pwd)" ]; then
+if [ -n "$project" ] && { [ "$project" = "$(cd "$HOME" && pwd)" ] || [ "$(cd "$project" && pwd -P)" = "$(cd "$HOME" && pwd -P)" ]; }; then
   echo "The project path is your home folder. For a user-level install, leave the project path out." >&2; exit 2
 fi
 base="${project:-$HOME}"
@@ -45,6 +45,7 @@ mh_drive_form "$base"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
 if [ ! -f "$manifest" ]; then
+  [ "$dry" = 1 ] || mh_clear_lock_only "$state" "$base"
   echo "No makkov-harness install for $agent found in $base (no $manifest)." >&2
   echo "If you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md." >&2
   exit 1
@@ -52,6 +53,9 @@ fi
 stop() { echo "$*" >&2; echo "Nothing was changed." >&2; exit 1; }
 # Test hook, inert in normal use (see install.sh): u-skills = after the skills, u-rules = after the file.
 checkpoint() { if [ "${MAKKOV_HARNESS_TEST:-}" = 1 ] && [ "${MAKKOV_HARNESS_TEST_STOP:-}" = "$1" ]; then echo "(test) stopped after $1" >&2; exit 1; fi; }
+
+# One run at a time in this folder (a dry run changes nothing, so it takes no lock).
+if [ "$dry" = 0 ]; then mh_lock "$state" "$base" || exit 1; trap mh_unlock EXIT; fi
 
 # 0. Before anything is changed: every manifest here must be one the installer wrote for this folder, and the
 #    files to change must be changeable.
@@ -229,8 +233,12 @@ fi
 if [ "$dry" = 0 ] && [ -d "$state" ]; then
   rm -f "$state"/install-*.txt.new
   find "$state" -type f -name '*.mh-tmp' -exec rm -f {} + 2>/dev/null || true
+  # A copy an interrupted move left (the Node installer's .mh-tmp-move-<name>, across file systems).
+  find "$state" -depth -mindepth 2 -type d -name '.mh-tmp-*' -exec rm -rf {} + 2>/dev/null || true
   find "$state" -depth -mindepth 1 -type d -empty -exec rmdir {} \; 2>/dev/null || true
   rmdir "$state" 2>/dev/null || true
+  # The lock is still in it: the release takes the folder away once the lock is gone, if nothing else is left.
+  MH_LOCK_STATE="$state"
 fi
 if [ "$dry" = 1 ]; then echo "Dry run done for $agent. Run again without --dry-run to uninstall."
 else echo "makkov-harness removed for $agent. Restart the agent."; fi

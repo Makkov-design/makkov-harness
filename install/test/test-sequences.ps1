@@ -4,12 +4,19 @@
   start (every file, byte for byte, and no folder added or removed), and nothing outside it may have changed.
   Seeded, so a failure can be re-run.
 
-  Usage: powershell -File install\test\test-sequences.ps1 [-Runs 20] [-Seed 1]
+  Usage: powershell -File install\test\test-sequences.ps1 [-Runs 20] [-Seed 1] [-Impl ps|node|mixed]
+    -Impl ps      install.ps1 / uninstall.ps1 (the default, or $env:MAKKOV_IMPL)
+    -Impl node    the Node installer (through install\test\node\, which takes the same parameters)
+    -Impl mixed   each step by one of the two, picked at random: the same folder, worked on by both
 #>
-param([int]$Runs = 20, [int]$Seed = 1)
+param([int]$Runs = 20, [int]$Seed = 1, [string]$Impl = $(if ($env:MAKKOV_IMPL) { $env:MAKKOV_IMPL } else { 'ps' }))
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$inst = Join-Path $repo 'install\install.ps1'; $uninst = Join-Path $repo 'install\uninstall.ps1'
+$scripts = @{
+  ps   = @{ install = (Join-Path $repo 'install\install.ps1'); uninstall = (Join-Path $repo 'install\uninstall.ps1') }
+  node = @{ install = (Join-Path $repo 'install\test\node\install.ps1'); uninstall = (Join-Path $repo 'install\test\node\uninstall.ps1') }
+}
+$impls = switch ($Impl) { 'ps' { @('ps') } 'node' { @('node') } 'mixed' { @('ps', 'node') } default { throw "-Impl is ps, node or mixed" } }
 $rng = New-Object System.Random $Seed
 function Pick([object[]]$From) { $From[$rng.Next($From.Count)] }
 function New-Temp { $d = Join-Path ([IO.Path]::GetTempPath()) ('mh-' + [guid]::NewGuid().ToString('N').Substring(0, 10)); New-Item -ItemType Directory $d | Out-Null; $d }
@@ -73,21 +80,22 @@ try {
       $op = Pick @('install', 'install', 'update', 'uninstall', 'uninstall')
       $stop = $rng.Next(4) -eq 0
       $am = @{ Agent = $a }; if ($proj) { $am.Project = $proj }
+      $im = Pick $impls
       if ($op -eq 'uninstall') {
-        $script_ = $uninst; $points = @('u-skills', 'u-rules')
+        $script_ = $scripts[$im].uninstall; $points = @('u-skills', 'u-rules')
         if (-not (Test-Path -LiteralPath (Join-Path $base ".makkov-harness\install-$a.txt"))) { continue }
       } else {
-        $script_ = $inst; $points = @('skill', 'skills', 'rules')
+        $script_ = $scripts[$im].install; $points = @('skill', 'skills', 'rules')
         if ($op -eq 'update' -and $rng.Next(2) -eq 0) { $am.Scope = 'design' }
       }
       if ($stop) {
         $pt = Pick $points
         $env:MAKKOV_HARNESS_TEST = '1'; $env:MAKKOV_HARNESS_TEST_STOP = $pt
         try { Invoke-Mh $script_ $am | Out-Null } finally { Remove-Item Env:\MAKKOV_HARNESS_TEST, Env:\MAKKOV_HARNESS_TEST_STOP }
-        $log.Add("$op $a$(if ($am.Scope) { ' -Scope design' }) (stopped after $pt)")
+        $log.Add("$op $a ($im)$(if ($am.Scope) { ' -Scope design' }) (stopped after $pt)")
       } else {
         $ok = Invoke-Mh $script_ $am
-        $log.Add("$op $a$(if ($am.Scope) { ' -Scope design' }) (normal)")
+        $log.Add("$op $a ($im)$(if ($am.Scope) { ' -Scope design' }) (normal)")
         if (-not $ok) { & $fail "step ${step}: $op $a failed: $($script:err)" }
       }
     }
@@ -98,8 +106,9 @@ try {
       foreach ($m in @(Get-ChildItem -LiteralPath $st -Filter 'install-*.txt' -File)) {
         $a = $m.BaseName.Substring(8)
         $am = @{ Agent = $a }; if ($proj) { $am.Project = $proj }
-        if (-not (Invoke-Mh $uninst $am)) { & $fail "final uninstall of $a failed: $($script:err)" }
-        $log.Add("uninstall $a (final)")
+        $im = Pick $impls
+        if (-not (Invoke-Mh $scripts[$im].uninstall $am)) { & $fail "final uninstall of $a ($im) failed: $($script:err)" }
+        $log.Add("uninstall $a ($im, final)")
       }
     }
     $now = Tree $base
@@ -109,5 +118,5 @@ try {
     Remove-Item -LiteralPath $parent -Recurse -Force
   }
 } finally { $env:USERPROFILE = $realHome }
-Write-Output "installer sequences: $Runs passed (seed $Seed)"
+Write-Output "installer sequences: $Runs passed (seed $Seed, ${Impl}: $($impls -join ' '))"
 exit 0

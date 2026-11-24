@@ -183,6 +183,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\instal
 
 Run the same command again to update; `install/uninstall.sh` / `install/uninstall.ps1` with the same arguments removes it.
 
+With Node.js 22 or later, one installer works the same on every system: `node ~/makkov-harness/bin/makkov-harness.mjs install --agent codex` (and `update`, `uninstall`, `doctor`, which reports what is installed where).
+
 What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 </details>
 

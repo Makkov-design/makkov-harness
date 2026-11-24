@@ -20,12 +20,18 @@ function Get-MhId([string]$Text) {
   $sha = [Security.Cryptography.SHA256]::Create()
   (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text)) | ForEach-Object { $_.ToString('x2') }) -join '').Substring(0, 16)
 }
+# The files are listed with .NET, which writes every path as the folder's path exactly as given plus the rest, so
+# cutting the folder off is exact (Get-ChildItem's FullName can spell a short 8.3 name such as RUNNER~1 out in full,
+# and the cut then fell in the wrong place).
 function Get-MhTreeIds([string]$Dir) {
   $root = (Resolve-Path -LiteralPath $Dir).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
-  $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force)
-  $hash = @{}; foreach ($f in $files) { $hash[$f.FullName] = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash }
-  $ordinal = [string[]]@($files | ForEach-Object { $_.FullName }); [Array]::Sort($ordinal, [StringComparer]::Ordinal)
-  $legacy = @($files | Sort-Object FullName | ForEach-Object { $_.FullName })
+  $paths = [string[]][IO.Directory]::GetFiles($root, '*', [IO.SearchOption]::AllDirectories)
+  # SHA-256 with .NET, not Get-FileHash: Windows PowerShell 5.1 started from PowerShell 7 inherits a module path
+  # where Get-FileHash cannot be loaded, and its error would leave the hash empty instead of stopping the run.
+  $sha = [Security.Cryptography.SHA256]::Create()
+  $hash = @{}; foreach ($f in $paths) { $hash[$f] = [BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($f))).Replace('-', '') }
+  $ordinal = [string[]]$paths; [Array]::Sort($ordinal, [StringComparer]::Ordinal)
+  $legacy = @($paths | Sort-Object)
   $line = { param($p) $p.Substring($root.Length) + ':' + $hash[$p] }
   @((Get-MhId (($ordinal | ForEach-Object { & $line $_ }) -join "`n")), (Get-MhId (($legacy | ForEach-Object { & $line $_ }) -join "`n"))) | Select-Object -Unique
 }
@@ -53,8 +59,151 @@ function Read-MhManifest([string]$Path) {
 # install and uninstall clear), so an interrupted delete never leaves a half-deleted folder under the skill's name.
 function Remove-MhSkill([string]$Dir) {
   $t = Join-Path (Split-Path -Parent $Dir) ('.mh-tmp-old-' + (Split-Path -Leaf $Dir))
-  if (Test-Path -LiteralPath $t) { Remove-Item -LiteralPath $t -Recurse -Force }
-  Move-Item -LiteralPath $Dir -Destination $t; Remove-Item -LiteralPath $t -Recurse -Force
+  Remove-MhTree $t
+  Move-Item -LiteralPath $Dir -Destination $t; Remove-MhTree $t
+}
+# Removes a file or a folder. A symlink or junction is removed as a link: Windows PowerShell 5.1's
+# Remove-Item -Recurse on a junction deletes the files of the folder it points to.
+function Remove-MhTree([string]$Path) {
+  if (Test-MhLink $Path) {
+    # A folder link is removed as a folder entry, a dangling one too (its attributes still say Directory).
+    if ([IO.File]::GetAttributes($Path) -band [IO.FileAttributes]::Directory) { [IO.Directory]::Delete($Path, $false) } else { [IO.File]::Delete($Path) }
+  } elseif (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force }
+}
+# Moves a folder between the skills folder and .makkov-harness\backups. Move-Item where it can; where the two are on
+# different volumes (Windows PowerShell 5.1 refuses to move a folder across volumes), a copy under a temporary name
+# next to the destination (.mh-tmp-move-<name>, which install and uninstall clear), checked to hold the same files,
+# renamed into place, and only then the source removed: an interruption leaves the source, or both, never neither.
+function Move-MhDir([string]$From, [string]$To) {
+  try { Move-Item -LiteralPath $From -Destination $To -ErrorAction Stop; return }
+  catch { if (-not (Test-Path -LiteralPath $From) -or (Test-Path -LiteralPath $To)) { throw } }
+  $t = Join-Path (Split-Path -Parent $To) ('.mh-tmp-move-' + (Split-Path -Leaf $To))
+  Remove-MhTree $t
+  Copy-Item -LiteralPath $From -Destination $t -Recurse
+  if ((Get-MhTreeId $From) -ne (Get-MhTreeId $t)) { Remove-MhTree $t; throw "$From could not be copied to $To whole. Nothing of it was removed; run this again." }
+  Move-Item -LiteralPath $t -Destination $To
+  Remove-MhTree $From
+}
+
+# One run at a time in a folder. The lock is the same in install.sh, install.ps1 and the Node installer, and each
+# clause has a scenario in install/test/:
+#  1. Take: a run holds the lock once it has made .makkov-harness\lock\owner itself, with CreateNew (O_EXCL). The
+#     folders on the way are made with CreateDirectory, which alone is not exclusive on every file system.
+#  2. Refuse: a run that finds an owner file it does not judge stale stops before any change and removes nothing.
+#  3. Take over: an owner file is stale when its process is gone on this computer, or it is more than a day old. A run
+#     removes one only while it holds .makkov-harness\lock.takeover (made with CreateNew), after judging it again.
+#  4. Release: a run removes the owner file only while it is still its own (the same pid, host and start), then the
+#     lock folder if it is empty, then the harness folder only if it is empty and this run made it, or this run is
+#     an uninstall that has just removed the last thing the harness kept there ($mhLock.DropState).
+#  5. Nothing installed: an uninstall that finds no manifest and a harness folder holding only a lock and manifests
+#     being written (install-*.txt.new) takes that lock as in 1 or 3 (never a live one), removes those, and by 4 the
+#     folder (Clear-MhLockOnly): a first install killed after it took the lock and before its first change leaves that.
+# The computer's name is the one Node and bash use (the DNS host name, not the 15-character NetBIOS name).
+function Get-MhHost { try { [Net.Dns]::GetHostName() } catch { [Environment]::MachineName } }
+function Get-MhLockOwner([string]$Lock) {
+  $t = ''; try { $t = [IO.File]::ReadAllText((Join-Path $Lock 'owner')) } catch { }
+  $get = { param($k) if ($t -match "(?m)^$k=(.*)$") { $Matches[1].Trim() } else { '' } }
+  $ownerPid = 0; [void][int]::TryParse((& $get 'pid'), [ref]$ownerPid)
+  $started = 0L; [void][long]::TryParse((& $get 'started'), [ref]$started)
+  $host_ = & $get 'host'
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  # With no start time (no owner file yet, or one with nothing in it): the age of the owner file, else the folder.
+  $ownerAt = Join-Path $Lock 'owner'
+  $age = if ($started -gt 0) { $now - $started } elseif (Test-Path -LiteralPath $ownerAt) { try { ([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($ownerAt)).TotalSeconds } catch { 0 } } else { try { ([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($Lock)).TotalSeconds } catch { 0 } }
+  $stale = $age -gt 86400
+  if (-not $t) { $stale = $stale -or $age -gt 60 }   # no owner after a minute: a run stopped while making the lock
+  elseif (-not $host_ -or [string]::Equals($host_, (Get-MhHost), [StringComparison]::OrdinalIgnoreCase)) {
+    if ($ownerPid -gt 0 -and -not (Get-Process -Id $ownerPid -ErrorAction SilentlyContinue)) { $stale = $true }
+  }
+  @{ Pid = $ownerPid; Stale = $stale }
+}
+# Clause 3: removes a lock judged stale, holding lock.takeover while it looks again; without it, a run that judged the
+# lock of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
+function Enter-MhTakeover([string]$Lock) {
+  $t = "$Lock.takeover"
+  $f = $null
+  try { $f = [IO.File]::Open($t, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write) } catch {
+    # One left by a run stopped while taking over (it holds it for a moment only): its process gone on this
+    # computer, or a minute old.
+    try {
+      $x = [IO.File]::ReadAllText($t); $tp = 0
+      if ($x -match '(?m)^pid=(\d+)') { [void][int]::TryParse($Matches[1], [ref]$tp) }
+      $th = if ($x -match '(?m)^host=(.*)$') { $Matches[1].Trim() } else { '' }
+      $gone = $tp -gt 0 -and [string]::Equals($th, (Get-MhHost), [StringComparison]::OrdinalIgnoreCase) -and -not (Get-Process -Id $tp -ErrorAction SilentlyContinue)
+      if ($gone -or ([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.File]::Delete($t) }
+    } catch { }
+    return $false
+  }
+  try { $b = $MhUtf8.GetBytes("pid=$PID`nhost=$(Get-MhHost)`n"); $f.Write($b, 0, $b.Length) } finally { $f.Dispose() }
+  try {
+    $o = Get-MhLockOwner $Lock
+    if ($o.Stale) {
+      [Console]::Error.WriteLine("Taking over the lock a stopped run left ($(if ($o.Pid) { 'process ' + $o.Pid } else { 'no owner' })).")
+      try { [IO.File]::Delete((Join-Path $Lock 'owner')); [IO.Directory]::Delete($Lock) } catch { }
+    }
+  } finally { try { [IO.File]::Delete($t) } catch { } }
+  $true
+}
+# Clauses 1 to 3. Returns what Exit-MhLock needs; $null when the folder cannot be written (the checks before the first
+# change then say why). When another run holds the lock it stops the run, or with -Quiet returns 'held'.
+function Enter-MhLock([string]$State, [string]$Base, [switch]$Quiet) {
+  $l = Join-Path $State 'lock'
+  $made = $false
+  for ($i = 0; $i -lt 6; $i++) {
+    # The harness folder, made again if another run just took it away.
+    if (-not [IO.Directory]::Exists($State)) {
+      try { [void][IO.Directory]::CreateDirectory($State); $made = $true } catch { if (-not [IO.Directory]::Exists($State)) { return $null } }
+    }
+    if (Test-MhLink $l) { if ($Quiet) { return 'held' }; [Console]::Error.WriteLine("$l is a link, not the harness's lock folder. Delete it, then run this again."); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
+    try { [void][IO.Directory]::CreateDirectory($l) } catch [UnauthorizedAccessException] { return $null } catch { }
+    # Gone between the two steps (the run that held it finished): try again, never go on without it.
+    if (-not [IO.Directory]::Exists($l)) { continue }
+    $me = "pid=$PID`nhost=$(Get-MhHost)`nstarted=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())`nby=install.ps1`n"
+    $ownerFile = Join-Path $l 'owner'
+    $f = $null
+    try { $f = [IO.File]::Open($ownerFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write) }
+    catch [UnauthorizedAccessException] {
+      if (-not (Test-Path -LiteralPath $ownerFile)) { if ($Quiet) { return 'held' }; [Console]::Error.WriteLine("$l cannot be written, so the lock cannot be taken. Nothing was changed."); exit 1 }
+    }
+    catch { if (-not [IO.Directory]::Exists($l)) { continue } }
+    if ($f) {
+      try { $b = $MhUtf8.GetBytes($me); $f.Write($b, 0, $b.Length) } finally { $f.Dispose() }
+      return @{ Lock = $l; State = $State; Me = $me; Made = $made; DropState = $false }
+    }
+    if (-not (Test-Path -LiteralPath $ownerFile)) { continue }
+    $o = Get-MhLockOwner $l
+    if ($o.Stale) { if (-not (Enter-MhTakeover $l)) { Start-Sleep -Seconds 1 }; continue }
+    if ($Quiet) { return 'held' }
+    [Console]::Error.WriteLine("Another makkov-harness run is working in $Base (process $(if ($o.Pid) { $o.Pid } else { '?' })). Let it finish, then run this again. If none is running, delete the folder $l and run this again.")
+    [Console]::Error.WriteLine('Nothing was changed.')
+    exit 1
+  }
+  if ($Quiet) { return 'held' }
+  [Console]::Error.WriteLine("Could not take the lock $l. Delete that folder if no makkov-harness run is going on, then run this again.")
+  [Console]::Error.WriteLine('Nothing was changed.')
+  exit 1
+}
+# Clause 4.
+function Exit-MhLock($Held) {
+  if (-not $Held -or $Held -is [string]) { return }
+  $ownerFile = Join-Path $Held.Lock 'owner'
+  try { if ([IO.File]::ReadAllText($ownerFile) -ceq $Held.Me) { [IO.File]::Delete($ownerFile) } } catch { }
+  try { [IO.Directory]::Delete($Held.Lock) } catch { }
+  if ($Held.Made -or $Held.DropState) {
+    try { if ([IO.Directory]::Exists($Held.State) -and @(Get-ChildItem -LiteralPath $Held.State -Force).Count -eq 0) { Remove-Item -LiteralPath $Held.State -Force } } catch { }
+  }
+}
+# Clause 5, for an uninstall that found no manifest: a harness folder that holds only a lock (and the takeover file)
+# and manifests being written is the leftover of a first install stopped before its first change.
+function Clear-MhLockOnly([string]$State, [string]$Base) {
+  $l = Join-Path $State 'lock'
+  if (-not [IO.Directory]::Exists($l) -or (Test-MhLink $l)) { return }
+  if (@(Get-ChildItem -LiteralPath $State -Force | Where-Object { $_.Name -ne 'lock' -and $_.Name -ne 'lock.takeover' -and $_.Name -notlike 'install-*.txt.new' }).Count) { return }
+  $h = Enter-MhLock $State $Base -Quiet
+  if ($h -and $h -isnot [string]) {
+    foreach ($t in @(Get-ChildItem -LiteralPath $State -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+    $h.DropState = $true; Exit-MhLock $h
+  }
 }
 
 # The first value of key=... in a manifest's lines, as written.
@@ -245,7 +394,8 @@ function Write-MhInPlace([string]$File, [byte[]]$Bytes) {
   try { $out.Write($Bytes, 0, $Bytes.Length) } finally { $out.Dispose() }
 }
 function Write-MhBytes([string]$File, [byte[]]$Bytes) {
-  if (Test-MhLink $File) { Write-MhInPlace $File $Bytes; return }
+  # A file with more than one hard link is written in place too, so every name keeps the same file.
+  if ((Test-MhLink $File) -or ([IO.File]::Exists($File) -and (Get-Item -LiteralPath $File -Force).LinkType -eq 'HardLink')) { Write-MhInPlace $File $Bytes; return }
   $t = "$File.mh-tmp"
   Write-MhInPlace $t $Bytes
   if (-not [IO.File]::Exists($File)) { [IO.File]::Move($t, $File); return }

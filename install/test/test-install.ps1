@@ -6,7 +6,11 @@
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$inst = Join-Path $repo 'install\install.ps1'; $uninst = Join-Path $repo 'install\uninstall.ps1'
+# $env:MAKKOV_IMPL = 'node' runs every scenario against the Node installer (through install\test\node\, which takes
+# the PowerShell installers' parameters); the default is install.ps1 / uninstall.ps1.
+if ($env:MAKKOV_IMPL -eq 'node') { $ri = 'install\test\node\install.ps1'; $ru = 'install\test\node\uninstall.ps1' }
+else { $ri = 'install\install.ps1'; $ru = 'install\uninstall.ps1' }
+$inst = Join-Path $repo $ri; $uninst = Join-Path $repo $ru
 $expected = @(Get-ChildItem (Join-Path $repo 'skills') -Directory | Where-Object { $_.Name -ne 'rich-report' }).Count
 $script:fails = 0
 function Check([string]$Name, [scriptblock]$Test) {
@@ -25,7 +29,7 @@ function Snap([string]$Dir) {
     ForEach-Object { $_.FullName.Substring($root.Length) + ' ' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "`n"
 }
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md') $d -Recurse; $d }
+function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md'), (Join-Path $repo 'bin'), (Join-Path $repo 'package.json') $d -Recurse; $d }
 $realHome = $env:USERPROFILE
 # This same PowerShell (5.1 or 7), as a child process: to see an exit code and what went to stderr.
 $exe = (Get-Process -Id $PID).Path
@@ -214,7 +218,7 @@ try {
 
   # A skill removed or renamed in a newer version: the update takes the old copy out (or sets it aside if you
   # changed it), unless another installed agent still lists it.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex and copilot project, skills renamed upstream'
   & $sInst -Agent codex -Project $proj | Out-Null; & $sInst -Agent copilot -Project $proj | Out-Null
@@ -233,7 +237,7 @@ try {
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $src -Recurse -Force
 
   # Updating in place, then uninstalling; and an update over an install from before 0.5.0.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex project, update in place, then uninstall'
   & $sInst -Agent codex -Project $proj | Out-Null
@@ -283,6 +287,84 @@ try {
   Check 'no manifest left' { -not (Get-ChildItem (Join-Path $proj '.makkov-harness') -Filter 'install-*.txt' -ErrorAction SilentlyContinue) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
 
+  # A run in a child PowerShell, to see its exit code and what it wrote to stderr.
+  function Run-Child([string]$Script, [string[]]$ArgList) {
+    $ErrorActionPreference = 'Continue'
+    $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $Script @ArgList 2>&1 | ForEach-Object { "$_" }) -join ' '
+    $script:code = $LASTEXITCODE; $script:out = $o
+  }
+
+  # Fingerprints recorded by earlier PowerShell installers stay recognised: an install by the released 0.5.0
+  # installer (culture-sorted ids) and by the one on main at 51cab04 (ordinal ids), of an animate that differs from
+  # this version's, is updated by this version without taking that copy for yours.
+  foreach ($legacy in @(@{ Name = '0.5.0'; Files = @('legacy-0.5.0\install.ps1') }, @{ Name = 'main at 51cab04'; Files = @('legacy-main-51cab04\install.ps1', 'legacy-main-51cab04\lib.ps1') })) {
+    $old = New-HarnessCopy
+    foreach ($f in $legacy.Files) { Copy-Item (Join-Path $repo "install\test\$f") (Join-Path $old ('install\' + (Split-Path -Leaf $f))) -Force }
+    [IO.File]::WriteAllText((Join-Path $old 'skills\animate\OLDER.md'), "an older animate`n")
+    $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+    Write-Output "codex project, an older animate installed by $($legacy.Name), updated by this version"
+    & (Join-Path $old 'install\install.ps1') -Agent codex -Project $proj | Out-Null
+    Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+    Check 'the update takes the older copy for the harness''s (moves nothing aside)' { $script:code -eq 0 -and $script:out -notmatch 'Kept your earlier versions' }
+    Check 'and replaces it with this version''s' { -not (Test-Path (Join-Path $proj '.agents\skills\animate\OLDER.md')) -and (Test-Path (Join-Path $proj '.agents\skills\animate\SKILL.md')) }
+    & $uninst -Agent codex -Project $proj | Out-Null
+    # 0.5.0 recorded no folders it made (no created_dir=), so its empty .agents and .makkov-harness folders stay;
+    # no file may.
+    $left = @(Entries $proj | Where-Object { $legacy.Name -ne '0.5.0' -or -not $_.PSIsContainer })
+    Check 'the uninstall leaves nothing (0.5.0: no file; the empty folders it did not record stay)' { $left.Count -eq 0 }
+    if ($left.Count) { $left | ForEach-Object { Write-Output "    left: $($_.FullName.Substring($proj.Length))" } }
+    $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
+  }
+
+  # The lock's clauses (install/lib.ps1): 2, a live lock refuses and nothing changes; 3, a stopped run's lock is taken
+  # over; 5, an uninstall with no manifest clears a harness folder that holds only a stale lock, never a live one;
+  # 4, the harness folder goes only when this run made it, and the release removes only its own owner file.
+  $mhHost = try { [Net.Dns]::GetHostName() } catch { [Environment]::MachineName }
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  $gone = Start-Process -FilePath $exe -ArgumentList '-NoProfile', '-Command', 'exit 0' -PassThru; $gone.WaitForExit(); $deadPid = $gone.Id
+  function Set-Owner([string]$Dir, [int]$OwnerPid) {
+    New-Item -ItemType Directory -Force (Join-Path $Dir '.makkov-harness\lock') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $Dir '.makkov-harness\lock\owner'), "pid=$OwnerPid`nhost=$mhHost`nstarted=$now`nby=test`n")
+  }
+  function Listing([string]$Dir) { (@(Get-ChildItem -LiteralPath $Dir -Recurse -Force | ForEach-Object { $_.FullName.Substring($Dir.Length) }) | Sort-Object) -join '|' }
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a lock a running process holds'
+  Set-Owner $proj $PID; $before = Listing $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops with exit code 1, says another run is working, changes nothing' { $script:code -eq 1 -and $script:out -match 'Another makkov-harness run' -and (Listing $proj) -eq $before }
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'an uninstall with no install leaves the live lock as it is' { $script:code -eq 1 -and $script:out -match 'No makkov-harness install' -and (Listing $proj) -eq $before }
+  Write-Output 'codex project, a lock a stopped run left, and the takeover file of a run killed while taking it over'
+  Set-Owner $proj $deadPid; [IO.File]::WriteAllText((Join-Path $proj '.makkov-harness\lock.takeover'), "pid=$deadPid`nhost=$mhHost`n")
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj); $c1 = $script:code
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'it is taken over: install and uninstall go through, nothing left' { $c1 -eq 0 -and $script:code -eq 0 -and (Entries $proj).Count -eq 0 }
+  Write-Output 'codex project, only a lock and a manifest being written, left by a stopped first install, then an uninstall'
+  Set-Owner $proj $deadPid; [IO.File]::WriteAllText((Join-Path $proj '.makkov-harness\install-cline.txt.new'), "agent=cline`n")
+  Run-Child $uninst @('-Agent', 'codex', '-Project', $proj)
+  Check 'uninstall says no install was found (exit 1), takes the lock over and leaves nothing' { $script:code -eq 1 -and $script:out -match 'No makkov-harness install' -and (Entries $proj).Count -eq 0 }
+  Write-Output 'codex project, an empty .makkov-harness of yours, an install that stops before any change'
+  New-Item -ItemType Directory -Force (Join-Path $proj '.makkov-harness'), (Join-Path $proj 'AGENTS.md') | Out-Null; $before = Listing $proj
+  Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
+  Check 'install stops (exit 1) and the folder it did not make is still there' { $script:code -eq 1 -and (Listing $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+  Write-Output "the lock's release removes only its own owner file"
+  $proj = New-Temp; $st = Join-Path $proj '.makkov-harness'
+  $probe = Join-Path (New-Temp) 'release.ps1'
+  [IO.File]::WriteAllText($probe, @(
+    'param([string]$Lib, [string]$State, [switch]$Foreign)',
+    '. $Lib',
+    '$h = Enter-MhLock $State $State',
+    'if ($Foreign) { [IO.File]::WriteAllText((Join-Path $h.Lock ''owner''), "pid=1`nhost=elsewhere`n") }',
+    'Exit-MhLock $h'
+  ) -join "`n")
+  & $exe -NoProfile -ExecutionPolicy Bypass -File $probe -Lib (Join-Path $repo 'install\lib.ps1') -State $st -Foreign | Out-Null
+  Check "another run's owner file stays" { [IO.File]::ReadAllText((Join-Path $st 'lock\owner')) -match 'host=elsewhere' }
+  Remove-Item $st -Recurse -Force
+  & $exe -NoProfile -ExecutionPolicy Bypass -File $probe -Lib (Join-Path $repo 'install\lib.ps1') -State $st | Out-Null
+  Check 'its own owner file, the lock and the folder it made go' { (Entries $proj).Count -eq 0 }
+  Remove-Item $proj, (Split-Path -Parent $probe) -Recurse -Force
+
   # Paths with spaces and with [ ] (read as a wildcard without -LiteralPath).
   foreach ($pname in 'My Project', 'design [v2]') {
     $h = New-Temp; $parent = New-Temp; $proj = Join-Path $parent $pname; $env:USERPROFILE = $h
@@ -330,12 +412,6 @@ try {
       if ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) { "$r -> link" }
       elseif ($_.PSIsContainer) { "$r\" } else { "$r " + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     }) | Sort-Object) -join "`n"
-  }
-  # A run in a child PowerShell, to see its exit code and what it wrote to stderr.
-  function Run-Child([string]$Script, [string[]]$ArgList) {
-    $ErrorActionPreference = 'Continue'
-    $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $Script @ArgList 2>&1 | ForEach-Object { "$_" }) -join ' '
-    $script:code = $LASTEXITCODE; $script:out = $o
   }
 
   # A first install that cannot finish stops before it changes anything.
@@ -480,7 +556,7 @@ try {
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
   # A skill another agent's newer install updated is still the harness's own when the older agent goes last.
-  $src = New-HarnessCopy; $sInst = Join-Path $src 'install\install.ps1'; $sUninst = Join-Path $src 'install\uninstall.ps1'
+  $src = New-HarnessCopy; $sInst = Join-Path $src $ri; $sUninst = Join-Path $src $ru
   $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
   Write-Output 'codex from an older copy, copilot from a newer one, uninstalled copilot first'
   & $sInst -Agent codex -Project $proj | Out-Null
@@ -578,7 +654,7 @@ try {
   Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
   Remove-Item Env:\MAKKOV_HARNESS_TEST_STOP
   $mfl = @(Get-Content (Join-Path $proj '.makkov-harness\install-codex.txt'))
-  Check 'without it, the install runs to the end' { $script:code -eq 0 -and @($mfl | Where-Object { $_ -like 'rules=*' }).Count -eq 1 -and @($mfl | Where-Object { $_ -like 'skill=*' }).Count -eq $expected }
+  Check 'without it, the install runs to the end' { $script:code -eq 0 -and @($mfl | Where-Object { $_ -like 'rules=*' }).Count -eq 1 -and @($mfl | Where-Object { $_ -like 'skill=*' } | ForEach-Object { ($_.Substring(6) -split ' ')[0] } | Select-Object -Unique).Count -eq $expected }
   & $uninst -Agent codex -Project $proj | Out-Null
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
@@ -615,6 +691,51 @@ try {
     & $uninst -Agent cline -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
   } finally { Remove-Item Function:\Get-Date }
   Check 'your animate is back where it was, nothing else left' { (Tree $proj) -eq $before }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A home folder given by its 8.3 short name (as Git Bash's cygpath and the TEMP variable often give it): the
+  # installers know their own manifest and the skills they copied, though Windows lists files under the long name.
+  $h = New-Temp; $long = Join-Path $h 'longfoldername-home'; New-Item -ItemType Directory -Force $long | Out-Null
+  $short = $null; try { $short = (New-Object -ComObject Scripting.FileSystemObject).GetFolder($long).ShortPath } catch { }
+  Write-Output 'codex and cline at user level, the home folder given by its 8.3 short name'
+  if ($short -and $short -ne $long) {
+    $env:USERPROFILE = $short
+    & $inst -Agent codex | Out-Null; & $inst -Agent cline | Out-Null
+    Run-Child $inst @('-Agent', 'codex')
+    Check 'a second run takes our copies for ours (moves nothing aside)' { $script:code -eq 0 -and $script:out -notmatch 'Kept your earlier versions' }
+    & $uninst -Agent cline | Out-Null
+    Run-Child $uninst @('-Agent', 'codex')
+    Check 'the uninstall does not take its own manifest for another agent''s' { $script:code -eq 0 -and $script:out -notmatch 'also installed there' }
+    Check 'nothing of the harness left' { -not (Test-Path (Join-Path $long '.makkov-harness')) -and -not (Test-Path (Join-Path $long '.agents')) -and -not (Test-Path (Join-Path $long '.codex')) -and -not (Test-Path (Join-Path $long '.cline')) }
+  } else { Write-Output '  skip (this volume makes no 8.3 short names)' }
+  $env:USERPROFILE = $realHome; Remove-Item $h -Recurse -Force
+
+  # A hard-linked instructions file stays one file under both names: it is written in place, not replaced.
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, AGENTS.md hard-linked to a file outside the project'
+  $agentsMd = Join-Path $proj 'AGENTS.md'; $linked = Join-Path $h 'linked.md'; $exp = Join-Path $h 'expected'
+  [IO.File]::WriteAllText($agentsMd, "# mine`n"); Copy-Item $agentsMd $exp
+  $hard = $true; try { New-Item -ItemType HardLink -Path $linked -Target $agentsMd | Out-Null } catch { $hard = $false; Write-Output '  skip (no hard links on this file system)' }
+  if ($hard) {
+    & $inst -Agent codex -Project $proj | Out-Null
+    Check 'the other name shows the routing block too' { (Markers $linked) -eq 1 }
+    & $uninst -Agent codex -Project $proj | Out-Null
+    Check 'after the uninstall, still linked and as it was' { (Same $exp $linked) -and (Same $exp $agentsMd) -and (Get-Item -LiteralPath $agentsMd).LinkType -eq 'HardLink' }
+  }
+  $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
+
+  # A link left under a temporary name is removed as a link: the folder it points to keeps its files (Windows
+  # PowerShell 5.1's Remove-Item -Recurse on a junction deletes them).
+  $h = New-Temp; $proj = New-Temp; $env:USERPROFILE = $h
+  Write-Output 'codex project, a junction to a folder of yours left as .mh-tmp-animate'
+  $target = Join-Path $h 'target'; New-Item -ItemType Directory -Force $target, (Join-Path $proj '.agents\skills') | Out-Null
+  [IO.File]::WriteAllText((Join-Path $target 'file'), "keep`n")
+  $j = Join-Path $proj '.agents\skills\.mh-tmp-animate'; $made = $true
+  try { New-Item -ItemType Junction -Path $j -Target $target | Out-Null } catch { try { New-Item -ItemType SymbolicLink -Path $j -Target $target | Out-Null } catch { $made = $false; Write-Output '  skip (no junctions or symlinks here)' } }
+  if ($made) {
+    & $inst -Agent codex -Project $proj | Out-Null; & $uninst -Agent codex -Project $proj | Out-Null
+    Check 'the link is gone, the folder it pointed to is untouched' { -not (Test-Path -LiteralPath $j) -and [IO.File]::ReadAllText((Join-Path $target 'file')) -eq "keep`n" }
+  }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj -Recurse -Force
 
   # A manifest written by install.sh (LF line ends; on Windows, Git Bash /c/x or WSL /mnt/c/x paths) is read by
