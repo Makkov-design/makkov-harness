@@ -489,11 +489,14 @@ export function fingerprintSh(dir, skip) {
 }
 // install.ps1's fingerprint: every file's path below the folder and SHA-256, in ordinal order, hashed. The paths
 // use the platform's separator, as PowerShell writes them (`sep` for another platform's).
-export function fingerprintPs(dir, sep = SEP) {
+// The lines install.ps1 hashes (relative path and SHA-256, in ordinal order); fingerprintPs is their id.
+export function fingerprintPsLines(dir, sep = SEP) {
   const files = walk(dir, true).map(([parts, p]) => [sep + parts.join(sep), p]);
   files.sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
-  const text = files.map(([r, p]) => r + ':' + crypto.createHash('sha256').update(readBytes(p)).digest('hex').toUpperCase()).join('\n');
-  return crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex').slice(0, 16);
+  return files.map(([r, p]) => r + ':' + crypto.createHash('sha256').update(readBytes(p)).digest('hex').toUpperCase());
+}
+export function fingerprintPs(dir, sep = SEP) {
+  return crypto.createHash('sha256').update(Buffer.from(fingerprintPsLines(dir, sep).join('\n'), 'utf8')).digest('hex').slice(0, 16);
 }
 // install.ps1 of 0.5.0 sorted the files by culture (Sort-Object FullName, not case-sensitive) before hashing.
 // PowerShell 7 compares like ICU; Windows PowerShell 5.1 like Windows' word sort, which gives hyphens and

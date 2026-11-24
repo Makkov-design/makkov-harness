@@ -25,7 +25,7 @@ function Get-MhId([string]$Text) {
 # and the cut then fell in the wrong place).
 function Get-MhTreeIds([string]$Dir) {
   $root = (Resolve-Path -LiteralPath $Dir).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
-  $paths = @([IO.Directory]::EnumerateFiles($root, '*', [IO.SearchOption]::AllDirectories))
+  $paths = [string[]][IO.Directory]::GetFiles($root, '*', [IO.SearchOption]::AllDirectories)
   $hash = @{}; foreach ($f in $paths) { $hash[$f] = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
   $ordinal = [string[]]$paths; [Array]::Sort($ordinal, [StringComparer]::Ordinal)
   $legacy = @($paths | Sort-Object)

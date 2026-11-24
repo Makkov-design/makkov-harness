@@ -195,8 +195,20 @@ foreach ($d in $input) {
     assert.equal(r.status, 0, r.stderr);
     const rows = r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.split(' '));
     assert.equal(rows.length, dirs.length, r.stdout + r.stderr);
+    // On a difference, the lines each side hashed, so the log says which file or which character differs.
+    const bad = dirs.filter((d, i) => L.fingerprintPs(d) !== rows[i][0]);
+    if (bad.length) {
+      const dbg = `. '${path.join(repo, 'install', 'lib.ps1').replace(/'/g, "''")}'
+$PSVersionTable.PSVersion.ToString()
+foreach ($d in $input) {
+  $root = (Resolve-Path -LiteralPath $d).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  "root=$root"
+  foreach ($f in [IO.Directory]::GetFiles($root, '*', [IO.SearchOption]::AllDirectories)) { $f.Substring($root.Length) + ':' + (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
+}`;
+      const r2 = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', dbg], { input: bad[0], encoding: 'utf8', env: { ...process.env, HOME: t } });
+      assert.fail(`${bad.length} of ${dirs.length} ordinal ids differ (${sh}), first ${bad[0]}: Node ${L.fingerprintPs(bad[0])}, PowerShell ${rows[dirs.indexOf(bad[0])][0]}\nPowerShell hashed:\n${r2.stdout}${r2.stderr}\nNode hashed:\n${L.fingerprintPsLines(bad[0]).join('\n')}`);
+    }
     dirs.forEach((d, i) => {
-      assert.equal(L.fingerprintPs(d), rows[i][0], `ordinal id of ${d}`);
       if (i < repoDirs.length) assert.ok(L.fingerprints(d, true).includes(rows[i][1]), `0.5.0's culture-sorted id of ${d} (${sh}): ${rows[i][1]} not among ${L.fingerprints(d, true).join(' ')}`);
     });
     fs.rmSync(t, { recursive: true, force: true });
