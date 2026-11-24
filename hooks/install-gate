@@ -32,7 +32,6 @@ unset parts
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cmd ]] || exit 0
 cmd="${BASH_REMATCH[1]}"
-raw="$cmd"   # as sent: the text rule checks real line breaks here, where a typed " ; " cannot pass for one
 cwd=""
 re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
@@ -89,23 +88,14 @@ path="(${w}*[/\\])?"                  # an optional path before a program: /usr/
 cstart='(^|[;&|]|[^$<>]\()[[:space:]]*'
 
 # Text that is only text: a quoted message to git or gh (-m, -am, --message, -b/--body, -t/--title, -n/--notes,
-# --subject) and a quoted argument to echo, printf or grep. It is blanked so its words are not read as commands, but
-# only when the quote is outside any other quote, the command is git, gh, echo, printf or grep, and its output is not
-# piped. A double-quoted value with $( ) or a backtick still runs, so it stays, except a commit message written as
-# "$(cat <<'EOF' … EOF)" with a quoted delimiter and nothing after the closing EOF.
+# --subject) and a quoted argument to echo, printf or grep. It is blanked so its words are not read as commands.
+# The rule is kept small enough to check by reading: only in the Bash tool (PowerShell quotes differently); only a
+# single-quoted value, where bash has no special character at all, or a double-quoted one with no $, backtick or
+# backslash; only when the quote is outside any other quote, the command is git, gh, echo, printf or grep and its output
+# is not piped; and never when the rest of the command has a heredoc, a # comment or a $'…' string, where a quote is
+# not a quote. A commit message written as "$(cat <<'EOF' … EOF)" is therefore matched like any other command.
 is_text() {   # $1 = the quoted value
-  case "$1" in \'*) return 0 ;; *'$('*|*'`'*) ;; *) return 0 ;; esac
-  local re_hd="^\"\\\$\\(cat[[:space:]]+<<-?[[:space:]]*'([A-Za-z_][A-Za-z0-9_]*)' ; "
-  [[ $1 =~ $re_hd ]] || return 1
-  local d="${BASH_REMATCH[1]}" body="${1#"${BASH_REMATCH[0]}"}"
-  local re_tail=" ; [[:space:]]*${d} ;[[:space:]]*\\)\"\$"
-  [[ $body =~ $re_tail ]] || return 1
-  local inner="${body%"${BASH_REMATCH[0]}"}"
-  case " ; $inner ; " in *" ; $d ; "*|*" ;  $d ; "*) return 1 ;; esac
-  # The one heredoc in the whole command, its delimiter followed by a real line break, and the closing line real too.
-  local r1="${raw#*<<}"
-  case "$r1" in "$raw"|*'<<'*) return 1 ;; esac
-  [[ $raw == *"<<'${d}'\\n"* && $raw == *"\\n${d}\\n)\\\""* ]] || return 1
+  case "$1" in \'*) return 0 ;; *'$'*|*'`'*|*'\'*) return 1 ;; esac
   return 0
 }
 blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex the text before it must match
@@ -115,15 +105,16 @@ blank() {   # $1 = regex for (lead)(option)(separator)(quoted value); $2 = regex
     m="${BASH_REMATCH[0]}"; lead="${BASH_REMATCH[1]}"; opt="${BASH_REMATCH[2]}"; sep="${BASH_REMATCH[3]}"; v="${BASH_REMATCH[4]}"
     pre="${rest%%"$m"*}"; rest="${rest#*"$m"}"
     new="$m"
-    # Not text when a heredoc or a # comment is anywhere around it: there a quote is not a quote, so ask.
-    case "$out$pre$lead$rest" in *'<<'*|*[[:space:]]'#'*) ;; *)
+    # Not text when a heredoc, a # comment or a $'…' / $"…" string is anywhere around it: there a quote is not a quote.
+    case "$out$pre$lead$rest" in *'<<'*|*[[:space:]]'#'*|*'$'[\'\"]*) ;; *)
       if [[ "$out$pre$lead" =~ $2 ]] && [[ $rest =~ ^${segtext}([;&]|$) ]] && is_text "$v"; then new="$lead$opt$sep\"\""; fi ;;
     esac
     out="$out$pre$new"
   done
   c="$out$rest"
 }
-if [ -z "$long" ] && [ ${#c} -le 2000 ]; then
+re_bash='"tool_name"[[:space:]]*:[[:space:]]*"Bash"'
+if [ -z "$long" ] && [ ${#c} -le 2000 ] && [[ $input =~ $re_bash ]]; then
   blank "(^|[[:space:]])(-[a-zA-Z]*m|--message|-b|--body|-t|--title|-n|--notes|--subject)(=|[[:space:]]*)(${dq}|${sq})" \
         "^${closed}${cstart}${path}(git|gh)(\.exe)?[[:space:]]${segtext}\$"
   # (${P}?) twice: two groups that always match empty, as ERE has no "()"

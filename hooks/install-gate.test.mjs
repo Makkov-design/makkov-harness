@@ -37,7 +37,6 @@ const TEXT_ONLY = {
   'git commit -m "docs: pip install note"': "commit message",
   "git commit -m 'docs: say npm install left-pad in the README'": "commit message",
   'git commit --message="chore: drop the npm install step"': "commit message",
-  "git commit -m \"$(cat <<'EOF'\nfix: explain pip install x\n\nAnd npm install y.\nEOF\n)\"": "commit message in a quoted heredoc",
   'gh pr create --title "Add a note" --body "Run npm install left-pad first"': "PR text",
   'git commit -am "docs: npm install left-pad"': "commit message",
   'git commit -m"docs: npm install x"': "commit message",
@@ -47,8 +46,8 @@ const TEXT_ONLY = {
   'echo "run npm install x to set up"': "echo prints text",
   'printf "%s\\n" "pip install x"': "printf prints text",
   'echo "npm install x" > NOTES.md': "echo writes text to a file",
-  "gh pr create --title \"Add a note\" --body \"$(cat <<'EOF'\n## Summary\nRun npm install left-pad first.\nEOF\n)\"": "PR text in a quoted heredoc",
   'git commit -m "fix #12: npm install note"': "commit message",
+  "git commit -m 'costs $5: say \"pip install x\" in the docs'": "commit message in single quotes",
 };
 test("asks about everything the 0.5.0 gate asked about, except the reviewed text-only cases", () => {
   const old = (command) => {
@@ -59,6 +58,21 @@ test("asks about everything the 0.5.0 gate asked about, except the reviewed text
   for (const { cmd } of CORPUS) if (old(cmd) === "ask" && gate(cmd) === "allow" && !(cmd in TEXT_ONLY)) weaker.push(cmd);
   assert.deepEqual(weaker, [], "passes now, asked in 0.5.0, not in TEXT_ONLY");
   for (const cmd of Object.keys(TEXT_ONLY)) assert.ok(CORPUS.some((c) => c.cmd === cmd), `TEXT_ONLY entry not in the corpus: ${cmd}`);
+});
+
+test("text is read as text only in the Bash tool: PowerShell quotes differently", () => {
+  const run = (tool_name, command) => {
+    const r = spawnSync("bash", [HOOK], { input: JSON.stringify({ tool_name, tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
+    return r.stdout.trim() ? "ask" : "allow";
+  };
+  // In PowerShell a backslash does not escape a quote, so this is three commands there.
+  const three = 'echo "a\\" ; npm install evil-pkg ; echo "\\"';
+  assert.equal(run("PowerShell", three), "ask");
+  assert.equal(run("Bash", three), "ask"); // a double-quoted value with a backslash is not read as text in bash either
+  const msg = "git commit -m 'docs: npm install note'";
+  assert.equal(run("Bash", msg), "allow");
+  assert.equal(run("PowerShell", msg), "ask");
+  assert.equal(run(undefined, msg), "ask"); // no tool name: not known to be bash
 });
 
 test("a word cut for length asks when its unread middle could hold a command", () => {

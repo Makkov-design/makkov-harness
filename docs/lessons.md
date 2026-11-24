@@ -31,3 +31,8 @@ Engineering lessons from work on this repository: what went wrong or nearly did,
 - **A bound added for speed needs a fallback for what falls outside it.** Capping spans and windows in the scanner let a `curl … | sh` padded past the cap through. One cheap, unbounded-but-linear check per line (has `curl`, later has `| sh`) restores what the bounded rule cannot see.
 - **"Better than before" needs a test, not a reading.** A differential test now runs the released gate and scanner rule next to the new ones over the corpus; anything the old one caught and the new one lets through fails, unless it is on a short, reviewed list with a reason each.
 - **Cover both spellings of a form.** `curl -o file` asked but `curl … > file` did not; `?a=1&b=2` in quotes asked but `\&` did not. When a pattern is added, add its twin in the same commit.
+
+## 2026-11-24 · Install gate audit, round 3
+
+- **When a pass rule needs a third patch, shrink it instead.** The "text is only text" rule was patched for `#` comments and heredoc bodies, and the next audit still found three more places where a quote is not a quote: a heredoc body line ending in `\` or `|` (joined with the closing line, so the gate missed where the heredoc ended), `$'…\'…'`, and the PowerShell tool, where a backslash does not escape a quote. The rule now covers only what can be checked by reading: the Bash tool, a single-quoted value or a double-quoted one with no `$`, backtick or backslash, and nothing else in the command that changes what a quote means. The heredoc exception is gone; a heredoc message with install words asks.
+- **One grammar per shell.** A hook that runs for two tools must know which one it is reading before it trusts a quote.
