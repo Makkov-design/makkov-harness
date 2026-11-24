@@ -414,19 +414,12 @@ function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [s
   ''
 }
 
-# The file a path finally names: a symlink is followed to its target (a relative target is read against the
-# link's folder), so writes go to the real file and the link itself is left as it is.
+# The file a path finally names: every link on the way followed as the system resolves it (Get-MhReal, so a ".."
+# after a link goes where the system takes it), so writes go to the real file and the link itself is left as it is.
 function Resolve-MhLink([string]$Path) {
-  $p = $Path
-  for ($i = 0; $i -lt 16; $i++) {
-    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
-    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.LinkType -ne 'SymbolicLink') { return $p }
-    $t = @($item.Target)[0]
-    if (-not $t) { return $p }
-    if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path (Split-Path -Parent $p) $t }
-    $p = $t
-  }
-  $p
+  if (-not (Test-MhLink $Path)) { return $Path }
+  $r = Get-MhReal $Path
+  if ($r) { $r } else { $Path }
 }
 
 # Checks that a file can be changed in place: absent (with a folder it can be created in), or a regular file,
