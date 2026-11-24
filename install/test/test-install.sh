@@ -827,6 +827,21 @@ if command -v pwsh >/dev/null 2>&1; then
   check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
 else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
 rm -rf "$home" "$proj" "$outside"
+# On macOS and Linux "\" is an ordinary character in a name: a folder called a\b\c is one folder, so
+# AGENTS.md -> a\b\c/../../../.secret leads two folders above the project.
+home="$(tmp)"; outside="$(tmp)"; export HOME="$home"; proj="$outside/w/proj"
+echo "codex project, AGENTS.md a link to a\\b\\c/../../../.secret, with a folder named a\\b\\c in the project"
+mkdir -p "$proj/a\\b\\c"; printf 'SECRET\n' > "$outside/.secret"; cp "$outside/.secret" "$home/expected"
+ln -s 'a\b\c/../../../.secret' "$proj/AGENTS.md"; pbefore="$(tree "$proj")"
+runs bash "$inst" codex "$proj"
+check "install stops (exit 1) and names --follow-links; the file outside unchanged, no copy of it in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'follow-links' && cmp -s '$home/expected' '$outside/.secret' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ] && ! grep -rqs SECRET '$proj'"
+if command -v pwsh >/dev/null 2>&1; then
+  echo "  install.ps1 (pwsh) on the same project"
+  runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+  printf '%s\n' "$out" | head -n 4 | sed 's/^/    (exit '"$code"') /'
+  check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, no copy of it in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/.secret' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ] && ! grep -rqs SECRET '$proj'"
+else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
+rm -rf "$home" "$outside"
 home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
 echo "cursor project, .cursor a link to a folder outside the project"
 mkdir -p "$outside/rules"; ln -s "$outside" "$proj/.cursor"; before="$(tree "$outside")"

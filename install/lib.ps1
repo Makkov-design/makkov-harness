@@ -12,6 +12,12 @@ $MhPStart = '<!-- makkov-harness:personal:start -->'
 $MhPEnd = '<!-- makkov-harness:personal:end -->'
 $MhUtf8 = New-Object System.Text.UTF8Encoding $false
 $MhRaw = [Text.Encoding]::GetEncoding(28591)
+# Path separators: on Windows both \ and /; on macOS and Linux only /, where \ is an ordinary character in a name (a
+# folder may be called a\b), so a \ there is never read as a separator.
+$MhWin = [IO.Path]::DirectorySeparatorChar -eq '\'
+$MhSeps = if ($MhWin) { @('\', '/') } else { @('/') }
+$MhSplit = if ($MhWin) { '[\\/]' } else { '/' }
+function ConvertTo-MhSlash([string]$P) { if ($MhWin) { $P -replace '\\', '/' } else { $P } }
 
 # A fingerprint of a folder: every file's relative path and SHA-256, in ordinal order (the same in every
 # culture and in both PowerShell versions). Get-MhTreeIds also gives the id of the culture-sorted fingerprint
@@ -214,7 +220,7 @@ function Get-MhRaw([string[]]$Lines, [string]$Key) {
 }
 
 function Test-MhEndsWith([string]$Path, [string]$Tail) {
-  $p = $Path -replace '\\', '/'
+  $p = ConvertTo-MhSlash $Path
   $p.EndsWith($Tail, [StringComparison]::OrdinalIgnoreCase)
 }
 
@@ -235,7 +241,7 @@ function Get-MhOldBase([string[]]$Lines) {
 function Get-MhRebased([string]$Path, [string]$OldBase, [string]$Base) {
   if (-not $Path -or -not $OldBase -or $OldBase -eq $Base) { return $Path }
   if ($Path -eq $OldBase) { return $Base }
-  foreach ($sep in '\', '/') {
+  foreach ($sep in $MhSeps) {
     if ($Path.StartsWith($OldBase + $sep, [StringComparison]::OrdinalIgnoreCase)) { return $Base + $sep + $Path.Substring($OldBase.Length + 1) }
   }
   $Path
@@ -245,10 +251,10 @@ function Get-MhRebased([string]$Path, [string]$OldBase, [string]$Base) {
 function Get-MhPath([string[]]$Lines, [string]$Key, [string]$Base) { Get-MhRebased (Get-MhRaw $Lines $Key) (Get-MhOldBase $Lines) $Base }
 
 # Two paths name the same file (Windows paths are not case-sensitive).
-function Test-MhSamePath([string]$A, [string]$B) { [string]::Equals(($A -replace '\\', '/'), ($B -replace '\\', '/'), [StringComparison]::OrdinalIgnoreCase) }
+function Test-MhSamePath([string]$A, [string]$B) { [string]::Equals((ConvertTo-MhSlash $A), (ConvertTo-MhSlash $B), [StringComparison]::OrdinalIgnoreCase) }
 # A path starts with a folder (as written, any separator, not case-sensitive).
 function Test-MhUnder([string]$Path, [string]$Dir) {
-  $p = $Path -replace '\\', '/'; $d = ($Dir -replace '\\', '/').TrimEnd('/') + '/'
+  $p = ConvertTo-MhSlash $Path; $d = (ConvertTo-MhSlash $Dir).TrimEnd('/') + '/'
   $p.StartsWith($d, [StringComparison]::OrdinalIgnoreCase) -and $p.Length -gt $d.Length
 }
 
@@ -269,7 +275,7 @@ function Get-MhPaths([string]$Agent, [string]$Project, [string]$HomeDir) {
 }
 
 # A path with . or .. among its parts (never written by the installer).
-function Test-MhDotDot([string]$Path) { @(($Path -replace '\\', '/') -split '/' | Where-Object { $_ -eq '.' -or $_ -eq '..' }).Count -gt 0 }
+function Test-MhDotDot([string]$Path) { @((ConvertTo-MhSlash $Path) -split '/' | Where-Object { $_ -eq '.' -or $_ -eq '..' }).Count -gt 0 }
 # A file system entry that is a symlink or a junction.
 # (GetAttributes reads the link itself, not what it points to.)
 function Test-MhLink([string]$Path) {
@@ -284,8 +290,8 @@ function Test-MhDangling([string]$Path) {
 # A path lies inside the base: below it as written, with no .. and no symlink on the way (itself included).
 function Test-MhInside([string]$Path, [string]$Base) {
   if (-not (Test-MhUnder $Path $Base) -or (Test-MhDotDot $Path)) { return $false }
-  $d = $Base.TrimEnd('\', '/')
-  foreach ($part in (($Path -replace '\\', '/').Substring(($Base -replace '\\', '/').TrimEnd('/').Length + 1) -split '/')) {
+  $d = $Base.TrimEnd([char[]]$MhSeps)
+  foreach ($part in ((ConvertTo-MhSlash $Path).Substring((ConvertTo-MhSlash $Base).TrimEnd('/').Length + 1) -split '/')) {
     if (-not $part) { continue }
     $d = Join-Path $d $part
     if (Test-MhLink $d) { return $false }
@@ -314,7 +320,7 @@ function Get-MhReal([string]$Path) {
   if (-not [IO.Path]::IsPathRooted($Path)) { $Path = [IO.Path]::Combine((Get-Location).ProviderPath, $Path) }
   $cur = [IO.Path]::GetPathRoot($Path)
   $todo = New-Object System.Collections.Generic.List[string]
-  foreach ($x in @($Path.Substring($cur.Length) -split '[\\/]')) { if ($x) { $todo.Add($x) } }
+  foreach ($x in @($Path.Substring($cur.Length) -split $MhSplit)) { if ($x) { $todo.Add($x) } }
   $links = 0
   while ($todo.Count) {
     $part = $todo[0]; $todo.RemoveAt(0)
@@ -325,9 +331,9 @@ function Get-MhReal([string]$Path) {
       $t = @((Get-Item -LiteralPath $next -Force).Target)[0]
       if ($t) {
         if (++$links -gt 40) { return '' }
-        if (-not [IO.Path]::IsPathRooted($t) -and [IO.Path]::DirectorySeparatorChar -eq '\') { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
+        if (-not [IO.Path]::IsPathRooted($t) -and $MhWin) { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
         if ([IO.Path]::IsPathRooted($t)) { $cur = [IO.Path]::GetPathRoot($t); $t = $t.Substring($cur.Length) }
-        $parts = @($t -split '[\\/]' | Where-Object { $_ })
+        $parts = @($t -split $MhSplit | Where-Object { $_ })
         $todo.InsertRange(0, [string[]]$parts)
         continue
       }
@@ -583,8 +589,8 @@ function Get-MhPersonalLayer([string]$File) {
 
 # A path relative to the base, for created_dir= lines (always with / separators).
 function Get-MhRel([string]$Path, [string]$Base) {
-  foreach ($sep in '\', '/') {
-    if ($Path.StartsWith($Base + $sep, [StringComparison]::OrdinalIgnoreCase)) { return ($Path.Substring($Base.Length + 1) -replace '\\', '/') }
+  foreach ($sep in $MhSeps) {
+    if ($Path.StartsWith($Base + $sep, [StringComparison]::OrdinalIgnoreCase)) { return (ConvertTo-MhSlash $Path.Substring($Base.Length + 1)) }
   }
   $Path
 }
