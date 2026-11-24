@@ -823,6 +823,7 @@ if command -v pwsh >/dev/null 2>&1; then
   echo "  install.ps1 (pwsh) on the same project"
   cp "$outside/notes.md" "$home/expected"
   runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+  printf '%s\n' "$out" | head -n 4 | sed 's/^/    (exit '"$code"') /'
   check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
 else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
 rm -rf "$home" "$proj" "$outside"
