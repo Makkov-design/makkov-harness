@@ -406,21 +406,28 @@ export function lock(state, base) {
     // The harness folder, made again if another run just took it away; another run may make it at the same
     // moment, which is not "cannot write here". A folder that cannot be made: no lock, and pre-flight says why.
     if (!isDir(state)) { try { fs.mkdirSync(state); } catch (e) { if (!isDir(state)) return () => {}; } }
+    try { fs.mkdirSync(l); } catch (e) {
+      // Gone between the two steps (the run that held it finished, or took the harness folder away): try again,
+      // never go on without it.
+      if (!isDir(l)) { if (e.code === 'EEXIST' || e.code === 'ENOENT') continue; return () => {}; }   // cannot write: pre-flight says why
+    }
     try {
-      fs.mkdirSync(l);
-      fs.writeFileSync(join(l, 'owner'), `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`);
+      // The lock is the owner file, made only if it is not there ('wx': O_EXCL). A folder made by mkdir is not
+      // enough: on some file systems two processes that make the same folder at the same moment both succeed
+      // (seen on GitHub's Ubuntu runners), a file opened with O_EXCL never.
+      fs.writeFileSync(join(l, 'owner'), `pid=${process.pid}\nhost=${os.hostname()}\nstarted=${Math.floor(Date.now() / 1000)}\nby=node\n`, { flag: 'wx' });
       let done = false;
       const release = () => {
         if (done) return; done = true;
-        try { fs.rmSync(l, { recursive: true, force: true }); } catch { /* */ }
+        // Only this run's owner file, then the folder if it is empty: a run that has just made its own owner file there keeps its lock.
+        try { fs.rmSync(join(l, 'owner'), { force: true }); fs.rmdirSync(l); } catch { /* */ }
         try { if (fs.readdirSync(state).length === 0) fs.rmdirSync(state); } catch { /* */ }
       };
       process.once('exit', release);   // also when the run stops at a test point (process.exit)
       return release;
     } catch (e) {
-      // Gone between the two steps (the run that held it finished, or took the harness folder away): try again,
-      // never go on without it.
-      if (!isDir(l)) { if (e.code === 'EEXIST' || e.code === 'ENOENT') continue; return () => {}; }   // cannot write: pre-flight says why
+      if (!isDir(l)) continue;
+      if (e.code !== 'EEXIST') return () => {};   // cannot write: pre-flight says why
     }
     const o = lockOwner(l);
     if (o.stale) { if (!takeStale(l)) sleep(1000); continue; }
@@ -432,12 +439,12 @@ export function lock(state, base) {
 // of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 function takeStale(l) {
   const t = l + '.takeover';
-  try { fs.mkdirSync(t); } catch {
+  try { fs.writeFileSync(t, '', { flag: 'wx' }); } catch {
     // One left by a run stopped while taking over (it holds it for a moment only).
-    const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmdirSync(t); } catch { /* */ }
+    const st = lstat(t); if (st && Date.now() - st.mtimeMs > 60000) try { fs.rmSync(t, { force: true }); } catch { /* */ }
     return false;
   }
-  try { const o = lockOwner(l); if (o.stale) { process.stderr.write(`Taking over the lock a stopped run left (${o.pid ? 'process ' + o.pid : 'no owner'}).\n`); removeTree(l); } } finally { try { fs.rmdirSync(t); } catch { /* */ } }
+  try { const o = lockOwner(l); if (o.stale) { process.stderr.write(`Taking over the lock a stopped run left (${o.pid ? 'process ' + o.pid : 'no owner'}).\n`); try { fs.rmSync(join(l, 'owner'), { force: true }); fs.rmdirSync(l); } catch { /* */ } } } finally { try { fs.rmSync(t, { force: true }); } catch { /* */ } }
   return true;
 }
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

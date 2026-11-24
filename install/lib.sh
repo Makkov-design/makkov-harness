@@ -66,12 +66,16 @@ mh_lock() {
     # moment, which is not "cannot write here". A folder that cannot be made: no lock, and the checks before the
     # first change say why.
     if [ ! -d "$st" ]; then mkdir "$st" 2>/dev/null || [ -d "$st" ] || return 0; fi
-    if mkdir "$l" 2>/dev/null; then
-      printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh\n' "$(mh_pid)" "$(mh_host)" "$(date +%s)" > "$l/owner" 2>/dev/null || true
-      MH_LOCK="$l"; return 0
-    fi
+    mkdir "$l" 2>/dev/null || true
     # Gone between the two steps (the run that held it finished): try again, never go on without it.
     if [ ! -d "$l" ]; then [ ! -d "$st" ] || [ -w "$st" ] || return 0; continue; fi
+    # The lock is the owner file, made only if it is not there (noclobber: O_EXCL). A folder made by mkdir is not
+    # enough: on some file systems two processes that make the same folder at the same moment both succeed (seen
+    # on GitHub's Ubuntu runners), a file opened with O_EXCL never.
+    if (set -C; printf 'pid=%s\nhost=%s\nstarted=%s\nby=install.sh\n' "$(mh_pid)" "$(mh_host)" "$(date +%s)" > "$l/owner") 2>/dev/null; then
+      MH_LOCK="$l"; return 0
+    fi
+    [ -d "$l" ] || continue
     if mh_lock_stale "$l"; then mh_take_stale "$l" || sleep 1; continue; fi
     pid="$(sed -n 's/^pid=//p' "$l/owner" 2>/dev/null | head -n 1)"
     echo "Another makkov-harness run is working in $2 (process ${pid:-?}). Let it finish, then run this again. If none is running, delete the folder $l and run this again." >&2
@@ -85,19 +89,21 @@ mh_lock() {
 # of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 mh_take_stale() {
   local t="$1.takeover"
-  if ! mkdir "$t" 2>/dev/null; then
+  if ! (set -C; : > "$t") 2>/dev/null; then
     # One left by a run stopped while taking over (it holds it for a moment only).
-    [ -z "$(find "$t" -prune -mmin +1 2>/dev/null)" ] || rmdir "$t" 2>/dev/null || true
+    [ -z "$(find "$t" -prune -mmin +1 2>/dev/null)" ] || rm -f "$t"
     return 1
   fi
   if mh_lock_stale "$1"; then
     echo "Taking over the lock a stopped run left ($(sed -n 's/^pid=//p' "$1/owner" 2>/dev/null | head -n 1 | sed 's/^$/no owner/;s/^[0-9]/process &/'))." >&2
-    rm -rf "${1:?}"
+    rm -f "$1/owner"; rmdir "$1" 2>/dev/null || true
   fi
-  rmdir "$t" 2>/dev/null || true
+  rm -f "$t"
 }
 # Removes the lock this run took, and the harness folder when the run left it empty.
-mh_unlock() { if [ -n "$MH_LOCK" ]; then rm -rf "${MH_LOCK:?}"; MH_LOCK=""; fi; if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi; return 0; }
+# Only this run's owner file goes, then the folder if it is empty: a run that has just made its own owner file in
+# the folder keeps its lock.
+mh_unlock() { if [ -n "$MH_LOCK" ]; then rm -f "$MH_LOCK/owner"; rmdir "$MH_LOCK" 2>/dev/null || true; MH_LOCK=""; fi; if [ -n "$MH_LOCK_STATE" ]; then rmdir "$MH_LOCK_STATE" 2>/dev/null || true; fi; return 0; }
 
 # The first value of key=... in a manifest, as written (after mh_cat).
 mh_raw() { mh_cat "$1" | sed -n "s/^$2=//p" | head -n 1; }

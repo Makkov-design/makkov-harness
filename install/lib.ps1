@@ -107,12 +107,12 @@ function Get-MhLockOwner([string]$Lock) {
 # of a run that just finished could remove the lock a third run has just made, and two runs would go on at once.
 function Enter-MhTakeover([string]$Lock) {
   $t = "$Lock.takeover"
-  try { New-Item -ItemType Directory -Path $t -ErrorAction Stop | Out-Null } catch {
+  try { [IO.File]::Open($t, [IO.FileMode]::CreateNew).Dispose() } catch {
     # One left by a run stopped while taking over (it holds it for a moment only).
-    try { if (([DateTime]::UtcNow - [IO.Directory]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.Directory]::Delete($t) } } catch { }
+    try { if (([DateTime]::UtcNow - [IO.File]::GetLastWriteTimeUtc($t)).TotalSeconds -gt 60) { [IO.File]::Delete($t) } } catch { }
     return $false
   }
-  try { $o = Get-MhLockOwner $Lock; if ($o.Stale) { [Console]::Error.WriteLine("Taking over the lock a stopped run left ($(if ($o.Pid) { 'process ' + $o.Pid } else { 'no owner' }))."); Remove-MhTree $Lock } } finally { try { [IO.Directory]::Delete($t) } catch { } }
+  try { $o = Get-MhLockOwner $Lock; if ($o.Stale) { [Console]::Error.WriteLine("Taking over the lock a stopped run left ($(if ($o.Pid) { 'process ' + $o.Pid } else { 'no owner' }))."); try { [IO.File]::Delete((Join-Path $Lock 'owner')); [IO.Directory]::Delete($Lock) } catch { } } } finally { try { [IO.File]::Delete($t) } catch { } }
   $true
 }
 # Takes the lock, or stops the run when another one holds it. Returns what Exit-MhLock needs ($null: no lock taken,
@@ -123,13 +123,17 @@ function Enter-MhLock([string]$State, [string]$Base) {
     # The harness folder, made again if another run just took it away. A folder that cannot be made: no lock, and
     # the checks before the first change say why.
     if (-not [IO.Directory]::Exists($State)) { try { [void][IO.Directory]::CreateDirectory($State) } catch { if (-not [IO.Directory]::Exists($State)) { return $null } } }
-    $made = $false
-    try { New-Item -ItemType Directory -Path $l -ErrorAction Stop | Out-Null; $made = $true }
-    catch { if ($_.Exception -is [UnauthorizedAccessException] -or $_.Exception.InnerException -is [UnauthorizedAccessException]) { return $null } }
+    try { [void][IO.Directory]::CreateDirectory($l) } catch [UnauthorizedAccessException] { return $null } catch { }
     # Gone between the two steps (the run that held it finished): try again, never go on without it.
-    if (-not $made -and -not [IO.Directory]::Exists($l)) { continue }
-    if ($made) {
-      try { [IO.File]::WriteAllText((Join-Path $l 'owner'), "pid=$PID`nhost=$([Environment]::MachineName)`nstarted=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())`nby=install.ps1`n") } catch { }
+    if (-not [IO.Directory]::Exists($l)) { continue }
+    # The lock is the owner file, made only if it is not there (CreateNew). A folder alone is not enough: on some
+    # file systems two processes that make the same folder at the same moment both succeed.
+    $f = $null
+    try { $f = [IO.File]::Open((Join-Path $l 'owner'), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write) }
+    catch [UnauthorizedAccessException] { return $null }
+    catch { if (-not [IO.Directory]::Exists($l)) { continue } }
+    if ($f) {
+      try { $b = $MhUtf8.GetBytes("pid=$PID`nhost=$([Environment]::MachineName)`nstarted=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())`nby=install.ps1`n"); $f.Write($b, 0, $b.Length) } finally { $f.Dispose() }
       return @{ Lock = $l; State = $State }
     }
     $o = Get-MhLockOwner $l
@@ -144,7 +148,8 @@ function Enter-MhLock([string]$State, [string]$Base) {
 # Removes the lock this run took, and the harness folder when the run left it empty.
 function Exit-MhLock($Held) {
   if (-not $Held) { return }
-  try { Remove-MhTree $Held.Lock } catch { }
+  # Only this run's owner file, then the folder if it is empty: a run that has just made its own owner file there keeps its lock.
+  try { [IO.File]::Delete((Join-Path $Held.Lock 'owner')); [IO.Directory]::Delete($Held.Lock) } catch { }
   try { if ([IO.Directory]::Exists($Held.State) -and @(Get-ChildItem -LiteralPath $Held.State -Force).Count -eq 0) { Remove-Item -LiteralPath $Held.State -Force } } catch { }
 }
 
