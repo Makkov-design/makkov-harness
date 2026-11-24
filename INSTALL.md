@@ -135,3 +135,4 @@ Limits worth knowing:
 - An instructions file with more than one hard link is written in place, so every name keeps the same file; any other file is replaced in one step, so an interruption never leaves half of it.
 - On macOS and Linux, a home or project path that contains a backslash (`\`) is read back from a manifest as a Windows path; such paths are not supported.
 - A manifest written by `install.ps1` on Windows uses `\` in its paths, so the PowerShell installers on macOS and Linux (`pwsh`) refuse it ("a path with a backslash") and change nothing. Run the uninstaller on the system that made the install.
+- Under PowerShell on macOS and Linux, a folder or file with a `\` in its name in the skills folder or `.makkov-harness/` stops `install.ps1` and `uninstall.ps1` before any change (PowerShell would read the name as a path); rename it, or use `install.sh` or the Node installer there. They need PowerShell 7.2 or newer on macOS and Linux.
