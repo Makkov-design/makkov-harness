@@ -21,6 +21,33 @@ $MhRaw = [Text.Encoding]::GetEncoding(28591)
 $MhWin = [IO.Path]::DirectorySeparatorChar -eq '\'
 $MhSplit = if ($MhWin) { '[\\/]' } else { '/' }
 function ConvertTo-MhSlash([string]$P) { if ($MhWin) { $P -replace '\\', '/' } else { $P } }
+# On macOS and Linux the link checks read a link's target with .NET 6 (FileInfo.LinkTarget): PowerShell 7.0 and 7.1
+# run on older .NET, where a link would read as a plain file and pass every check, so they are refused.
+if (-not $MhWin) {
+  $v = $PSVersionTable.PSVersion
+  if ([version]('{0}.{1}' -f $v.Major, $v.Minor) -lt [version]'7.2') {
+    [Console]::Error.WriteLine("The makkov-harness PowerShell installers need PowerShell 7.2 or newer on macOS and Linux (this is $v). Update PowerShell, or use install.sh or the Node installer.")
+    [Console]::Error.WriteLine('Nothing was changed.'); exit 1
+  }
+}
+# On macOS and Linux PowerShell's file cmdlets read a \ in a path as a separator, so a folder or file whose name holds
+# a \ (a cloned repository can ship .mh-tmp-a\..\..\..\..\Documents) would be read as a path somewhere else. Before
+# any change the run looks, with .NET only, through the skills folder and .makkov-harness (not into links) and
+# returns the first such entry ('' when there is none, and always on Windows, where \ cannot be in a name).
+function Find-MhBackslashName([string[]]$Dirs) {
+  if ($MhWin) { return '' }
+  $opt = New-Object IO.EnumerationOptions
+  $opt.AttributesToSkip = [IO.FileAttributes]0; $opt.IgnoreInaccessible = $true; $opt.RecurseSubdirectories = $false
+  $todo = New-Object System.Collections.Generic.Stack[string]
+  foreach ($d in $Dirs) { if ($d -and [IO.Directory]::Exists($d)) { $todo.Push($d) } }
+  while ($todo.Count) {
+    foreach ($e in [IO.Directory]::EnumerateFileSystemEntries($todo.Pop(), '*', $opt)) {
+      if ([IO.Path]::GetFileName($e).Contains('\')) { return $e }
+      if ([IO.Directory]::Exists($e) -and -not (Test-MhLink $e)) { $todo.Push($e) }
+    }
+  }
+  ''
+}
 
 # A fingerprint of a folder: every file's relative path and SHA-256, in ordinal order (the same in every
 # culture and in both PowerShell versions). Get-MhTreeIds also gives the id of the culture-sorted fingerprint
@@ -211,7 +238,8 @@ function Clear-MhLockOnly([string]$State, [string]$Base) {
   if (@(Get-ChildItem -LiteralPath $State -Force | Where-Object { $_.Name -ne 'lock' -and $_.Name -ne 'lock.takeover' -and $_.Name -notlike 'install-*.txt.new' }).Count) { return }
   $h = Enter-MhLock $State $Base -Quiet
   if ($h -and $h -isnot [string]) {
-    foreach ($t in @(Get-ChildItem -LiteralPath $State -Force -Filter 'install-*.txt.new' -File)) { Remove-Item -LiteralPath $t.FullName -Force }
+    # (This runs before Find-MhBackslashName: a name with a \ in it is left alone, never handed to Remove-Item.)
+    foreach ($t in @(Get-ChildItem -LiteralPath $State -Force -Filter 'install-*.txt.new' -File | Where-Object { $MhWin -or -not $_.Name.Contains('\') })) { Remove-Item -LiteralPath $t.FullName -Force }
     $h.DropState = $true; Exit-MhLock $h
   }
 }
@@ -333,6 +361,9 @@ function Get-MhReal([string]$Path) {
     if (Test-MhLink $next) {
       # (Off Windows the target is read with .NET, not Get-Item: a cmdlet may read a \ in the name as a separator.)
       $t = if ($MhWin) { @((Get-Item -LiteralPath $next -Force).Target)[0] } else { (New-Object IO.FileInfo $next).LinkTarget }
+      # A link whose target cannot be read is taken for one that leads outside (macOS and Linux: there every
+      # reparse point is a symlink).
+      if (-not $t -and -not $MhWin) { return '' }
       if ($t) {
         if (++$links -gt 40) { return '' }
         if (-not [IO.Path]::IsPathRooted($t) -and $MhWin) { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
@@ -364,7 +395,7 @@ function Test-MhCheckLinks([string]$Project, [bool]$Follow, [string]$Skills, [st
     if (-not $p) { continue }
     $r = Get-MhReal $p
     if (-not $r -or -not (Test-MhRealUnder $r $rb)) {
-      return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
+      return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links, or a link whose target cannot be read' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
     }
   }
   $r = Get-MhReal $Rules
