@@ -869,6 +869,65 @@ if command -v pwsh >/dev/null 2>&1; then
     rm -rf "$home" "$outside"
   done
 else echo "install.ps1 (pwsh): manifests with \\.. parts: skip (no pwsh here)"; fi
+# Folders a cloned repository ships with a \ in their names: on macOS and Linux one folder each, but PowerShell's
+# cmdlets read the \ as a separator. First what Test-Path, Remove-Item and Move-Item make of such a name (printed, so
+# CI shows it), then the two layouts: .agents/skills/.mh-tmp-a\..\..\..\..\victim (install and uninstall clear
+# .mh-tmp-* there) and a folder y\..\..\..\..\victim in a backup folder (uninstall puts those back). install.sh and
+# the Node installer read the name as one folder; install.ps1 and uninstall.ps1 under pwsh stop before any change.
+if command -v pwsh >/dev/null 2>&1; then
+  t="$(tmp)"; mkdir -p "$t/w/q/a\\..\\..\\x" "$t/w/x" "$t/w/q/b\\..\\..\\y" "$t/w/y" "$t/p/c\\..\\..\\z" "$t/z"
+  for d in "$t/w/q/a\\..\\..\\x" "$t/w/x" "$t/w/q/b\\..\\..\\y" "$t/w/y" "$t/p/c\\..\\..\\z" "$t/z"; do echo keep > "$d/f"; done
+  cat > "$t/probe.ps1" <<'PS'
+param([string]$T)
+"pwsh here: version $($PSVersionTable.PSVersion) on $([Environment]::Version) .NET"
+$q = [IO.Path]::Combine($T, 'w', 'q')
+"pwsh here: Test-Path -LiteralPath <q>/a\..\..\x (a folder of that name there) -> $(Test-Path -LiteralPath ([IO.Path]::Combine($q, 'a\..\..\x')))"
+"pwsh here: Test-Path -LiteralPath <q>/n\..\..\x (no such name, w/x exists) -> $(Test-Path -LiteralPath ([IO.Path]::Combine($q, 'n\..\..\x')))"
+try { Remove-Item -LiteralPath ([IO.Path]::Combine($q, 'a\..\..\x')) -Recurse -Force -ErrorAction Stop; $e = 'ok' } catch { $e = "error: $($_.Exception.Message)" }
+"pwsh here: Remove-Item -Recurse <q>/a\..\..\x -> $e; the folder of that name gone: $(-not [IO.Directory]::Exists([IO.Path]::Combine($q, 'a\..\..\x'))), w/x gone: $(-not [IO.Directory]::Exists([IO.Path]::Combine($T, 'w', 'x')))"
+try { Move-Item -LiteralPath ([IO.Path]::Combine($q, 'b\..\..\y')) -Destination ([IO.Path]::Combine($T, 'moved')) -ErrorAction Stop; $e = 'ok' } catch { $e = "error: $($_.Exception.Message)" }
+"pwsh here: Move-Item <q>/b\..\..\y -> $e; the folder of that name moved: $(-not [IO.Directory]::Exists([IO.Path]::Combine($q, 'b\..\..\y'))), w/y moved: $(-not [IO.Directory]::Exists([IO.Path]::Combine($T, 'w', 'y')))"
+try { Remove-Item -LiteralPath ([IO.Path]::Combine($T, 'p')) -Recurse -Force -ErrorAction Stop; $e = 'ok' } catch { $e = "error: $($_.Exception.Message)" }
+"pwsh here: Remove-Item -Recurse p (holding c\..\..\z) -> $e; p gone: $(-not [IO.Directory]::Exists([IO.Path]::Combine($T, 'p'))), z (outside p) gone: $(-not [IO.Directory]::Exists([IO.Path]::Combine($T, 'z')))"
+PS
+  POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -File "$t/probe.ps1" -T "$t" 2>&1 | tr -d '\r'
+  rm -rf "$t"
+fi
+bsl_layout() {   # $1: tmp-name or backup; sets home, outside, proj; the victim folder is $outside/w/victim
+  home="$(tmp)"; outside="$(tmp)"; export HOME="$home"; proj="$outside/w/proj"
+  mkdir -p "$proj/.agents/skills/animate" "$outside/w/victim"; echo mine > "$proj/.agents/skills/animate/SKILL.md"
+  echo mine > "$outside/w/victim/SKILL.md"; echo keep > "$outside/w/victim/notes.md"
+}
+bsl_plant() {    # plant the folder with a \ in its name
+  if [ "$1" = tmp-name ]; then mkdir -p "$proj/.agents/skills/.mh-tmp-a\\..\\..\\..\\..\\victim"; echo x > "$proj/.agents/skills/.mh-tmp-a\\..\\..\\..\\..\\victim/f"
+  else local b; b="$(ls -d "$proj"/.makkov-harness/backups/*-codex/skills)"; mkdir -p "$b/y\\..\\..\\..\\..\\victim"; echo x > "$b/y\\..\\..\\..\\..\\victim/SKILL.md"; fi
+}
+ps1() { runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/$1" -Agent codex -Project "$proj"; }
+for lay in tmp-name backup; do
+  if [ $lay = tmp-name ]; then what='.agents/skills/.mh-tmp-a\..\..\..\..\victim'; else what='a backup folder holding y\..\..\..\..\victim'; fi
+  echo "codex project, $what (a folder with \\ in its name)"
+  bsl_layout; [ $lay = tmp-name ] && bsl_plant $lay
+  vbefore="$(tree "$outside/w/victim")"
+  runs bash "$inst" codex "$proj"; c1=$code
+  [ $lay = backup ] && bsl_plant $lay
+  runs bash "$uninst" codex "$proj"; c2=$code
+  check "install and uninstall go through (exit $c1, $c2), the folder outside untouched" "[ $c1 = 0 ] && [ $c2 = 0 ] && [ \"\$(tree '$outside/w/victim')\" = \"\$vbefore\" ]"
+  rm -rf "$home" "$outside"
+  if command -v pwsh >/dev/null 2>&1; then
+    bsl_layout
+    if [ $lay = tmp-name ]; then
+      bsl_plant $lay; before="$(tree "$outside")"; ps1 install.ps1
+      printf '%s\n' "$out" | head -n 2 | sed 's/^/    (exit '"$code"') /'
+      check "install.ps1 (pwsh) stops (exit 1) and names the backslash; nothing outside or in the project changed" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'backslash' && [ \"\$(tree '$outside')\" = \"\$before\" ]"
+    fi
+    runs bash "$inst" codex "$proj"; [ $lay = backup ] && bsl_plant $lay
+    [ $lay = tmp-name ] && bsl_plant $lay
+    before="$(tree "$outside")"; ps1 uninstall.ps1
+    printf '%s\n' "$out" | head -n 2 | sed 's/^/    (exit '"$code"') /'
+    check "uninstall.ps1 (pwsh) stops (exit 1) and names the backslash; nothing outside or in the project changed" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'backslash' && [ \"\$(tree '$outside')\" = \"\$before\" ]"
+    rm -rf "$home" "$outside"
+  else echo "  install.ps1 / uninstall.ps1 (pwsh): skip (no pwsh here)"; fi
+done
 home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
 echo "cursor project, .cursor a link to a folder outside the project"
 mkdir -p "$outside/rules"; ln -s "$outside" "$proj/.cursor"; before="$(tree "$outside")"
