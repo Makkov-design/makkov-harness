@@ -818,6 +818,13 @@ mkdir -p "$outside/sub"; printf '# not yours to change\n' > "$outside/notes.md";
 ln -s "$outside/sub" "$proj/lnk"; ln -s "lnk/../notes.md" "$proj/AGENTS.md"; pbefore="$(tree "$proj")"
 runs bash "$inst" codex "$proj"
 check "install stops (exit 1) and names --follow-links; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'follow-links' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+# The same with install.ps1 under PowerShell 7 on macOS or Linux, when pwsh is installed (as on CI's Ubuntu runner).
+if command -v pwsh >/dev/null 2>&1; then
+  echo "  install.ps1 (pwsh) on the same project"
+  cp "$outside/notes.md" "$home/expected"
+  runs env USERPROFILE="$home" POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$repo/install/install.ps1" -Agent codex -Project "$proj"
+  check "install.ps1 stops (exit 1) and names -FollowLinks; the file outside unchanged, nothing in the project" "[ $code = 1 ] && printf '%s' \"\$out\" | grep -q 'FollowLinks' && cmp -s '$home/expected' '$outside/notes.md' && [ \"\$(tree '$proj')\" = \"\$pbefore\" ]"
+else echo "  install.ps1 (pwsh) on the same project: skip (no pwsh here)"; fi
 rm -rf "$home" "$proj" "$outside"
 home="$(tmp)"; proj="$(tmp)"; outside="$(tmp)"; export HOME="$home"
 echo "cursor project, .cursor a link to a folder outside the project"
