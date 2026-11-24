@@ -76,6 +76,7 @@ if [[ $cmd =~ $re_long ]]; then
 fi
 [ ${#cmd} -gt 4000 ] && ask "$too_long"
 c=" $cmd "
+c="${c//\\|/ |}"   # an escaped pipe counts as a pipe: in PowerShell a backslash escapes nothing
 
 w='[^[:space:];&|"'"'"')]'            # one character of a word
 dq='"([^"\\]|\\.)*"'; sq="'[^']*'"

@@ -57,6 +57,10 @@ test("install words in quoted text ask in every tool", () => {
   for (const tool of ["Bash", "PowerShell", undefined]) {
     assert.equal(run(tool, three), "ask", String(tool));
     assert.equal(run(tool, msg), "ask", String(tool));
+    // An escaped separator is a separator in PowerShell: every such corpus row asks in every tool.
+    for (const { cmd } of CORPUS.filter((c) => (c.why ?? "").startsWith("an escaped separator"))) {
+      assert.equal(run(tool, cmd), "ask", `${String(tool)}: ${cmd}`);
+    }
   }
 });
 
