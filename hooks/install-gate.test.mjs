@@ -59,7 +59,7 @@ test("install words in quoted text ask in every tool", () => {
     assert.equal(run(tool, msg), "ask", String(tool));
     // An escaped separator is a word in bash and a separator in PowerShell; a quoted one can be an option's value.
     // Every such corpus row asks in every tool.
-    for (const { cmd } of CORPUS.filter((c) => /^an escaped separator|^a quoted separator/.test(c.why ?? ""))) {
+    for (const { cmd } of CORPUS.filter((c) => c.gate === "ask" && /^an escaped separator|^a quoted separator|^quoted text that ends/.test(c.why ?? ""))) {
       assert.equal(run(tool, cmd), "ask", `${String(tool)}: ${cmd}`);
     }
   }
@@ -93,6 +93,36 @@ test("an escaped separator put anywhere in a command that asks never lets it thr
     if (ask(OLD, v) || ask(HOOK, bashReading(v)) || ask(HOOK, psReading(v))) through.push(v);
   });
   assert.ok(variants.size > 10000, `${variants.size} variants`);
+  assert.deepEqual(through, []);
+});
+
+// Quoted text that ends in an option that takes a value (`echo "a --prefix " ; npm install x`) must not hide the
+// command after it: the gate cannot tell an opening quote from a closing one. Generated from the corpus: for every row
+// that asks, each option the gate joins with its value, in " and ', as text before the command (`echo "a --prefix " ;`
+// and `&&`) and as a quoted word put before each word of the command. None may pass where the 0.5.0 gate asks.
+// Every 200th variant by default; MAKKOV_GATE_VARIANTS=all runs all of them (about 73,000).
+test("quoted text ending in a value-taking option never hides a command that asks", () => {
+  const ask = (file, command) => {
+    const r = spawnSync("bash", [file], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
+    assert.equal(r.signal, null, `killed after 10 s: ${JSON.stringify(command.slice(0, 80))}`);
+    return r.stdout.trim() !== "";
+  };
+  const opts = ["--prefix", "--filter", "-F", "--dir", "-C", "--cwd", "--registry", "--cache", "--omit", "--include", "--loglevel", "--userconfig", "-w", "--workspace"];
+  const variants = new Set();
+  for (const { cmd, gate: want } of CORPUS) {
+    if (want !== "ask") continue;
+    const at = [0, ...[...cmd.matchAll(/ /g)].map((m) => m.index)];
+    for (const q of ['"', "'"]) for (const o of opts) {
+      for (const sep of [";", "&&"]) variants.add(`echo ${q}a ${o} ${q} ${sep} ${cmd} ${sep} echo ${q} b${q}`);
+      for (const i of at) variants.add(cmd.slice(0, i) + (i ? " " : "") + `${q}a ${o} ${q}` + (i ? "" : " ") + cmd.slice(i));
+    }
+  }
+  const step = process.env.MAKKOV_GATE_VARIANTS === "all" ? 1 : 200;
+  const through = [];
+  [...variants].forEach((v, k) => {
+    if (k % step === 0 && !ask(HOOK, v) && ask(OLD, v)) through.push(v);
+  });
+  assert.ok(variants.size > 50000, `${variants.size} variants`);
   assert.deepEqual(through, []);
 });
 

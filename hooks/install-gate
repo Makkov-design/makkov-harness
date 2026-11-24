@@ -96,15 +96,14 @@ path="(${w}*[/\\])?"                  # an optional path before a program: /usr/
 # npm options that take a value become one word (-w web -> -w=web), so the value is not read as a package. Only for
 # the tools where the option does take one: in pnpm -w is --workspace-root and takes none. Case-sensitive on purpose.
 join() {   # $1 = regex for (everything up to the option)(the value)
-  local out="" rest="$c" m v n=0
+  local out="" rest="$c" m n=0
   while [ $n -lt 32 ] && [[ $rest =~ $1 ]]; do   # the first 32; more is not a real command
     n=$((n + 1)); m="${BASH_REMATCH[0]}"
-    v="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; v="${v//[\"\' ;&|)]/_}"   # a quoted value ("|", 'a b') stays one word
-    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=$v"; rest="${rest#*"$m"}"
+    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; rest="${rest#*"$m"}"
   done
   c="$out$rest"
 }
-val="[[:space:]]+(${dq}|${sq}|[^-[:space:];&|\"')]${w}*)"   # a value: a word or one quoted string
+val="[[:space:]]+([^-[:space:];&|\"')]${w}*)"
 join "([[:space:]](--prefix|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit|--include|--loglevel|--userconfig))${val}"
 join "((^|[[:space:];&|(])${path}npm(\.cmd|\.exe)?([[:space:]]+${w}+){0,8}[[:space:]](-w|--workspace))${val}"
 shopt -s nocasematch
@@ -193,7 +192,7 @@ if [ -z "$hit" ]; then
   while [[ $rest =~ $re_npx ]]; do
     tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 2))]}"; tool="${tool#[\"\']}"
     rest="${rest#*"${BASH_REMATCH[0]}"}"
-    case "$tool" in ''|[\|\;\&\)\"\']*) hit=1; break ;; esac   # a quoted value that is not a name ("|"): asks
+    case "$tool" in ''|[\|\;\&\)\"\']*) hit=1; break ;; esac   # a quoted name that is not a name ("|"): asks
     local_bin=""
     if [ -n "$cwd" ] && [[ $tool != *@* || $tool == @*/* && ${tool#@} != *@* ]]; then
       name="${tool##*/}"

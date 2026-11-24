@@ -5,6 +5,7 @@ Short records of what a change taught, so the next change does not relearn it. N
 ## 2026-11-24 · Install gate: two readings, not one rewrite
 
 - **When the shell is not known, match every reading; never replace one with another.** The hook runs for both the Bash and the PowerShell tool, and `\|` means a word in one and a pipe in the other. A first fix rewrote `\|` into a pipe, which closed the PowerShell case and opened its mirror: `npm install --prefix \| evil-pkg` is a folder and a package in bash, and the rewrite made the gate stop at the pipe. The fix that holds keeps the command as written and adds both readings next to it, so adding a reading can only add asks. A generated test (an escaped separator before and after every word of every row that asks) caught a case neither audit listed: a quoted package after such a value.
+- **A widening is safe; a removal is a pass rule.** A follow-up read a quoted string after `--prefix` as the option's value and took it out before matching. The gate cannot tell an opening quote from a closing one, so `echo "a --prefix " ; npm install evil-pkg` passed: the removed text rule again, through a new door. It was reverted. What was kept only lets a pattern match more (a package or an `npx` name may start with a quote), and a test proves it: every command and generated variant that asks without those two pieces still asks with them.
 
 ## 2026-11-24 · Install gate: the text rule removed
 
