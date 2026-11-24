@@ -26,7 +26,10 @@ function Get-MhId([string]$Text) {
 function Get-MhTreeIds([string]$Dir) {
   $root = (Resolve-Path -LiteralPath $Dir).ProviderPath.TrimEnd([IO.Path]::DirectorySeparatorChar)
   $paths = [string[]][IO.Directory]::GetFiles($root, '*', [IO.SearchOption]::AllDirectories)
-  $hash = @{}; foreach ($f in $paths) { $hash[$f] = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
+  # SHA-256 with .NET, not Get-FileHash: Windows PowerShell 5.1 started from PowerShell 7 inherits a module path
+  # where Get-FileHash cannot be loaded, and its error would leave the hash empty instead of stopping the run.
+  $sha = [Security.Cryptography.SHA256]::Create()
+  $hash = @{}; foreach ($f in $paths) { $hash[$f] = [BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($f))).Replace('-', '') }
   $ordinal = [string[]]$paths; [Array]::Sort($ordinal, [StringComparer]::Ordinal)
   $legacy = @($paths | Sort-Object)
   $line = { param($p) $p.Substring($root.Length) + ':' + $hash[$p] }

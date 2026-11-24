@@ -580,6 +580,17 @@ check "install, update and uninstall all go through" "[ $c1 = 0 ] && [ $c2 = 0 ]
 check "the home folder is as it was" "[ \"\$(tree '$t/home')\" = \"\$before\" ]"
 rm -rf "$t"
 
+# A home folder given as a relative path (HOME=home, run from the folder above it): install, update and uninstall
+# read back what they wrote, and the home folder ends as it began.
+t="$(tmp)"; mkdir -p "$t/home/.codex"; printf '# my notes\n' > "$t/home/.codex/AGENTS.md"
+echo "codex at user level, the home folder given as a relative path"
+before="$(tree "$t/home")"
+rc() { (cd "$t" && HOME=home bash "$@" >/dev/null 2>&1); echo $?; }
+c1="$(rc "$inst" codex)"; c2="$(rc "$inst" codex)"; c3="$(rc "$uninst" codex)"
+check "install, update and uninstall all go through" "[ $c1 = 0 ] && [ $c2 = 0 ] && [ $c3 = 0 ]"
+check "the home folder is as it was" "[ \"\$(tree '$t/home')\" = \"\$before\" ]"
+rm -rf "$t"
+
 # A home folder that is a symlink, and the project path given as the folder it points to: still the home folder.
 t="$(tmp)"; mkdir -p "$t/real"; ln -s "$t/real" "$t/home"; export HOME="$t/home"
 echo "codex with the project path the real folder of a symlinked home"

@@ -191,7 +191,10 @@ foreach ($d in $input) {
   $leg = Get-MhId ((Get-ChildItem -LiteralPath $root -Recurse -File -Force | Sort-Object FullName | ForEach-Object { $_.FullName.Substring($root.Length) + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "\`n")
   "$((@(Get-MhTreeIds $d))[0]) $leg"
 }`;
-    const r = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', script], { input: dirs.join('\n'), encoding: 'utf8', env: { ...process.env, HOME: t } });
+    // Windows PowerShell 5.1 started from PowerShell 7 (CI's shell) inherits 7's PSModulePath and cannot load
+    // Get-FileHash, which this test's own lines use; it gets the module path it would have had on its own.
+    const env = { ...process.env, HOME: t }; if (sh === 'powershell') for (const k of Object.keys(env)) if (k.toLowerCase() === 'psmodulepath') delete env[k];
+    const r = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', script], { input: dirs.join('\n'), encoding: 'utf8', env });
     assert.equal(r.status, 0, r.stderr);
     const rows = r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.split(' '));
     assert.equal(rows.length, dirs.length, r.stdout + r.stderr);
@@ -205,7 +208,7 @@ foreach ($d in $input) {
   "root=$root"
   foreach ($f in [IO.Directory]::GetFiles($root, '*', [IO.SearchOption]::AllDirectories)) { $f.Substring($root.Length) + ':' + (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
 }`;
-      const r2 = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', dbg], { input: bad[0], encoding: 'utf8', env: { ...process.env, HOME: t } });
+      const r2 = spawnSync(sh, ['-NoProfile', '-NonInteractive', '-Command', dbg], { input: bad[0], encoding: 'utf8', env });
       assert.fail(`${bad.length} of ${dirs.length} ordinal ids differ (${sh}), first ${bad[0]}: Node ${L.fingerprintPs(bad[0])}, PowerShell ${rows[dirs.indexOf(bad[0])][0]}\nPowerShell hashed:\n${r2.stdout}${r2.stderr}\nNode hashed:\n${L.fingerprintPsLines(bad[0]).join('\n')}`);
     }
     dirs.forEach((d, i) => {
