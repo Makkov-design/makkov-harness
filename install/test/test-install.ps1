@@ -287,6 +287,13 @@ try {
   Check 'no manifest left' { -not (Get-ChildItem (Join-Path $proj '.makkov-harness') -Filter 'install-*.txt' -ErrorAction SilentlyContinue) }
   $env:USERPROFILE = $realHome; Remove-Item $h, $proj, $old -Recurse -Force
 
+  # A run in a child PowerShell, to see its exit code and what it wrote to stderr.
+  function Run-Child([string]$Script, [string[]]$ArgList) {
+    $ErrorActionPreference = 'Continue'
+    $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $Script @ArgList 2>&1 | ForEach-Object { "$_" }) -join ' '
+    $script:code = $LASTEXITCODE; $script:out = $o
+  }
+
   # Fingerprints recorded by earlier PowerShell installers stay recognised: an install by the released 0.5.0
   # installer (culture-sorted ids) and by the one on main at 51cab04 (ordinal ids), of an animate that differs from
   # this version's, is updated by this version without taking that copy for yours.
@@ -352,12 +359,6 @@ try {
       if ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) { "$r -> link" }
       elseif ($_.PSIsContainer) { "$r\" } else { "$r " + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     }) | Sort-Object) -join "`n"
-  }
-  # A run in a child PowerShell, to see its exit code and what it wrote to stderr.
-  function Run-Child([string]$Script, [string[]]$ArgList) {
-    $ErrorActionPreference = 'Continue'
-    $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $Script @ArgList 2>&1 | ForEach-Object { "$_" }) -join ' '
-    $script:code = $LASTEXITCODE; $script:out = $o
   }
 
   # A first install that cannot finish stops before it changes anything.
