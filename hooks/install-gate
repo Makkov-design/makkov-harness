@@ -4,12 +4,15 @@
 # It never blocks a command and never runs one: it only turns an automatic run into a question.
 # What it matches and what it does not is listed in SECURITY.md (hooks/install-gate); hooks/install-corpus.json holds
 # the test cases. Install words anywhere in the command ask, quoted text and commit messages included.
+# When a command can be read two ways (bash and PowerShell escape differently), it asks if either reading is an install.
 # On in every scope, MAKKOV_HARNESS_SCOPE=design included. Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a
 # headless `claude -p` run, where nobody can answer). Pure bash 3.2: reads the hook input from stdin, starts no other
 # program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
 # longer than 400 characters when it is matched, so a run stays fast on any input (see the size limits below).
 set -u
 export LC_ALL=C   # bytes, not characters: regexes and ${x:i:n} stay linear on any input
+# bash 5.2 reads a bare & in a ${x//a/b} replacement as "the match"; bash 3.2 has no such rule. Off, so both read it as text.
+shopt -u patsub_replacement 2>/dev/null || true
 [ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = off ] && exit 0
 
 IFS= read -r -d '' input || true
@@ -76,7 +79,15 @@ if [[ $cmd =~ $re_long ]]; then
 fi
 [ ${#cmd} -gt 4000 ] && ask "$too_long"
 c=" $cmd "
-c="${c//\\|/ |}"   # an escaped pipe counts as a pipe: in PowerShell a backslash escapes nothing
+# A command that can be read two ways asks if either reading is an install. A backslash before | & ; or ) escapes it in
+# bash (a plain word) and escapes nothing in PowerShell (a real separator). Both readings are matched next to the
+# command as written: the PowerShell one with the separator kept, the bash one with the escaped character as a word.
+# In the PowerShell reading a lone & stays as written: there it is not a separator between two commands (only && is).
+if [[ $c == *\\[\|\&\;\)]* ]]; then
+  ps="${c//\\|/ |}"; ps="${ps//\\;/ ;}"; ps="${ps//\\)/ )}"; ps="${ps//\\&&/ &&}"
+  sh="${c//\\[|&;)]/_}"
+  c="$c ; $ps ; $sh "
+fi
 
 w='[^[:space:];&|"'"'"')]'            # one character of a word
 dq='"([^"\\]|\\.)*"'; sq="'[^']*'"
@@ -85,14 +96,15 @@ path="(${w}*[/\\])?"                  # an optional path before a program: /usr/
 # npm options that take a value become one word (-w web -> -w=web), so the value is not read as a package. Only for
 # the tools where the option does take one: in pnpm -w is --workspace-root and takes none. Case-sensitive on purpose.
 join() {   # $1 = regex for (everything up to the option)(the value)
-  local out="" rest="$c" m n=0
+  local out="" rest="$c" m v n=0
   while [ $n -lt 32 ] && [[ $rest =~ $1 ]]; do   # the first 32; more is not a real command
     n=$((n + 1)); m="${BASH_REMATCH[0]}"
-    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; rest="${rest#*"$m"}"
+    v="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"; v="${v//[\"\' ;&|)]/_}"   # a quoted value ("|", 'a b') stays one word
+    out="$out${rest%%"$m"*}${BASH_REMATCH[1]}=$v"; rest="${rest#*"$m"}"
   done
   c="$out$rest"
 }
-val="[[:space:]]+([^-[:space:];&|\"')]${w}*)"
+val="[[:space:]]+(${dq}|${sq}|[^-[:space:];&|\"')]${w}*)"   # a value: a word or one quoted string
 join "([[:space:]](--prefix|--filter|-F|--dir|-C|--cwd|--registry|--cache|--omit|--include|--loglevel|--userconfig))${val}"
 join "((^|[[:space:];&|(])${path}npm(\.cmd|\.exe)?([[:space:]]+${w}+){0,8}[[:space:]](-w|--workspace))${val}"
 shopt -s nocasematch
@@ -100,7 +112,7 @@ shopt -s nocasematch
 b="(^|[[:space:];&|(\`\"'{!])"       # a word starts after a space, a separator, a bracket, a quote or ! (git aliases)
 flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
 flags="([[:space:]]+-${w}*)*"         # options without values
-pkg="[[:space:]]+[^-[:space:];&|\"')]" # a word that is not an option: a package
+pkg="[[:space:]]+[^-[:space:];&|)]"     # a word that is not an option: a package, quoted ("|", 'x') or not
 pm="${b}${path}(npm|pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*"
 npm_add='(install|i|in|ins|inst|insta|instal|isnt|isnta|isntal|isntall|add|it|install-test|create|init)'
 shell="${path}(ba|z|da|k|fi|a|c|tc)?sh(\.exe)?"
@@ -177,10 +189,11 @@ done
 # npx, bunx, uvx, pnpx, bun x: ask unless the tool is already installed in this project, without a version.
 if [ -z "$hit" ]; then
   rest="$c"
-  re_npx="${b}${path}(npx|bunx|uvx|pnpx|bun[[:space:]]+x)(\.cmd)?${flags}[[:space:]]+([^-[:space:];&|\"')]${w}*)"
+  re_npx="${b}${path}(npx|bunx|uvx|pnpx|bun[[:space:]]+x)(\.cmd)?${flags}[[:space:]]+(([\"'][^[:space:]]?|[^-[:space:];&|\"')])${w}*)"
   while [[ $rest =~ $re_npx ]]; do
-    tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 1))]}"
+    tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 2))]}"; tool="${tool#[\"\']}"
     rest="${rest#*"${BASH_REMATCH[0]}"}"
+    case "$tool" in ''|[\|\;\&\)\"\']*) hit=1; break ;; esac   # a quoted value that is not a name ("|"): asks
     local_bin=""
     if [ -n "$cwd" ] && [[ $tool != *@* || $tool == @*/* && ${tool#@} != *@* ]]; then
       name="${tool##*/}"

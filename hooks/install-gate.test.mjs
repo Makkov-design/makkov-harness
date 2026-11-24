@@ -57,11 +57,43 @@ test("install words in quoted text ask in every tool", () => {
   for (const tool of ["Bash", "PowerShell", undefined]) {
     assert.equal(run(tool, three), "ask", String(tool));
     assert.equal(run(tool, msg), "ask", String(tool));
-    // An escaped separator is a separator in PowerShell: every such corpus row asks in every tool.
-    for (const { cmd } of CORPUS.filter((c) => (c.why ?? "").startsWith("an escaped separator"))) {
+    // An escaped separator is a word in bash and a separator in PowerShell; a quoted one can be an option's value.
+    // Every such corpus row asks in every tool.
+    for (const { cmd } of CORPUS.filter((c) => /^an escaped separator|^a quoted separator/.test(c.why ?? ""))) {
       assert.equal(run(tool, cmd), "ask", `${String(tool)}: ${cmd}`);
     }
   }
+});
+
+// A command that can be read two ways asks if either reading is an install. Generated from the corpus: an escaped |, ;,
+// & or ) put before and after each word of every row that asks. Each variant must ask if the 0.5.0 gate asks about it,
+// or if the gate asks about its bash reading (the escaped character is a word) or its PowerShell reading (the
+// separator is real). Every 30th variant by default; MAKKOV_GATE_VARIANTS=all runs all of them (about 10,500).
+test("an escaped separator put anywhere in a command that asks never lets it through", () => {
+  const ask = (file, command) => {
+    const r = spawnSync("bash", [file], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }), encoding: "utf8", env: { ...process.env, ...CLEAN }, timeout: 10000 });
+    assert.equal(r.signal, null, `killed after 10 s: ${JSON.stringify(command.slice(0, 80))}`);
+    return r.stdout.trim() !== "";
+  };
+  const variants = new Set();
+  for (const { cmd, gate: want } of CORPUS) {
+    if (want !== "ask") continue;
+    const at = [...cmd.matchAll(/ /g)].map((m) => m.index).concat(cmd.length);
+    for (const i of at) for (const e of ["\\|", "\\;", "\\&", "\\)"]) {
+      variants.add(cmd.slice(0, i) + " " + e + cmd.slice(i));
+      variants.add(cmd.slice(0, i) + e + cmd.slice(i));
+    }
+  }
+  const step = process.env.MAKKOV_GATE_VARIANTS === "all" ? 1 : 30;
+  const bashReading = (v) => v.replace(/\\[|&;)]/g, "_");
+  const psReading = (v) => v.replace(/\\\|/g, " |").replace(/\\;/g, " ;").replace(/\\\)/g, " )").replace(/\\&&/g, " &&");
+  const through = [];
+  [...variants].forEach((v, k) => {
+    if (k % step !== 0 || ask(HOOK, v)) return;
+    if (ask(OLD, v) || ask(HOOK, bashReading(v)) || ask(HOOK, psReading(v))) through.push(v);
+  });
+  assert.ok(variants.size > 10000, `${variants.size} variants`);
+  assert.deepEqual(through, []);
 });
 
 test("a word cut for length asks when its unread middle could hold a command", () => {
@@ -120,7 +152,9 @@ test("stays fast on large and adversarial input (asks, never times out)", () => 
     "echo " + rep('"a" ', 100000),
     'git commit -m "' + rep("word ", 100000) + '"',
   ];
-  for (const s of ["curl x ", "npm -x ", "env A=1 ", "$(curl ", "npm i -w a ", '"a" ', "'a' ", "| a=b ", "git clone x ", '-m "a" ', "sudo -E "]) {
+  // Escaped separators make the gate match the command three times over (as written, as bash and PowerShell read it).
+  for (const s of ["curl x ", "npm -x ", "env A=1 ", "$(curl ", "npm i -w a ", '"a" ', "'a' ", "| a=b ", "git clone x ", '-m "a" ', "sudo -E ",
+    "npm i x\\|curl y ", "curl a\\;wget b ", "npm i -w a\\& x ", "iex (irm a\\) "]) {
     cases.push(rep(s, 3900), rep(s, 7900));
   }
   for (const command of cases) {

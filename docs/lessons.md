@@ -2,6 +2,10 @@
 
 Short records of what a change taught, so the next change does not relearn it. Newest first.
 
+## 2026-11-24 · Install gate: two readings, not one rewrite
+
+- **When the shell is not known, match every reading; never replace one with another.** The hook runs for both the Bash and the PowerShell tool, and `\|` means a word in one and a pipe in the other. A first fix rewrote `\|` into a pipe, which closed the PowerShell case and opened its mirror: `npm install --prefix \| evil-pkg` is a folder and a package in bash, and the rewrite made the gate stop at the pipe. The fix that holds keeps the command as written and adds both readings next to it, so adding a reading can only add asks. A generated test (an escaped separator before and after every word of every row that asks) caught a case neither audit listed: a quoted package after such a value.
+
 ## 2026-11-24 · Install gate: the text rule removed
 
 - **A pass rule that keeps needing patches costs more than the false asks it saves.** The rule that let install words in quoted text through (commit messages, `echo`, `grep`) was patched after every audit round, and every round found new ways to hide a real command behind it: a quote inside another quote, a `#` comment, a heredoc body, a typed `;`, a `$'…'` string, a line ending in `\` or `|`, PowerShell quoting. The owner chose to remove it: the gate now asks whenever an install form appears anywhere, and a commit message that mentions `npm install` gets a question. Safety rules that only ask should not have pass rules that depend on parsing the shell's quoting.
