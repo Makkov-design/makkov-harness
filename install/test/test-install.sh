@@ -633,7 +633,7 @@ home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, four installs started at once"
 mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"; before="$(tree "$proj")"
 # (Each run's shell trace goes to its own file, shown only when the check fails.)
-for i in 1 2 3 4; do BASH_XTRACEFD=7 bash -x "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
+for i in 1 2 3 4; do PS4='+ $EPOCHREALTIME $BASHPID ' BASH_XTRACEFD=7 bash -x "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
 ok4=1; for i in 1 2 3 4; do grep -q 'makkov-harness installed for codex\|Another makkov-harness run' "$home/run$i" || ok4=0; done
 check "each run either installs or says another run is working (no stack trace)" "[ $ok4 = 1 ] && ! grep -q 'at \|Error:' '$home'/run*"
 [ "$ok4" = 1 ] || for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; done
@@ -641,7 +641,7 @@ runs bash "$uninst" codex "$proj"
 check "the uninstall puts your animate back and leaves nothing else" "[ $code = 0 ] && [ \"\$(tree '$proj')\" = \"\$before\" ]"
 if [ "$ok4" != 1 ] || [ "$code" != 0 ] || [ "$(tree "$proj")" != "$before" ]; then
   echo "    uninstall (exit $code) said: $out"; diff <(printf '%s\n' "$before") <(tree "$proj") | sed 's/^/    /' || true
-  for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; echo "    run $i, the lock in its trace:"; grep -n -E 'mkdir|lock|stale|takeover|kill|find ' "$home/trace$i" | head -30 | sed 's/^/      /'; done
+  for i in 1 2 3 4; do echo "    run $i said:"; sed 's/^/      /' "$home/run$i"; echo "    run $i, the lock in its trace:"; grep -E 'mkdir|lock|stale|takeover|kill|find |rm |mv |\.new|exit' "$home/trace$i" | grep -v -e cksum -e 'skills/[a-z-]*/$' | head -60 | sed 's/^/      /'; done
 fi
 rm -rf "$home" "$proj"
 
