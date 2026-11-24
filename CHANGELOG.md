@@ -4,6 +4,10 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- Frame Lens pin: v2.1.0 (`94d426f`) → v2.2.0 (`0c34347`), the release of 2026-11-23 that went through its own independent security audit. SECURITY.md and the security page show the new version and commit.
+
 ## [0.6.0] - 2026-11-24
 
 A Node installer and npm package, fixes from an independent security review, and installers that update and uninstall cleanly. The npm package is prepared but not yet published: until it is, install from a clone of this repository.
