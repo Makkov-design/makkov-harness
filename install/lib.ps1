@@ -12,10 +12,13 @@ $MhPStart = '<!-- makkov-harness:personal:start -->'
 $MhPEnd = '<!-- makkov-harness:personal:end -->'
 $MhUtf8 = New-Object System.Text.UTF8Encoding $false
 $MhRaw = [Text.Encoding]::GetEncoding(28591)
-# Path separators: on Windows both \ and /; on macOS and Linux only /, where \ is an ordinary character in a name (a
-# folder may be called a\b), so a \ there is never read as a separator.
+# Two jobs, two rules for \. RESOLVING a real path on disk (Get-MhReal, Test-MhRealUnder) splits on the system's own
+# separators: on Windows \ and /, on macOS and Linux / only, where \ is an ordinary character in a name (a folder may
+# be called a\b). VALIDATING untrusted text (manifest lines, anything under .makkov-harness) stays strict on every
+# OS: Test-MhDotDot, Test-MhUnder, Test-MhSamePath, Test-MhEndsWith, Get-MhRebased, Get-MhRel and Test-MhInside read \
+# as a separator everywhere, and on macOS and Linux a manifest path with a \ in it is refused outright, since
+# PowerShell's file cmdlets may still read it as one.
 $MhWin = [IO.Path]::DirectorySeparatorChar -eq '\'
-$MhSeps = if ($MhWin) { @('\', '/') } else { @('/') }
 $MhSplit = if ($MhWin) { '[\\/]' } else { '/' }
 function ConvertTo-MhSlash([string]$P) { if ($MhWin) { $P -replace '\\', '/' } else { $P } }
 
@@ -220,7 +223,7 @@ function Get-MhRaw([string[]]$Lines, [string]$Key) {
 }
 
 function Test-MhEndsWith([string]$Path, [string]$Tail) {
-  $p = ConvertTo-MhSlash $Path
+  $p = $Path -replace '\\', '/'
   $p.EndsWith($Tail, [StringComparison]::OrdinalIgnoreCase)
 }
 
@@ -241,7 +244,7 @@ function Get-MhOldBase([string[]]$Lines) {
 function Get-MhRebased([string]$Path, [string]$OldBase, [string]$Base) {
   if (-not $Path -or -not $OldBase -or $OldBase -eq $Base) { return $Path }
   if ($Path -eq $OldBase) { return $Base }
-  foreach ($sep in $MhSeps) {
+  foreach ($sep in '\', '/') {
     if ($Path.StartsWith($OldBase + $sep, [StringComparison]::OrdinalIgnoreCase)) { return $Base + $sep + $Path.Substring($OldBase.Length + 1) }
   }
   $Path
@@ -251,10 +254,10 @@ function Get-MhRebased([string]$Path, [string]$OldBase, [string]$Base) {
 function Get-MhPath([string[]]$Lines, [string]$Key, [string]$Base) { Get-MhRebased (Get-MhRaw $Lines $Key) (Get-MhOldBase $Lines) $Base }
 
 # Two paths name the same file (Windows paths are not case-sensitive).
-function Test-MhSamePath([string]$A, [string]$B) { [string]::Equals((ConvertTo-MhSlash $A), (ConvertTo-MhSlash $B), [StringComparison]::OrdinalIgnoreCase) }
+function Test-MhSamePath([string]$A, [string]$B) { [string]::Equals(($A -replace '\\', '/'), ($B -replace '\\', '/'), [StringComparison]::OrdinalIgnoreCase) }
 # A path starts with a folder (as written, any separator, not case-sensitive).
 function Test-MhUnder([string]$Path, [string]$Dir) {
-  $p = ConvertTo-MhSlash $Path; $d = (ConvertTo-MhSlash $Dir).TrimEnd('/') + '/'
+  $p = $Path -replace '\\', '/'; $d = ($Dir -replace '\\', '/').TrimEnd('/') + '/'
   $p.StartsWith($d, [StringComparison]::OrdinalIgnoreCase) -and $p.Length -gt $d.Length
 }
 
@@ -275,7 +278,7 @@ function Get-MhPaths([string]$Agent, [string]$Project, [string]$HomeDir) {
 }
 
 # A path with . or .. among its parts (never written by the installer).
-function Test-MhDotDot([string]$Path) { @((ConvertTo-MhSlash $Path) -split '/' | Where-Object { $_ -eq '.' -or $_ -eq '..' }).Count -gt 0 }
+function Test-MhDotDot([string]$Path) { @(($Path -replace '\\', '/') -split '/' | Where-Object { $_ -eq '.' -or $_ -eq '..' }).Count -gt 0 }
 # A file system entry that is a symlink or a junction.
 # (GetAttributes reads the link itself, not what it points to.)
 function Test-MhLink([string]$Path) {
@@ -290,8 +293,8 @@ function Test-MhDangling([string]$Path) {
 # A path lies inside the base: below it as written, with no .. and no symlink on the way (itself included).
 function Test-MhInside([string]$Path, [string]$Base) {
   if (-not (Test-MhUnder $Path $Base) -or (Test-MhDotDot $Path)) { return $false }
-  $d = $Base.TrimEnd([char[]]$MhSeps)
-  foreach ($part in ((ConvertTo-MhSlash $Path).Substring((ConvertTo-MhSlash $Base).TrimEnd('/').Length + 1) -split '/')) {
+  $d = $Base.TrimEnd('\', '/')
+  foreach ($part in (($Path -replace '\\', '/').Substring(($Base -replace '\\', '/').TrimEnd('/').Length + 1) -split '/')) {
     if (-not $part) { continue }
     $d = Join-Path $d $part
     if (Test-MhLink $d) { return $false }
@@ -328,7 +331,8 @@ function Get-MhReal([string]$Path) {
     if ($part -eq '..') { $up = [IO.Path]::GetDirectoryName($cur); if ($up) { $cur = $up }; continue }
     $next = [IO.Path]::Combine($cur, $part)
     if (Test-MhLink $next) {
-      $t = @((Get-Item -LiteralPath $next -Force).Target)[0]
+      # (Off Windows the target is read with .NET, not Get-Item: a cmdlet may read a \ in the name as a separator.)
+      $t = if ($MhWin) { @((Get-Item -LiteralPath $next -Force).Target)[0] } else { (New-Object IO.FileInfo $next).LinkTarget }
       if ($t) {
         if (++$links -gt 40) { return '' }
         if (-not [IO.Path]::IsPathRooted($t) -and $MhWin) { $t = [IO.Path]::GetFullPath([IO.Path]::Combine($cur, $t)) }
@@ -342,6 +346,13 @@ function Get-MhReal([string]$Path) {
   }
   $cur
 }
+# A real path (from Get-MhReal) is the base or below it, compared with the system's own separators: on macOS and Linux
+# a \ is part of a name, so /p\x is not below /p.
+function Test-MhRealUnder([string]$Path, [string]$Base) {
+  $p = ConvertTo-MhSlash $Path; $b = (ConvertTo-MhSlash $Base).TrimEnd('/')
+  $cmp = if ($MhWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+  [string]::Equals($p, $b, $cmp) -or $p.StartsWith($b + '/', $cmp)
+}
 # In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
 # have come with the repository: one that leads outside the project, or an instructions file with more than one hard
 # link (its other name can be anywhere), stops the run unless the person passed -FollowLinks. A user-level install
@@ -352,12 +363,12 @@ function Test-MhCheckLinks([string]$Project, [bool]$Follow, [string]$Skills, [st
   foreach ($p in @($Skills, $Rules)) {
     if (-not $p) { continue }
     $r = Get-MhReal $p
-    if (-not $r -or -not ((Test-MhSamePath $r $rb) -or (Test-MhUnder $r $rb))) {
+    if (-not $r -or -not (Test-MhRealUnder $r $rb)) {
       return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
     }
   }
   $r = Get-MhReal $Rules
-  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force).LinkType -eq 'HardLink') {
+  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force -ErrorAction SilentlyContinue).LinkType -eq 'HardLink') {
     return "$Rules has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with -FollowLinks"
   }
   ''
@@ -374,6 +385,8 @@ $MhEmptyIds = @('e3b0c44298fc1c14', '4294967295')
 # Returns why not, or '' when it is fine.
 function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [string]$HomeDir) {
   $lines = Read-MhManifest $Path
+  # On macOS and Linux no path the installer writes holds a \ (a manifest install.ps1 wrote on Windows is refused here).
+  if (-not $MhWin -and @($lines | Where-Object { $_ -cmatch '^(base|skills_dir|rules|rules_backup|backup|created_dir)=.*\\' }).Count) { return 'a path with a backslash' }
   $st = Join-Path $Base '.makkov-harness'
   $a = Get-MhRaw $lines 'agent'
   if (@('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider') -notcontains $a) { return 'it names no agent' }
@@ -434,7 +447,7 @@ function Test-MhWritableFile([string]$File) {
   if (Test-MhDangling $File) { return "$File is a symlink to $(Resolve-MhLink $File), which does not exist" }
   if ([IO.Directory]::Exists($File)) { return "$File is not a regular file" }
   if ([IO.File]::Exists($File)) {
-    if ((Get-Item -LiteralPath (Resolve-MhLink $File) -Force).IsReadOnly) { return "$File is read-only" }
+    if ((New-Object IO.FileInfo (Resolve-MhLink $File)).IsReadOnly) { return "$File is read-only" }
     return ''
   }
   Test-MhWritableDir (Split-Path -Parent $File)
@@ -589,8 +602,8 @@ function Get-MhPersonalLayer([string]$File) {
 
 # A path relative to the base, for created_dir= lines (always with / separators).
 function Get-MhRel([string]$Path, [string]$Base) {
-  foreach ($sep in $MhSeps) {
-    if ($Path.StartsWith($Base + $sep, [StringComparison]::OrdinalIgnoreCase)) { return (ConvertTo-MhSlash $Path.Substring($Base.Length + 1)) }
+  foreach ($sep in '\', '/') {
+    if ($Path.StartsWith($Base + $sep, [StringComparison]::OrdinalIgnoreCase)) { return ($Path.Substring($Base.Length + 1) -replace '\\', '/') }
   }
   $Path
 }
