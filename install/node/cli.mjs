@@ -13,7 +13,7 @@ import { uninstall } from './uninstall.mjs';
 import { doctor, doctorText } from './doctor.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const USAGE = `Usage: makkov-harness install|update|uninstall --agent ${L.AGENTS.join('|')} [--project <path>] [--scope all|design] [--dry-run]
+const USAGE = `Usage: makkov-harness install|update|uninstall --agent ${L.AGENTS.join('|')} [--project <path>] [--scope all|design] [--dry-run] [--follow-links]
        makkov-harness doctor [--project <path>] [--agent <agent>] [--json]
   install     copy the skills and add the routing map to the agent's instructions file (run again to update)
   update      the same, for an agent already installed here
@@ -22,7 +22,9 @@ const USAGE = `Usage: makkov-harness install|update|uninstall --agent ${L.AGENTS
               1 something needs attention, 3 something could not be read; --json for a machine-readable report)
   --project   a project folder; leave it out for a user-level install (cursor, copilot, windsurf, aider need one)
   --scope design   route design work only (the skills are still copied); an update keeps the earlier scope
-  --dry-run   print every change it would make and write nothing`;
+  --dry-run   print every change it would make and write nothing
+  --follow-links   in a project, follow a link of yours in the skills folder's or instructions file's path that
+              leads outside the project (without it the run stops: a link may have come with the repository)`;
 
 export function main(argv) {
   const out = [];
@@ -37,6 +39,7 @@ export function main(argv) {
       return argv[++i];
     };
     if (a === '--dry-run') opt.dry = true;
+    else if (a === '--follow-links') opt.follow = true;
     else if (a === '--json') opt.json = true;
     else if (a === '-h' || a === '--help' || a === 'help') opt.help = true;
     else if (a === '-v' || a === '--version') opt.version = true;
@@ -89,8 +92,8 @@ export function main(argv) {
       return r.errors ? 3 : r.attention ? 1 : 0;
     }
     const code = cmd === 'uninstall'
-      ? uninstall({ repo, agent: opt.agent, project, dry: !!opt.dry, out })
-      : install({ repo, agent: opt.agent, project, scope: opt.scope, dry: !!opt.dry, update: cmd === 'update', out });
+      ? uninstall({ repo, agent: opt.agent, project, dry: !!opt.dry, follow: !!opt.follow, out })
+      : install({ repo, agent: opt.agent, project, scope: opt.scope, dry: !!opt.dry, update: cmd === 'update', follow: !!opt.follow, out });
     flush();
     return code;
   } catch (e) {

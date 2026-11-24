@@ -1,10 +1,17 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { findByPrompt, readManifest } from "../../../scripts/lib/manifest.mjs";
-import { agentWritePath, recordInManifest, voicePaths, writtenAssets } from "./media-record.mjs";
+import {
+  agentWritePath,
+  assertInside,
+  recordInManifest,
+  voicePaths,
+  writtenAssets,
+} from "./media-record.mjs";
 
 const noBgm = { bgm: null, bgmFields: { bgm_pending: false } };
 
@@ -221,4 +228,28 @@ test("a record never takes the id of a download still in flight", (t) => {
     readManifest(dir).map(({ id }) => id),
     ["bgm_002"],
   );
+});
+
+test("a line id from the request cannot put a voice file outside the voice folder", (t) => {
+  const dir = project(t);
+  const ids = ["../../../evil", "/etc/cron.d/x", "..\\..\\win", ".hidden", "", "..", "a/b", "a_b", "x".repeat(300)];
+  const lines = ids.map((id) => ({ id, text: "Hello" }));
+  const paths = voicePaths(dir, lines, []);
+
+  assert.equal(paths.size, ids.length);
+  const names = [...paths.values()].map((rel) => {
+    assert.match(rel, /^assets\/voice\/[A-Za-z0-9_-][A-Za-z0-9._-]*\.wav$/);
+    assert.ok(rel.length <= "assets/voice/".length + 64 + 2 + ".wav".length, rel);
+    return rel;
+  });
+  assert.equal(new Set(names).size, names.length, "two ids never share a file");
+  assert.equal(paths.get(""), "assets/voice/line-5.wav");
+  assert.equal(paths.get("a/b"), "assets/voice/a_b.wav");
+  assert.equal(paths.get("a_b"), "assets/voice/a_b-2.wav");
+});
+
+test("assertInside refuses a path that leaves its folder", () => {
+  assert.throws(() => assertInside("/p/assets/voice", "../x.wav"), /outside/);
+  assert.throws(() => assertInside("/p/assets/voice", "/p/assets/voice-2/x.wav"), /outside/);
+  assert.ok(assertInside("/p/assets/voice", "/p/assets/voice/x.wav").endsWith("x.wav"));
 });

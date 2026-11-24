@@ -11,6 +11,70 @@ MH_END='<!-- makkov-harness:end -->'
 
 # A fingerprint of a folder: the checksum of every file's checksum, size and path.
 mh_fingerprint() { (cd "$1" && find . -type f -exec cksum {} + | LC_ALL=C sort) | cksum | cut -d' ' -f1; }
+# The fingerprint of a folder with no regular file in it (the checksum of nothing): any such folder has it, so it
+# never shows that a folder is the harness's.
+MH_EMPTY_FP="$(printf '' | cksum | cut -d' ' -f1)"
+
+# Untrusted input: everything under a project's .makkov-harness/ (manifests, backups, the copy in backups/original/,
+# the lock) and its skills folder may have come with the repository, not from an install on this computer. So the
+# installers act on a path there only when it lies inside the base with no link on the way (mh_check_inside), make
+# their copies with an exclusive create (never through a link), take a skill= entry only for a plain skill name
+# whose folder holds a SKILL.md (mh_skill_folder), and read every manifest as untrusted (mh_valid_manifest).
+# Prints why not and returns 1 when a path is reached through a link. Usage: mh_check_inside <base> <path>...
+mh_check_inside() {
+  local b="$1" p; shift
+  for p in "$@"; do
+    [ -n "$p" ] || continue
+    mh_inside "$p" "$b" || { echo "$p is a link or is reached through one (the harness and skills folders may have come with a repository, so the installer follows no links there). Replace the link with a folder of its own, then run this again"; return 1; }
+  done
+}
+# Where a path really is: its deepest existing part with every link followed, then the rest as written. Returns 1
+# for a loop of links.
+mh_real() {
+  local p="$1" rest="" t n=0
+  while :; do
+    if [ -L "$p" ]; then
+      n=$((n + 1)); [ "$n" -gt 40 ] && return 1
+      t="$(readlink "$p")"; case "$t" in /*) p="$t" ;; *) p="$(dirname "$p")/$t" ;; esac
+      continue
+    fi
+    if [ -d "$p" ]; then printf '%s%s' "$(cd -P "$p" && pwd -P)" "$rest"; return 0; fi
+    if [ -e "$p" ]; then printf '%s/%s%s' "$(cd -P "$(dirname "$p")" && pwd -P)" "$(basename "$p")" "$rest"; return 0; fi
+    rest="/$(basename "$p")$rest"; p="$(dirname "$p")"
+  done
+}
+# A path whose real place (links followed, mh_real) is not inside the base's real place.
+mh_outside() {
+  local rb r
+  rb="$(cd -P "$2" && pwd -P)"; r="$(mh_real "$1")" || return 0
+  case "$r" in "$rb"|"$rb"/*) return 1 ;; esac
+  return 0
+}
+# In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
+# have come with the repository: one that leads outside the project, or an instructions file with more than one hard
+# link (its other name can be anywhere), stops the run unless the person passed --follow-links. A user-level install
+# keeps following the person's own links (dotfiles). Prints why and returns 1.
+# Usage: mh_check_links <project> <follow 0|1> <skills folder> <instructions file>
+mh_check_links() {
+  local b="$1" s="$3" r="$4" real p
+  [ -n "$b" ] && [ "$2" != 1 ] || return 0
+  for p in "$s" "$r"; do
+    [ -n "$p" ] || continue
+    if mh_outside "$p" "$b"; then
+      real="$(mh_real "$p")" || real="a loop of links"
+      echo "$p leads outside the project through a link (to $real). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with --follow-links"
+      return 1
+    fi
+  done
+  real="$(mh_real "$r")" || real="$r"
+  if [ -f "$real" ] && [ -n "$(find "$real" -prune -links +1 2>/dev/null)" ]; then
+    echo "$r has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with --follow-links"
+    return 1
+  fi
+  return 0
+}
+# A folder named by a skill= entry is one the installer may remove or move: a plain skill name and a SKILL.md in it.
+mh_skill_folder() { case "$1" in .*|*/*|'') return 1 ;; esac; [ -f "$2/SKILL.md" ]; }
 
 # The first value of key=... in a manifest, as written.
 # A manifest as the bash installer reads it: without a byte order mark or carriage returns, and with Windows
@@ -77,6 +141,7 @@ mh_lock() {
   for i in 1 2 3 4 5 6; do
     # The harness folder, made again if another run just took it away; another run may make it at the same
     # moment, which is not "cannot write here".
+    if [ -L "$st" ]; then echo "$st is a link, not the harness's folder. Delete it, then run this again." >&2; echo "Nothing was changed." >&2; return 1; fi
     if [ ! -d "$st" ]; then if mkdir "$st" 2>/dev/null; then made=1; elif [ ! -d "$st" ]; then return 0; fi; fi
     if [ -L "$l" ]; then echo "$l is a link, not the harness's lock folder. Delete it, then run this again." >&2; echo "Nothing was changed." >&2; return 1; fi
     mkdir "$l" 2>/dev/null || true
@@ -136,7 +201,7 @@ mh_unlock() {
 # and manifests being written is the leftover of a first install stopped before its first change.
 mh_clear_lock_only() {   # $1: state folder, $2: folder for messages
   local n
-  [ -d "$1/lock" ] && [ ! -L "$1/lock" ] || return 0
+  [ ! -L "$1" ] && [ -d "$1/lock" ] && [ ! -L "$1/lock" ] || return 0
   for n in "$1"/* "$1"/.[!.]* "$1"/..?*; do [ -e "$n" ] || [ -L "$n" ] || continue; case "${n##*/}" in lock|lock.takeover|install-*.txt.new) ;; *) return 0 ;; esac; done
   local e; e="$(mktemp)"
   if mh_lock "$1" "$2" 2>"$e"; then
@@ -320,8 +385,7 @@ mh_valid_manifest() {
   done < <(mh_cat "$m" | sed -n 's/^backup=//p')
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    printf '%s\n' "$line" | grep -Eq '^[A-Za-z0-9._-]+( [0-9a-f]+)?$' || { echo "a skill entry that is not a plain folder name"; return 1; }
-    case "${line%% *}" in .|..) echo "a skill entry that is not a plain folder name"; return 1 ;; esac
+    printf '%s\n' "$line" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*( [0-9a-f]+)?$' || { echo "a skill entry that is not a plain folder name"; return 1; }
   done < <(mh_cat "$m" | sed -n 's/^skill=//p')
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue

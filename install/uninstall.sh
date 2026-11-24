@@ -15,17 +15,19 @@
 #   they are read relative to the folder you pass now. A manifest that names paths the installer would not
 #   use is refused, and nothing is changed.
 #
-# Usage: uninstall.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]
+# Usage: uninstall.sh codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--follow-links]
+#   --follow-links   in a project, follow a link of yours that leads outside it (see install.sh)
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 . "$here/lib.sh"
 
-dry=0
+dry=0 follow=0
 args=()
 for a in "$@"; do
   case "$a" in
     --dry-run) dry=1 ;;
+    --follow-links) follow=1 ;;
     *) args+=("$a") ;;
   esac
 done
@@ -34,7 +36,7 @@ project="${args[1]:-}"
 repo="$(cd "$here/.." && pwd)"
 case "$agent" in
   codex|cursor|gemini|copilot|windsurf|cline|opencode|aider) ;;
-  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run]" >&2; exit 2 ;;
+  *) echo "Usage: $0 codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [project-path] [--dry-run] [--follow-links]" >&2; exit 2 ;;
 esac
 if [ -n "$project" ]; then project="$(cd "$project" && pwd)"; fi
 if [ -n "$project" ] && { [ "$project" = "$(cd "$HOME" && pwd)" ] || [ "$(cd "$project" && pwd -P)" = "$(cd "$HOME" && pwd -P)" ]; }; then
@@ -44,6 +46,13 @@ base="${project:-$HOME}"
 mh_drive_form "$base"
 state="$base/.makkov-harness"
 manifest="$state/install-$agent.txt"
+stamp="$(date +%Y%m%d-%H%M%S)"
+mh_paths "$agent" "$project"
+skills_dir="$MH_SKILLS" rules="$MH_RULES"
+# Everything under .makkov-harness/ may have come with the repository (install/lib.sh): no link on the way to
+# anything this run changes there.
+why="$(mh_check_inside "$base" "$state" "$manifest" "$manifest.new" "$state/backups/$stamp-$agent/removed")" ||
+  { echo "$why." >&2; echo "Nothing was changed." >&2; exit 1; }
 if [ ! -f "$manifest" ]; then
   [ "$dry" = 1 ] || mh_clear_lock_only "$state" "$base"
   echo "No makkov-harness install for $agent found in $base (no $manifest)." >&2
@@ -63,12 +72,9 @@ for m in "$state"/install-*.txt; do
   [ -f "$m" ] || continue
   why="$(mh_valid_manifest "$m" "$base" "$project")" || stop "$m does not look like a manifest this installer wrote: $why. Move it out of $state and run this again."
 done
-mh_paths "$agent" "$project"
-skills_dir="$MH_SKILLS" rules="$MH_RULES"
 ob="$(mh_old_base "$manifest")"
 rules_existed="$(mh_raw "$manifest" rules_existed)"; rules_backup="$(mh_get "$manifest" rules_backup "$base")"
 [ -n "$ob" ] && [ "$ob" != "$base" ] && echo "Installed in $ob, which is now $base: reading the install from here."
-stamp="$(date +%Y%m%d-%H%M%S)"
 say() { echo "  $*"; }
 do_() { if [ "$dry" = 1 ]; then return 0; fi; "$@"; }
 
@@ -93,6 +99,8 @@ if [ "$edit_rules" = 1 ]; then
 fi
 if [ -n "$skills_dir" ] && [ -d "$skills_dir" ]; then why="$(mh_writable_dir "$skills_dir")" || stop "$why."; fi
 why="$(mh_writable_dir "$state")" || stop "$why."
+# In a project, no link that leads outside it (unless --follow-links).
+why="$(mh_check_links "$project" "$follow" "$skills_dir" "$rules")" || stop "$why."
 [ "$dry" = 1 ] && echo "Dry run: nothing will be changed."
 
 # 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest
@@ -103,6 +111,8 @@ if [ -n "$skills_dir" ]; then
     [ -n "$name" ] || continue
     dst="$skills_dir/$name"
     [ -e "$dst" ] || continue
+    # Only a skill folder (a SKILL.md in it) is taken for one the harness put there.
+    if ! mh_skill_folder "$name" "$dst"; then say "leave $dst (no SKILL.md in it, so not a skill folder the harness put there)"; continue; fi
     # The other installs that list this skill, one path per line (paths may hold spaces or [ ]).
     shared=""
     while IFS= read -r m; do
@@ -122,9 +132,10 @@ if [ -n "$skills_dir" ]; then
       continue
     fi
     fp_now="$(mh_fingerprint "$dst")" ours=0
-    { mh_cat "$manifest" | grep -qxF "skill=$name $fp_now" ||
+    # (A folder with no regular file in it has the fingerprint of any empty folder: never taken for ours.)
+    [ "$fp_now" != "$MH_EMPTY_FP" ] && { mh_cat "$manifest" | grep -qxF "skill=$name $fp_now" ||
       { [ -d "$repo/skills/$name" ] && [ "$(mh_fingerprint "$repo/skills/$name")" = "$fp_now" ]; }; } && ours=1
-    if [ "$ours" = 0 ]; then
+    if [ "$ours" = 0 ] && [ "$fp_now" != "$MH_EMPTY_FP" ]; then
       while IFS= read -r m; do [ -n "$m" ] && same_skills "$m" && mh_cat "$m" | grep -qxF "skill=$name $fp_now" && ours=1; done < <(others)
     fi
     if [ "$ours" = 1 ]; then
@@ -188,7 +199,7 @@ elif [ "$edit_rules" = 1 ]; then
   say "take the routing block and the personal layer out of $rules"
   if [ "$dry" = 0 ]; then
     if [ -n "$(mh_personal_layer "$rules")" ]; then
-      mkdir -p "$kept"; mh_personal_layer "$rules" > "$kept/personal-layer.md"
+      mkdir -p "$kept"; (set -C; mh_personal_layer "$rules" > "$kept/personal-layer.md")
       say "your personal layer is kept in $kept/personal-layer.md"
     fi
     new="$(mktemp)"; mh_remove_blocks "$rules" > "$new"

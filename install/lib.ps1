@@ -150,6 +150,7 @@ function Enter-MhLock([string]$State, [string]$Base, [switch]$Quiet) {
   $l = Join-Path $State 'lock'
   $made = $false
   for ($i = 0; $i -lt 6; $i++) {
+    if (Test-MhLink $State) { if ($Quiet) { return 'held' }; [Console]::Error.WriteLine("$State is a link, not the harness's folder. Delete it, then run this again."); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
     # The harness folder, made again if another run just took it away.
     if (-not [IO.Directory]::Exists($State)) {
       try { [void][IO.Directory]::CreateDirectory($State); $made = $true } catch { if (-not [IO.Directory]::Exists($State)) { return $null } }
@@ -197,7 +198,7 @@ function Exit-MhLock($Held) {
 # and manifests being written is the leftover of a first install stopped before its first change.
 function Clear-MhLockOnly([string]$State, [string]$Base) {
   $l = Join-Path $State 'lock'
-  if (-not [IO.Directory]::Exists($l) -or (Test-MhLink $l)) { return }
+  if ((Test-MhLink $State) -or -not [IO.Directory]::Exists($l) -or (Test-MhLink $l)) { return }
   if (@(Get-ChildItem -LiteralPath $State -Force | Where-Object { $_.Name -ne 'lock' -and $_.Name -ne 'lock.takeover' -and $_.Name -notlike 'install-*.txt.new' }).Count) { return }
   $h = Enter-MhLock $State $Base -Quiet
   if ($h -and $h -isnot [string]) {
@@ -292,6 +293,67 @@ function Test-MhInside([string]$Path, [string]$Base) {
   $true
 }
 
+# Untrusted input: everything under a project's .makkov-harness\ (manifests, backups, the copy in backups\original\,
+# the lock) and its skills folder may have come with the repository, not from an install on this computer. So the
+# installers act on a path there only when it lies inside the base with no link on the way (Test-MhCheckInside), make
+# their copies with an exclusive create (never through a link), take a skill= entry only for a plain skill name whose
+# folder holds a SKILL.md (Test-MhSkillFolder), and read every manifest as untrusted (Test-MhValidManifest).
+# Returns why a path is reached through a link, or ''.
+function Test-MhCheckInside([string]$Base, [string[]]$Paths) {
+  foreach ($p in $Paths) {
+    if ($p -and -not (Test-MhInside $p $Base)) { return "$p is a link or is reached through one (the harness and skills folders may have come with a repository, so the installer follows no links there). Replace the link with a folder of its own, then run this again" }
+  }
+  ''
+}
+# Where a path really is: every symlink or junction on its way followed ('' for a loop of links).
+function Get-MhReal([string]$Path) {
+  # (.NET path calls only: Split-Path and Join-Path refuse an empty part, which a path's root gives on macOS and Linux.)
+  $p = [IO.Path]::GetFullPath($Path)
+  for ($n = 0; $n -lt 64; $n++) {
+    $root = [IO.Path]::GetPathRoot($p)
+    $rest = @($p.Substring($root.Length) -split '[\\/]' | Where-Object { $_ })
+    $d = $root; $hit = $false
+    for ($i = 0; $i -lt $rest.Count; $i++) {
+      $d = [IO.Path]::Combine($d, $rest[$i])
+      if (Test-MhLink $d) {
+        $t = @((Get-Item -LiteralPath $d -Force).Target)[0]
+        if (-not $t) { break }
+        if (-not [IO.Path]::IsPathRooted($t)) { $t = [IO.Path]::Combine([IO.Path]::GetDirectoryName($d), $t) }
+        $tail = @($rest | Select-Object -Skip ($i + 1))
+        $p = [IO.Path]::GetFullPath([IO.Path]::Combine([string[]](@($t) + $tail)))
+        $hit = $true; break
+      }
+    }
+    if (-not $hit) { return $p }
+  }
+  ''
+}
+# In a project, a link in the skills folder's path or the instructions file's path (the file itself included) may
+# have come with the repository: one that leads outside the project, or an instructions file with more than one hard
+# link (its other name can be anywhere), stops the run unless the person passed -FollowLinks. A user-level install
+# keeps following the person's own links (dotfiles). Returns why, or ''.
+function Test-MhCheckLinks([string]$Project, [bool]$Follow, [string]$Skills, [string]$Rules) {
+  if (-not $Project -or $Follow) { return '' }
+  $rb = Get-MhReal $Project
+  foreach ($p in @($Skills, $Rules)) {
+    if (-not $p) { continue }
+    $r = Get-MhReal $p
+    if (-not $r -or -not ((Test-MhSamePath $r $rb) -or (Test-MhUnder $r $rb))) {
+      return "$p leads outside the project through a link (to $(if ($r) { $r } else { 'a loop of links' })). A link in a project may have come with the repository, so the installer does not follow it. If you made the link yourself, run this again with -FollowLinks"
+    }
+  }
+  $r = Get-MhReal $Rules
+  if ($r -and [IO.File]::Exists($r) -and (Get-Item -LiteralPath $r -Force).LinkType -eq 'HardLink') {
+    return "$Rules has more than one hard link, so the same file may also be somewhere outside the project. If you made the link yourself, run this again with -FollowLinks"
+  }
+  ''
+}
+# A folder named by a skill= entry is one the installer may remove or move: a plain skill name and a SKILL.md in it.
+function Test-MhSkillFolder([string]$Name, [string]$Dir) { ($Name -cmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') -and [IO.File]::Exists((Join-Path $Dir 'SKILL.md')) }
+# The fingerprints of a folder with no regular file in it (install.ps1's, install.sh's): any such folder has them, so
+# they never show that a folder is the harness's.
+$MhEmptyIds = @('e3b0c44298fc1c14', '4294967295')
+
 # A manifest is input the installer does not trust: someone may have edited it, or it came with a cloned
 # repository. It is used only when it names exactly the paths the installer itself would use for that agent
 # in this folder, its backups lie in .makkov-harness\backups\ and its skill names are plain folder names.
@@ -323,7 +385,7 @@ function Test-MhValidManifest([string]$Path, [string]$Base, [string]$Project, [s
   }
   foreach ($l in ($lines | Where-Object { $_.StartsWith('skill=') })) {
     $e = $l.Substring(6)
-    if ($e -cnotmatch '^[A-Za-z0-9._-]+( [0-9a-f]+)?$' -or @('.', '..') -contains ($e -split ' ')[0]) { return 'a skill entry that is not a plain folder name' }
+    if ($e -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*( [0-9a-f]+)?$') { return 'a skill entry that is not a plain folder name' }
   }
   foreach ($l in ($lines | Where-Object { $_.StartsWith('created_dir=') })) {
     $rel = $l.Substring(12)
@@ -403,6 +465,21 @@ function Write-MhBytes([string]$File, [byte[]]$Bytes) {
   catch { Write-MhInPlace $File $Bytes; Remove-Item -LiteralPath $t -Force -ErrorAction SilentlyContinue }   # a file system without File.Replace
 }
 function Copy-MhBytes([string]$From, [string]$To) { Write-MhBytes $To (Read-MhBytes $From) }
+# A new copy of a file: written to <to>.mh-tmp with an exclusive create (never through a link) and renamed into place.
+function New-MhCopy([string]$From, [string]$To) {
+  $t = "$To.mh-tmp"; if ((Test-MhLink $t) -or [IO.File]::Exists($t)) { [IO.File]::Delete($t) }
+  $b = Read-MhBytes $From
+  $out = [IO.File]::Open($t, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+  try { $out.Write($b, 0, $b.Length) } finally { $out.Dispose() }
+  [IO.File]::Move($t, $To)
+}
+# Two files hold the same bytes.
+function Test-MhSameBytes([string]$A, [string]$B) {
+  $x = Read-MhBytes $A; $y = Read-MhBytes $B
+  if ($x.Length -ne $y.Length) { return $false }
+  for ($i = 0; $i -lt $x.Length; $i++) { if ($x[$i] -ne $y[$i]) { return $false } }
+  $true
+}
 # A file as text, one character per byte; and text written back the same way.
 function Read-MhText([string]$File) { $MhRaw.GetString((Read-MhBytes $File)) }
 function Write-MhText([string]$File, [string]$Text) { Write-MhBytes $File $MhRaw.GetBytes($Text) }

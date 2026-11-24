@@ -7,13 +7,19 @@ import os from 'node:os';
 import * as L from './lib.mjs';
 import { versionPrints } from './fingerprints.mjs';
 
-export function uninstall({ repo, agent, project, dry, out }) {
+export function uninstall({ repo, agent, project, dry, follow, out }) {
   const say = (s) => out.push(s);
   const home = L.home();
   if (project && (L.samePath(project, home) || L.sameFolder(project, home))) throw new L.Stop('The project path is your home folder. For a user-level install, leave the project path out.', 2);
   const base = project || home;
   const state = L.join(base, '.makkov-harness');
   const manifest = L.join(state, `install-${agent}.txt`);
+  const stamp = L.stampNow();
+  const { skills: skillsDir, rules } = L.agentPaths(agent, project, home);
+  // Everything under .makkov-harness/ may have come with the repository (lib.mjs): no link on the way to anything
+  // this run changes there.
+  const removedDir = L.join(state, 'backups', `${stamp}-${agent}`, 'removed');
+  { const why = L.checkInside(base, [state, manifest, manifest + '.new', removedDir]); if (why) throw new L.Stop(`${why}.\nNothing was changed.`); }
   if (!L.isFile(manifest)) {
     if (!dry) L.clearLockOnly(state, base);
     throw new L.Stop(`No makkov-harness install for ${agent} found in ${base} (no ${manifest}).\nIf you installed before 0.3.3, remove the skill folders and the marked block by hand; see INSTALL.md.`);
@@ -34,12 +40,10 @@ export function uninstall({ repo, agent, project, dry, out }) {
     const why = L.validManifest(m, base, project, home);
     if (why) stop(`${m} does not look like a manifest this installer wrote: ${why}. Move it out of ${state} and run this again.`);
   }
-  const { skills: skillsDir, rules } = L.agentPaths(agent, project, home);
   let lines = L.readManifest(manifest, base);
   const ob = L.oldBase(lines);
   const rulesExisted = L.raw(lines, 'rules_existed'), rulesBackup = L.getPath(lines, 'rules_backup', base);
   if (ob && !L.samePath(ob, base)) say(`Installed in ${ob}, which is now ${base}: reading the install from here.`);
-  const stamp = L.stampNow();
   const s = (x) => say('  ' + x);
   const append = (file, line) => { if (!dry) fs.appendFileSync(file, line + os.EOL); };
 
@@ -62,16 +66,19 @@ export function uninstall({ repo, agent, project, dry, out }) {
   }
   if (skillsDir && L.isDir(skillsDir)) { const why = L.writableDir(skillsDir); if (why) stop(`${why}.`); }
   { const why = L.writableDir(state); if (why) stop(`${why}.`); }
+  // In a project, no link that leads outside it (unless --follow-links).
+  { const why = L.checkLinks(project, follow, skillsDir, rules); if (why) stop(`${why}.`); }
   if (dry) say('Dry run: nothing will be changed.');
 
   // 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest or
   // another agent's) or this package's copy; one that changed since is moved aside.
-  const removedDir = L.join(state, 'backups', `${stamp}-${agent}`, 'removed');
   if (skillsDir) {
     const names = [...new Set(lines.filter((l) => l.startsWith('skill=')).map((l) => l.slice(6).split(' ')[0]).filter(Boolean))];
     for (const name of names) {
       const dst = L.join(skillsDir, name);
       if (!L.exists(dst) || L.dangling(dst)) continue;
+      // Only a skill folder (a SKILL.md in it) is taken for one the harness put there.
+      if (!L.skillFolder(name, dst)) { s(`leave ${dst} (no SKILL.md in it, so not a skill folder the harness put there)`); continue; }
       const shared = others().filter((o) => sameSkills(o) && o.lines.some((l) => l === `skill=${name}` || l.startsWith(`skill=${name} `)));
       if (shared.length) {
         s(`keep ${dst} (another installed agent uses it)`);
@@ -80,7 +87,8 @@ export function uninstall({ repo, agent, project, dry, out }) {
         for (const o of shared) for (const l of mine) if (!o.lines.includes(l)) append(o.file, l);
         continue;
       }
-      const fps = L.fingerprints(dst, true);
+      // (A folder with no regular file in it has the fingerprint of any empty folder: never taken for ours.)
+      const fps = L.fingerprints(dst, true).filter((f) => !L.EMPTY_PRINTS.includes(f));
       let ours = fps.some((f) => lines.includes(`skill=${name} ${f}`));
       const mineCopy = L.join(repo, 'skills', name);
       if (!ours && L.isDir(mineCopy)) { const r = versionPrints(name, L.fingerprints(mineCopy)); ours = fps.some((f) => r.includes(f)); }
@@ -147,7 +155,7 @@ export function uninstall({ repo, agent, project, dry, out }) {
       const t = L.readText(rules);
       const layer = L.personalLayer(t);
       if (layer) {
-        L.mkdirp(kept); fs.writeFileSync(L.join(kept, 'personal-layer.md'), Buffer.from(layer, 'latin1'));
+        L.mkdirp(kept); fs.writeFileSync(L.join(kept, 'personal-layer.md'), Buffer.from(layer, 'latin1'), { flag: 'wx' });
         s(`your personal layer is kept in ${L.join(kept, 'personal-layer.md')}`);
       }
       let next = Buffer.from(L.removeBlocks(t), 'latin1');

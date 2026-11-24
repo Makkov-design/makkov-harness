@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 // audio.mjs — the shared HyperFrames audio engine. ONE implementation of TTS +
 // BGM + SFX. Callers do NOT vendor a copy: they write a neutral
 // `audio_request.json` (mapping their storyboard/scenes into it) and call:
@@ -54,7 +55,7 @@ import { generateBgmDetached, inferBgmPrompt, retrieveBgm } from "./lib/bgm.mjs"
 import { BUNDLED_SFX_DIR, resolveSfx } from "./lib/sfx.mjs";
 import { mapWithConcurrency } from "./lib/concurrency.mjs";
 import { openAudioMeta } from "./lib/audio-meta.mjs";
-import { recordInManifest, voicePaths, writtenAssets } from "./lib/media-record.mjs";
+import { assertInside, recordInManifest, voicePaths, writtenAssets } from "./lib/media-record.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -150,6 +151,7 @@ if (only.has("tts") && lines.length) {
     }
     const rel = paths.get(id);
     const abs = join(hyperframesDir, rel);
+    assertInside(join(hyperframesDir, "assets", "voice"), abs); // makkov-harness: every engine writes here
     const { ok, words, error } = await synthesizeOne({
       provider: ttsProvider,
       text,

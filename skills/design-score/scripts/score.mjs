@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -350,6 +351,153 @@ function resolveExe(puppeteer, pp, found) {
   return null;
 }
 
+/* ------------------------------------------------------------------ the result, checked in Node */
+
+// The probe runs in an isolated world, so the page cannot replace it, but everything it reads (title, text, class
+// names, font names, custom properties) is still page-controlled. Every field is checked here: known keys only,
+// numbers finite and clamped, strings single-line and capped, lists capped. The files are then built in Node.
+// Control, format and line-separator characters (C0, C1, soft hyphen, bidi controls, zero-width, U+2028/2029, BOM).
+const CTRL_RANGES = [[0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad], [0x61c, 0x61c], [0x180e, 0x180e], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb]];
+const hx = (n) => '\\u' + n.toString(16).padStart(4, '0');
+const CTRL = new RegExp('[' + CTRL_RANGES.map(([a, b]) => hx(a) + '-' + hx(b)).join('') + ']', 'g');
+const CTRL_OR_TICK = new RegExp('[' + CTRL_RANGES.map(([a, b]) => hx(a) + '-' + hx(b)).join('') + '`]');
+const txt = (v, max) => {
+  if (typeof v !== 'string') return '';
+  const t = v.slice(0, 4000).replace(CTRL, ' ').replace(/`/g, 'ˋ').replace(/\s+/g, ' ').trim();
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
+};
+const optTxt = (v, max) => (typeof v === 'string' && v ? txt(v, max) : undefined);
+const numIn = (v, lo, hi, dflt = 0) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
+const intIn = (v, lo, hi, dflt = 0) => Math.round(numIn(v, lo, hi, dflt));
+const bool = (v) => v === true;
+const oneOf = (v, list, dflt) => (list.includes(v) ? v : dflt);
+const ident = (v, max = 60) => (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(v) && v.length <= max ? v : '');
+const list = (v, max, fn) => (Array.isArray(v) ? v.slice(0, max).map(fn).filter((x) => x != null) : []);
+const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+const hex = (v) => (typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v) ? v.toLowerCase() : null);
+const isoTime = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(v) ? v : new Date().toISOString());
+const gradeOf = (s) => (s >= 95 ? 'A+' : s >= 85 ? 'A' : s >= 75 ? 'B' : s >= 65 ? 'C' : s >= 50 ? 'D' : 'F');
+
+// The address and host come from the browser, not from the page's answer.
+function where(finalUrl) {
+  try {
+    const u = new URL(finalUrl);
+    const host = u.hostname ? u.hostname + (u.port ? ':' + u.port : '') : (u.protocol === 'file:' ? 'local file' : 'page');
+    return { url: txt(u.href.split(/[?#]/)[0], 2000), host: txt(host, 260) };
+  } catch { return { url: '', host: 'page' }; }
+}
+
+const cleanRect = (v) => { const r = obj(v); return { x: numIn(r.x, -1e6, 1e6), y: numIn(r.y, -1e6, 1e6), width: numIn(r.width, 0, 1e6), height: numIn(r.height, 0, 1e6) }; };
+function cleanExample(v) {
+  if (!v || typeof v !== 'object') return null;
+  const out = { selector: txt(v.selector, 300) };
+  if (typeof v.text === 'string') out.text = txt(v.text, 120);
+  if (v.rect && typeof v.rect === 'object') out.rect = cleanRect(v.rect);
+  if (typeof v.note === 'string') out.note = txt(v.note, 200);
+  return out;
+}
+// A check's raw value: flat, known shapes only (numbers, booleans, short strings, short lists of them).
+function cleanValue(v) {
+  if (v == null || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  for (const k of Object.keys(v).slice(0, 40)) {
+    if (!/^[A-Za-z][A-Za-z0-9]{0,39}$/.test(k)) continue;
+    const x = v[k];
+    if (typeof x === 'number') out[k] = numIn(x, -1e9, 1e9);
+    else if (typeof x === 'boolean' || x === null) out[k] = x;
+    else if (typeof x === 'string') out[k] = txt(x, 200);
+    else if (Array.isArray(x)) out[k] = list(x, 50, (y) => (typeof y === 'number' ? numIn(y, -1e9, 1e9) : typeof y === 'string' ? txt(y, 100) : null));
+  }
+  return out;
+}
+function cleanCheck(v) {
+  const c = obj(v);
+  if (!ident(c.id)) return null;
+  return { id: c.id, category: ident(c.category), label: txt(c.label, 100), status: oneOf(c.status, ['pass', 'warn', 'fail', 'skip'], 'skip'),
+    score: numIn(c.score, 0, 100), value: cleanValue(c.value), display: txt(c.display, 400), target: txt(c.target, 300), why: txt(c.why, 600),
+    examples: list(c.examples, 12, cleanExample) };
+}
+function cleanCategory(v) {
+  const c = obj(v);
+  if (!ident(c.id)) return null;
+  return { id: c.id, label: txt(c.label, 60), weight: numIn(c.weight, 0, 100), score: c.score == null ? null : numIn(c.score, 0, 100),
+    measured: bool(c.measured), summary: txt(c.summary, 400), checks: list(c.checks, 40, cleanCheck) };
+}
+function cleanIssue(v) {
+  const i = obj(v);
+  if (!ident(i.id, 80)) return null;
+  return { id: i.id, checkId: ident(i.checkId), category: ident(i.category), severity: oneOf(i.severity, ['high', 'medium', 'low'], 'low'),
+    title: txt(i.title, 200), detail: txt(i.detail, 600), fix: txt(i.fix, 600), impact: numIn(i.impact, 0, 100), examples: list(i.examples, 12, cleanExample) };
+}
+
+function cleanResult(raw, finalUrl) {
+  const r = obj(raw), vp = obj(r.viewport), sc = obj(r.scanned);
+  const out = { version: txt(r.version, 20), ...where(finalUrl), title: txt(r.title, 140), timestamp: isoTime(r.timestamp),
+    viewport: { width: intIn(vp.width, 0, 100000), height: intIn(vp.height, 0, 100000), dpr: numIn(vp.dpr, 0, 16, 1) },
+    scanned: { elements: intIn(sc.elements, 0, 1e8), textBlocks: intIn(sc.textBlocks, 0, 1e8), decorative: intIn(sc.decorative, 0, 1e8),
+      unrendered: intIn(sc.unrendered, 0, 1e8), ms: intIn(sc.ms, 0, 1e8), truncated: bool(sc.truncated), stoppedBy: optTxt(sc.stoppedBy, 60) || null } };
+  if (typeof r.error === 'string' && r.error) out.error = txt(r.error, 400);
+  out.score = Math.round(numIn(r.score, 0, 100));
+  out.grade = gradeOf(out.score);
+  out.categories = list(r.categories, 12, cleanCategory);
+  out.issues = list(r.issues, 100, cleanIssue);
+  return out;
+}
+
+function cleanStyle(raw, finalUrl) {
+  const s = obj(raw), roles = obj(s.roles);
+  const word = (v) => (typeof v === 'string' && /^[a-z]{1,20}$/.test(v) ? v : null);
+  const count = (v) => intIn(v, 0, 1e8);
+  const out = { version: txt(s.version, 20), ...where(finalUrl), title: txt(s.title, 140), timestamp: isoTime(s.timestamp) };
+  if (typeof s.error === 'string' && s.error) out.error = txt(s.error, 200);
+  out.colors = list(s.colors, 64, (c) => { c = obj(c); const h = hex(c.hex); return h && { hex: h, count: count(c.count), roles: list(c.roles, 8, word), name: txt(c.name, 40) }; });
+  out.roles = Object.fromEntries(['background', 'surface', 'text', 'muted', 'accent', 'border'].map((k) => [k, hex(roles[k])]));
+  out.fonts = list(s.fonts, 16, (f) => { f = obj(f); const family = txt(f.family, 80); return family ? { family, stack: txt(f.stack, 300), roles: list(f.roles, 8, word), count: count(f.count), weights: list(f.weights, 12, (w) => intIn(w, 1, 1000)) } : null; });
+  out.typeScale = list(s.typeScale, 24, (t) => { t = obj(t); return { px: numIn(t.px, 0, 2000), rem: numIn(t.rem, 0, 200), count: count(t.count), lineHeight: numIn(t.lineHeight, 0, 2000), weight: intIn(t.weight, 1, 1000, 400), sample: typeof t.sample === 'string' && /^[a-z][a-z0-9-]{0,30}$/.test(t.sample) ? t.sample : '' }; });
+  out.spacing = list(s.spacing, 40, (x) => { x = obj(x); return { px: numIn(x.px, -10000, 10000), count: count(x.count) }; });
+  out.radii = list(s.radii, 24, (x) => { x = obj(x); return { px: numIn(x.px, 0, 9999), count: count(x.count) }; });
+  out.shadows = list(s.shadows, 16, (x) => { x = obj(x); const value = txt(x.value, 300); return value ? { value, count: count(x.count) } : null; });
+  out.customProperties = list(s.customProperties, 60, (p) => {
+    p = obj(p);
+    if (typeof p.name !== 'string' || !/^--[A-Za-z0-9_-]{1,64}$/.test(p.name) || typeof p.value !== 'string') return null;
+    const value = p.value.trim();
+    return value && value.length <= 160 && !CTRL_OR_TICK.test(value) ? { name: p.name, value } : null;
+  });
+  return out;
+}
+
+// The files are written by the bundle's own formatters, loaded into a Node vm context with no page and no DOM,
+// and fed only the checked data above. The vm is not a security boundary; it only gives the bundle a global.
+function nodeFormatter(code) {
+  const sandbox = { MHScoreNoAuto: true, document: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
+  try { vm.runInContext(code, ctx, { timeout: 10000, filename: 'mh-score.js' }); } catch (e) { throw new Fail(`The probe bundle did not load in Node: ${errText(e)}`, 2); }
+  return (data, want) => {
+    ctx.__mhIn = JSON.stringify({ data, want });
+    const outJson = vm.runInContext(`(function () {
+      var d = JSON.parse(__mhIn), r = d.data.result, s = d.data.style, w = d.want, F = window.MHScore && window.MHScore.format, U = window.MHScoreUI;
+      if (!F) throw new Error('MHScore.format is not in this bundle');
+      var out = { prompt: F.promptMd(r), designMd: null, tokens: null, report: null, notes: [] };
+      if (w.style) out.designMd = F.designMd(s);
+      if (w.tokens) out.tokens = JSON.stringify(F.tokens(s), null, 2);
+      if (w.report) {
+        if (!U || typeof U.reportHtml !== 'function') out.notes.push('report: MHScoreUI.reportHtml is not in this bundle');
+        else out.report = U.reportHtml(r, s);
+      }
+      return JSON.stringify(out);
+    })()`, ctx, { timeout: 10000 });
+    delete ctx.__mhIn;
+    const out = JSON.parse(outJson);
+    for (const k of ['prompt', 'designMd', 'tokens', 'report']) if (out[k] != null && typeof out[k] !== 'string') out[k] = null;
+    // The report's only script is the bundle's own copy-button code; anything else means the page got through.
+    if (out.report != null && ((out.report.match(/<script\b/gi) || []).length !== 1 || (out.report.match(/<\/script/gi) || []).length !== 1)) {
+      out.report = null; out.notes.push('report: refused, it would carry a script that is not Design Score\'s own');
+    }
+    return out;
+  };
+}
+
 /* ------------------------------------------------------------------ in the page */
 
 // Runs inside the page: scroll through once so lazy and reveal-on-scroll content mounts, then return to the top.
@@ -368,36 +516,49 @@ const SCROLL_PASS = async (budget) => {
   return y;
 };
 
-// Runs inside the page: measure, extract the style and format everything the caller asked for.
-const SCORE_IN_PAGE = async (o) => {
-  const S = window.MHScore, U = window.MHScoreUI;
-  const r = S.run(o.maxElements ? { maxElements: o.maxElements } : {});
-  const s = S.extractStyle(o.maxElements ? { maxElements: o.maxElements } : {});
-  const out = { json: S.format.json(r), prompt: S.format.promptMd(r), designMd: null, tokens: null, report: null, card: null, notes: [] };
-  if (o.style) out.designMd = S.format.designMd(s);
-  if (o.tokens) out.tokens = JSON.stringify(S.format.tokens(s), null, 2);
-  if (o.report) {
-    if (!U || typeof U.reportHtml !== 'function') out.notes.push('report: MHScoreUI.reportHtml is not in this bundle');
-    else {
-      try { out.report = U.reportHtml(r, s); } catch (e) { out.notes.push('report: ' + (e && e.message)); }
-      if (out.report != null && typeof out.report !== 'string') { out.report = null; out.notes.push('report: reportHtml did not return text'); }
-    }
-  }
-  if (o.card) {
-    if (!U || typeof U.cardCanvas !== 'function') out.notes.push('card: MHScoreUI.cardCanvas is not in this bundle');
-    else {
-      try {
-        let c = U.cardCanvas(r);
-        if (c && typeof c.then === 'function') c = await c;
-        if (c && typeof c.toDataURL === 'function') out.card = c.toDataURL('image/png');
-        else out.notes.push('card: cardCanvas did not return a canvas');
-      } catch (e) { out.notes.push('card: ' + (e && e.message)); }
-    }
-  }
-  return out;
+// Runs in the probe's isolated world (see inWorld): measure and extract the style, and hand back plain JSON text only.
+// The page's own scripts live in another world, so they cannot replace window.MHScore or anything it calls.
+const MEASURE_IN_WORLD = (o) => {
+  const S = window.MHScore;
+  if (!S || typeof S.run !== 'function' || typeof S.extractStyle !== 'function' || !S.format) return JSON.stringify({ missing: true });
+  const opts = o.maxElements ? { maxElements: o.maxElements } : {};
+  const r = S.run(opts), s = S.extractStyle(opts);
+  return '{"result":' + S.format.json(r) + ',"style":' + S.format.json(s) + '}';
 };
 
-async function scoreViewport(browser, url, vp, o, bundle, remaining, log) {
+// Runs in the isolated world: draw the score card from the result Node already checked.
+const CARD_IN_WORLD = async (r) => {
+  const U = window.MHScoreUI;
+  if (!U || typeof U.cardCanvas !== 'function') return { note: 'card: MHScoreUI.cardCanvas is not in this bundle' };
+  let c = U.cardCanvas(r);
+  if (c && typeof c.then === 'function') c = await c;
+  return c && typeof c.toDataURL === 'function' ? { png: c.toDataURL('image/png') } : { note: 'card: cardCanvas did not return a canvas' };
+};
+
+// A fresh isolated world on the page's main frame, through the DevTools protocol: it shares the DOM with the page
+// but not its JavaScript globals or prototypes, and the page's CSP does not apply to it. Results come back by value.
+async function inWorld(page) {
+  const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession() : await page.target().createCDPSession();
+  const { frameTree } = await cdp.send('Page.getFrameTree');
+  const { executionContextId } = await cdp.send('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'mh-score-' + Math.random().toString(36).slice(2) });
+  const run = async (expression) => {
+    const res = await cdp.send('Runtime.evaluate', { expression, contextId: executionContextId, awaitPromise: true, returnByValue: true, userGesture: false });
+    if (res.exceptionDetails) throw new Error((res.exceptionDetails.exception && res.exceptionDetails.exception.description) || res.exceptionDetails.text || 'the probe threw');
+    return res.result ? res.result.value : undefined;
+  };
+  const call = (fn, arg) => run(`(${fn.toString()})(${JSON.stringify(arg)})`);
+  return { run, call, close: () => cdp.detach().catch(() => {}) };
+}
+
+const MAX_RAW = 32 * 1024 * 1024;
+const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+function pngOf(v) {
+  if (typeof v !== 'string' || v.length > MAX_RAW || !v.startsWith('data:image/png;base64,')) return null;
+  const buf = Buffer.from(v.slice('data:image/png;base64,'.length), 'base64');
+  return buf.length > 8 && buf.subarray(0, 8).equals(PNG_SIG) ? buf : null;
+}
+
+async function scoreViewport(browser, url, vp, o, bundle, format, remaining, log) {
   const page = await browser.newPage();
   try {
     page.setDefaultTimeout(30000);
@@ -424,16 +585,16 @@ async function scoreViewport(browser, url, vp, o, bundle, remaining, log) {
     if (o.scroll) { try { await page.evaluate(SCROLL_PASS, Math.min(4000, until(4000))); } catch { /* ignore */ } }
     if (o.wait) await sleep(Math.min(o.wait, until(o.wait)));
 
-    let out = null;
-    for (let attempt = 0; attempt < 2 && !out; attempt++) {
+    let raw = null, world = null;
+    for (let attempt = 0; attempt < 2 && raw == null; attempt++) {
       try {
-        // Evaluated through the DevTools protocol, so the page's CSP cannot block it. NoAuto keeps the panel closed.
-        await page.evaluate('window.MHScoreNoAuto = true;\n' + bundle.code + '\n;void 0;');
-        const ready = await page.evaluate(() => !!(window.MHScore && typeof window.MHScore.run === 'function'));
-        if (!ready) throw new Fail('The probe did not load in this page (window.MHScore is missing).');
-        out = await page.evaluate(SCORE_IN_PAGE, { maxElements: o.maxElements, style: !!o.style, tokens: !!o.tokens, report: !!o.report, card: !!o.card });
+        // The bundle and the call that measures run only in the isolated world. NoAuto keeps the panel closed.
+        world = await inWorld(page);
+        await world.run('window.MHScoreNoAuto = true;\n' + bundle.code + '\n;void 0;');
+        raw = await world.call(MEASURE_IN_WORLD, { maxElements: o.maxElements });
       } catch (e) {
-        if (attempt === 0 && /context was destroyed|navigat|detached/i.test(errText(e))) {
+        if (world) { await world.close(); world = null; }
+        if (attempt === 0 && /context was destroyed|navigat|detached|Cannot find context|No frame/i.test(errText(e))) {
           log('Note: the page navigated while it was being scored; trying once more.');
           try { await page.waitForFunction('document.readyState === "complete"', { timeout: until(10000) }); } catch { /* ignore */ }
           continue;
@@ -442,12 +603,30 @@ async function scoreViewport(browser, url, vp, o, bundle, remaining, log) {
         throw new Fail(`Could not score ${url}: ${errText(e)}`);
       }
     }
-    if (!out) throw new Fail(`Could not score ${url}: the page kept navigating (a redirect loop or a login wall?).`);
-    let result;
-    try { result = JSON.parse(out.json); } catch { throw new Fail('The probe returned a result that is not valid JSON.'); }
-    if (result.error) throw new Fail(oneLine(result.error, 240));
-    for (const n of out.notes) log(`Note: ${n}.`);
-    return { vp, result, out, finalUrl: page.url() };
+    if (raw == null) throw new Fail(`Could not score ${url}: the page kept navigating (a redirect loop or a login wall?).`);
+    try {
+      let parsed;
+      try { parsed = typeof raw === 'string' && raw.length <= MAX_RAW ? JSON.parse(raw) : null; } catch { parsed = null; }
+      if (!parsed || typeof parsed !== 'object') throw new Fail('The probe returned a result that is not valid JSON.');
+      if (parsed.missing) throw new Fail('The probe did not load in this page (window.MHScore is missing).');
+      const finalUrl = page.url();
+      const result = cleanResult(parsed.result, finalUrl);
+      if (result.error) throw new Fail(oneLine(result.error, 240));
+      const style = cleanStyle(parsed.style, finalUrl);
+      const out = format({ result, style }, { style: !!o.style, tokens: !!o.tokens, report: !!o.report });
+      out.card = null;
+      if (o.card) {
+        try {
+          const c = await world.call(CARD_IN_WORLD, result);
+          if (c && typeof c.note === 'string') out.notes.push(txt(c.note, 200));
+          else if (!(out.card = pngOf(c && c.png))) out.notes.push('card: the canvas did not give a PNG');
+        } catch (e) { out.notes.push('card: ' + errText(e)); }
+      }
+      for (const n of out.notes) log(`Note: ${n}.`);
+      return { vp, result, style, out, finalUrl };
+    } finally {
+      await world.close();
+    }
   } finally {
     await page.close().catch(() => {});
   }
@@ -557,6 +736,7 @@ async function main() {
   const exeFound = resolveExe(puppeteer, pp, browserPath);
   if (!exeFound) { process.stderr.write(MISSING_BROWSER); return 2; }
   const exe = exeFound.file;
+  const format = nodeFormatter(bundle.code);
 
   const jsonToStdout = o.json === true;
   const ws = jsonToStdout ? process.stderr : process.stdout;
@@ -586,7 +766,10 @@ async function main() {
   try {
     const args = ['--no-first-run', '--no-default-browser-check', '--disable-extensions', '--disable-background-networking', '--disable-sync', '--disable-default-apps', '--mute-audio'];
     if (url.startsWith('file:')) args.push('--allow-file-access-from-files');
-    if (process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0) args.push('--no-sandbox'); // Chrome refuses its sandbox as root (cloud containers)
+    if (process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0) { // Chrome refuses its sandbox as root (cloud containers)
+      args.push('--no-sandbox');
+      log('Warning: running as root, so Chrome runs without its sandbox (--no-sandbox). Score only pages you trust, or run as a normal user.');
+    }
     log(`Scoring ${url} with ${path.basename(exe)} at ${viewports.map((v) => `${v.width}×${v.height}`).join(' and ')}...`);
     browser = await puppeteer.launch({
       headless: true, executablePath: exe, userDataDir: profile, args,
@@ -595,7 +778,7 @@ async function main() {
     });
     for (const vp of viewports) {
       if (remaining() < 9000) throw new Fail(`Not enough time left for the ${vp.name} run; raise --timeout.`);
-      runs.push(await scoreViewport(browser, url, vp, o, bundle, remaining, log));
+      runs.push(await scoreViewport(browser, url, vp, o, bundle, format, remaining, log));
     }
   } finally {
     clearTimeout(watchdog);
@@ -611,7 +794,7 @@ async function main() {
     const run = runs[Math.max(0, f.i)];
     let data = null;
     if (f.key === 'report') data = run.out.report;
-    else if (f.key === 'card') data = run.out.card ? Buffer.from(String(run.out.card).split(',')[1] || '', 'base64') : null;
+    else if (f.key === 'card') data = run.out.card;
     else if (f.key === 'style') data = run.out.designMd && run.out.designMd + '\n';
     else if (f.key === 'tokens') data = run.out.tokens && run.out.tokens + '\n';
     else if (f.key === 'prompt') data = runs.map((x) => x.out.prompt).join('\n\n---\n\n') + '\n';

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 """Generate BGM using Google Lyria RealTime API.
 
 Usage:
@@ -6,9 +7,8 @@ Usage:
 
 Requires:
     $GOOGLE_API_KEY or $GEMINI_API_KEY environment variable (treated as aliases).
-    pip install google-genai python-dotenv. audio.mjs Step 4b installs these on
-    demand when a key is set but google.genai is not importable; if that install
-    fails it falls back to local MusicGen rather than leaving the video with no BGM.
+    google-genai. audio.mjs never installs it: run `node bgm-setup.mjs lyria`
+    once. Without it the engine falls back to local MusicGen when that is set up.
 """
 
 from __future__ import annotations

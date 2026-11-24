@@ -24,10 +24,10 @@
     "packed": "1656018294"
   },
   "design-score": {
-    "sh": "732179906",
-    "ps": "b39e91c1b7c48ce8",
-    "ps_windows": "f87a2b7e297296a1",
-    "packed": "732179906"
+    "sh": "306469430",
+    "ps": "8599453ab79e50ff",
+    "ps_windows": "7d9aefc5c7f5b9f0",
+    "packed": "1462015535"
   },
   "find-animation-opportunities": {
     "sh": "173509139",
@@ -36,22 +36,22 @@
     "packed": "173509139"
   },
   "harness-onboarding": {
-    "sh": "4197929699",
-    "ps": "bef980588eef88b2",
-    "ps_windows": "7eda92cb3f6b69c0",
-    "packed": "4197929699"
+    "sh": "83674637",
+    "ps": "1746fe00e9d32ca5",
+    "ps_windows": "9092669dbfe93634",
+    "packed": "83674637"
   },
   "html-report": {
-    "sh": "1092566049",
-    "ps": "fd5a5a14577080fc",
-    "ps_windows": "fa8150c6dd5fdb0f",
-    "packed": "1092566049"
+    "sh": "816328858",
+    "ps": "ceaa87ff231e64eb",
+    "ps_windows": "52dfa5a0ce16335b",
+    "packed": "816328858"
   },
   "hyperframes": {
-    "sh": "972705917",
-    "ps": "2d23892cc45cc9a1",
-    "ps_windows": "920af5099878b254",
-    "packed": "972705917"
+    "sh": "188909297",
+    "ps": "e5868649df9856de",
+    "ps_windows": "a5d89107897344a1",
+    "packed": "2136606326"
   },
   "hyperframes-cli": {
     "sh": "1412031033",
@@ -60,10 +60,10 @@
     "packed": "1412031033"
   },
   "hyperframes-registry": {
-    "sh": "1862383516",
-    "ps": "6b1c00ed0d0488d2",
-    "ps_windows": "5e2cd419958a42e1",
-    "packed": "1862383516"
+    "sh": "2703099722",
+    "ps": "4c731b2e8e81f204",
+    "ps_windows": "9143b02da5fa801d",
+    "packed": "2703099722"
   },
   "improve-animations": {
     "sh": "1657005261",
@@ -72,27 +72,27 @@
     "packed": "1657005261"
   },
   "media-use": {
-    "sh": "1443038368",
-    "ps": "c797317a4c0f1e2e",
-    "ps_windows": "8b996b4f4959e1a1",
-    "packed": "3239707203"
+    "sh": "4203161843",
+    "ps": "86ca207fb4771cf0",
+    "ps_windows": "dc8228ebd6c03f16",
+    "packed": "2466514220"
   },
   "slideshow": {
-    "sh": "1200357663",
-    "ps": "47d0e3be07fefc05",
-    "ps_windows": "9f39f714feef3973",
-    "packed": "1200357663"
+    "sh": "3674718877",
+    "ps": "12b5cb7334a528b0",
+    "ps_windows": "aa47a75cafd7b4fe",
+    "packed": "3674718877"
   },
   "style-sampling": {
-    "sh": "2168922264",
-    "ps": "a216e63ac60061f5",
-    "ps_windows": "128336dd688d36fd",
-    "packed": "2168922264"
+    "sh": "161048170",
+    "ps": "1e0c816a4dc133ca",
+    "ps_windows": "ae4c6d1aced27667",
+    "packed": "161048170"
   },
   "third-party-install-guard": {
-    "sh": "3029646597",
-    "ps": "18b0b456a2750017",
-    "ps_windows": "72067237e41be87c",
-    "packed": "3029646597"
+    "sh": "3938848412",
+    "ps": "efa7a817ac3b2f70",
+    "ps_windows": "96f77aa216ecb7e4",
+    "packed": "2093777059"
   }
 }

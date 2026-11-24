@@ -15,14 +15,16 @@
     they are read relative to the folder you pass now. A manifest that names paths the installer would not
     use is refused, and nothing is changed.
 
-  Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun]
+  Usage: uninstall.ps1 -Agent codex|cursor|gemini|copilot|windsurf|cline|opencode|aider [-Project <path>] [-DryRun] [-FollowLinks]
+    -FollowLinks     in a project, follow a link of yours that leads outside it (see install.ps1)
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('codex', 'cursor', 'gemini', 'copilot', 'windsurf', 'cline', 'opencode', 'aider')]
   [string]$Agent,
   [string]$Project,
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$FollowLinks
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib.ps1')
@@ -35,6 +37,14 @@ if ($Project -and (Test-MhSamePath $Project ((Resolve-Path -LiteralPath $home_).
 $base = if ($Project) { $Project } else { $home_ }
 $state = Join-Path $base '.makkov-harness'
 $manifest = Join-Path $state "install-$Agent.txt"
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$paths = Get-MhPaths $Agent $Project $home_
+$skillsDir = $paths.Skills; $rules = $paths.Rules
+$kept = Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed'
+# Everything under .makkov-harness\ may have come with the repository (install\lib.ps1): no link on the way to
+# anything this run changes there.
+$why = Test-MhCheckInside $base @($state, $manifest, "$manifest.new", (Join-Path $kept 'personal-layer.md'), (Join-Path $state "removed-$stamp.tmp"))
+if ($why) { [Console]::Error.WriteLine("$why."); [Console]::Error.WriteLine('Nothing was changed.'); exit 1 }
 if (-not (Test-Path -LiteralPath $manifest)) {
   if (-not $DryRun) { Clear-MhLockOnly $state $base }
   [Console]::Error.WriteLine("No makkov-harness install for $Agent found in $base (no $manifest).")
@@ -56,13 +66,10 @@ foreach ($m in @(Get-ChildItem -LiteralPath $state -Filter 'install-*.txt' -File
   $why = Test-MhValidManifest $m.FullName $base $Project $home_
   if ($why) { Stop-Mh "$($m.FullName) does not look like a manifest this installer wrote: $why. Move it out of $state and run this again." }
 }
-$paths = Get-MhPaths $Agent $Project $home_
-$skillsDir = $paths.Skills; $rules = $paths.Rules
 $lines = Read-MhManifest $manifest
 $ob = Get-MhOldBase $lines
 $rulesExisted = Get-MhRaw $lines 'rules_existed'; $rulesBackup = Get-MhPath $lines 'rules_backup' $base
 if ($ob -and $ob -ne $base) { Write-Output "Installed in $ob, which is now ${base}: reading the install from here." }
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 # Other installs in the same folder that read the same skills folder or the same instructions file.
 # (Compared by file name, all in the same folder: Get-ChildItem's FullName can spell an 8.3 short name out in full.)
@@ -87,6 +94,8 @@ if ($editRules) {
     if (Test-MhWideText $rules) { Stop-Mh "$rules is saved as UTF-16 or UTF-32. Save it as UTF-8, then run this again." }
   }
 }
+# In a project, no link that leads outside it (unless -FollowLinks).
+$why = Test-MhCheckLinks $Project ([bool]$FollowLinks) $skillsDir $rules; if ($why) { Stop-Mh "$why." }
 if ($DryRun) { Write-Output 'Dry run: nothing will be changed.' }
 
 # 1. Skills. A folder is ours when it matches a fingerprint the harness recorded for it here (in this manifest
@@ -96,6 +105,8 @@ if ($skillsDir) {
   foreach ($name in $names) {
     $dst = Join-Path $skillsDir $name
     if (-not (Test-Path -LiteralPath $dst)) { continue }
+    # Only a skill folder (a SKILL.md in it) is taken for one the harness put there.
+    if (-not (Test-MhSkillFolder $name $dst)) { Write-Output "  leave $dst (no SKILL.md in it, so not a skill folder the harness put there)"; continue }
     $shared = @()
     foreach ($m in Get-Others) {
       $o = Read-MhManifest $m.FullName
@@ -112,7 +123,8 @@ if ($skillsDir) {
       }
       continue
     }
-    $ids = Get-MhTreeIds $dst
+    # (A folder with no regular file in it has the fingerprint of any empty folder: never taken for ours.)
+    $ids = @(Get-MhTreeIds $dst | Where-Object { $MhEmptyIds -notcontains $_ })
     $ours = [bool](@($ids | Where-Object { $lines -contains "skill=$name $_" }).Count)
     $mine = Join-Path (Join-Path $repo 'skills') $name
     if (-not $ours -and (Test-Path -LiteralPath $mine)) { $ours = $ids -contains (Get-MhTreeId $mine) }
@@ -166,7 +178,6 @@ if ($skillsDir) {
 Test-Checkpoint 'u-skills'
 
 # 3. Routing, and the personal layer harness-onboarding wrote next to it.
-$kept = Join-Path (Join-Path (Join-Path $state 'backups') "$stamp-$Agent") 'removed'
 $personalRule = Join-Path (Split-Path -Parent $rules) 'makkov-harness-personal.mdc'
 if ($Agent -eq 'cursor' -and (Test-Path -LiteralPath $personalRule)) {
   Write-Output "  delete $personalRule (a copy stays in $kept)"
