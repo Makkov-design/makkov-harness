@@ -821,7 +821,7 @@ try {
   if ($linked) {
     $pbefore = Tree $proj
     Run-Child $inst @('-Agent', 'codex', '-Project', $proj)
-    Check 'install stops (exit 1) and names -FollowLinks' { $script:code -eq 1 -and $script:out -match 'FollowLinks' }
+    Check 'install stops (exit 1) and names -FollowLinks' { $script:code -eq 1 -and $script:out -match 'follow-?links' }
     Check 'the file outside is byte for byte as it was, and no copy of it is in the project' { (Same $exp $notes) -and (Tree $proj) -eq $pbefore }
     Run-Child $inst @('-Agent', 'codex', '-Project', $proj, '-FollowLinks')
     Check 'with -FollowLinks the install goes through and writes through the link' { $script:code -eq 0 -and (Markers $notes) -eq 1 }
