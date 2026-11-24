@@ -119,7 +119,9 @@ for n in $(seq 1 "$runs_total"); do
     said="$said--- $op $a ($im): ${cmd[*]}
 ${out:-}
 "
-    log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)
+    # The instructions file's bytes outside the harness's block after each step, so a failure shows which step
+    # changed them.
+    log="$log  $op $a ($im) ${p:+in the project }${sc:+--scope $sc }($how)$([ -f "$rules_dir/AGENTS.md" ] && printf ' AGENTS.md outside the block: %s' "$(grep -v -e 'makkov-harness' "$rules_dir/AGENTS.md" | head -c 60 | od -An -c | tr -s ' ' | tr -d '\n')" || true)
 "
     [ "$code" = 0 ] || fail "step $step: $op $a failed: $out"
   done
