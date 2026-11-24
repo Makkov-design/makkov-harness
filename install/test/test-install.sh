@@ -633,6 +633,15 @@ home="$(tmp)"; proj="$(tmp)"; export HOME="$home"
 echo "codex project, four installs started at once"
 mkdir -p "$proj/.agents/skills/animate"; echo mine > "$proj/.agents/skills/animate/SKILL.md"; before="$(tree "$proj")"
 # (Each run's shell trace goes to its own file, shown only when the check fails.)
+# How often more than one of four processes "wins" a mkdir, a symlink or a noclobber file made at the same moment
+# (informational: the lock relies on mkdir failing when the folder exists).
+probe="$(tmp)"; m=0 ln_=0 nc=0
+for k in $(seq 1 40); do
+  w="$probe/r$k"; mkdir "$w"
+  for j in 1 2 3 4; do (mkdir "$w/d" 2>/dev/null && echo m >> "$w/won"; ln -s x "$w/l" 2>/dev/null && echo l >> "$w/won"; (set -C; : > "$w/f") 2>/dev/null && echo f >> "$w/won") & done; wait
+  [ "$(grep -c m "$w/won")" -gt 1 ] && m=$((m + 1)); [ "$(grep -c l "$w/won")" -gt 1 ] && ln_=$((ln_ + 1)); [ "$(grep -c f "$w/won")" -gt 1 ] && nc=$((nc + 1))
+done
+echo "  (rounds of 40 with more than one winner: mkdir $m, ln -s $ln_, noclobber $nc)"; rm -rf "$probe"
 # (bash 3.2, macOS's, has no BASH_XTRACEFD: no trace there, it would go into what the run prints.)
 tr4=""; [ "$(bash -c 'echo "${BASH_VERSINFO[0]}"')" -ge 5 ] && tr4=-x
 for i in 1 2 3 4; do PS4='+ $EPOCHREALTIME $BASHPID ' BASH_XTRACEFD=7 bash $tr4 "$inst" codex "$proj" > "$home/run$i" 2>&1 7> "$home/trace$i" & done; wait || true
