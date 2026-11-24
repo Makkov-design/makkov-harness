@@ -10,8 +10,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fingerprintSh, fingerprintPs } from './lib.mjs';
 
-// File names npm leaves out of every package.
-const NOT_PACKED = (n) => n === '.gitignore' || n === '.npmrc' || n === '.DS_Store' || n === 'node_modules' || n === '.git';
+// File names npm leaves out of every package, and the tests and fixtures package.json's "files" leaves out.
+const NOT_PACKED = (n) => n === '.gitignore' || n === '.npmrc' || n === '.DS_Store' || n === 'node_modules' || n === '.git'
+  || n.endsWith('.test.mjs') || n.endsWith('_test.py') || n === 'fixtures';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const file = path.join(here, 'fingerprints.json');

@@ -11,8 +11,8 @@
 //    published version is still there, unchanged: those in docs/score/versions.json, and those recorded on the base
 //    commit (CHECK_BASE_SHA in CI, else origin/main), so editing versions.json cannot hide a rewrite,
 //    the two copies of mh-score.js are identical, and what SECURITY.md promises holds: the bundle uses no
-//    network or storage API, and the loader bookmarklet loads only the bundle from this site, with the referrer
-//    SECURITY.md describes
+//    network or storage API, and the loader bookmarklet loads only this version's copy from this site, pinned by the
+//    hash versions.json records for it, with the referrer SECURITY.md describes
 // 5. the website: local links, scripts, stylesheets and images exist; in-page anchors and icon references point
 //    at an id; section numbers (data-hud) run 00, 01, 02…; every page is in sitemap.xml; every "N situations"
 //    matches the rows in situations-data.js; every script parses
@@ -223,14 +223,26 @@ if (fs.existsSync(`${DS}/build.mjs`)) {
     else if (!bullet) fail('SECURITY.md has no line about the Design Score loader under "What the harness itself runs"');
     else {
       let bad = 0;
-      const urls = loader.match(/(?:\b[a-z][a-z0-9+.-]*:)?\/\/[^\s'"`)]+/gi) || [];
-      const bundle = `${BASE}score/mh-score.js`;
-      if (urls.length !== 1 || urls[0].split(/[?#]/)[0] !== bundle) { bad++; fail(`the loader bookmarklet loads ${urls.join(", ") || "nothing it names"}; SECURITY.md says it loads only ${bundle}`); }
+      // Pinned: it fetches this version's copy, which never changes, and the browser runs it only if it matches the
+      // hash docs/score/versions.json records for that version and the versioned file on the site has.
+      const version = (fs.existsSync(ship) ? read(ship).match(/^\/\*! Design Score (\S+)/) || [] : [])[1];
+      const bundle = `${BASE}score/${version}/mh-score.js`;
+      const hashes = [...loader.matchAll(/\.integrity\s*=\s*'([^']*)'/g)].map((m) => m[1]);
+      const urls = hashes.reduce((t, h) => t.split(h).join(""), loader).match(/(?:\b[a-z][a-z0-9+.-]*:)?\/\/[^\s'"`)]+/gi) || [];
+      if (urls.length !== 1 || urls[0] !== bundle) { bad++; fail(`the loader bookmarklet loads ${urls.join(", ") || "nothing it names"}; it must load only ${bundle}, which never changes`); }
+      let recorded = null, onSite = null;
+      try { recorded = JSON.parse(read("docs/score/versions.json"))[version] || null; } catch {}
+      const vf = `docs/score/${version}/mh-score.js`;
+      if (fs.existsSync(vf)) onSite = "sha384-" + createHash("sha384").update(fs.readFileSync(vf)).digest("base64");
+      if (hashes.length !== 1) { bad++; fail(`the loader bookmarklet sets ${hashes.length ? `${hashes.length} integrity hashes` : "no integrity hash"}; it must pin ${vf} with one (s.integrity), or the browser runs whatever Pages serves`); }
+      else if (!recorded || hashes[0] !== recorded || hashes[0] !== onSite) { bad++; fail(`the loader bookmarklet pins ${hashes[0]}, but docs/score/versions.json records ${recorded || "nothing"} for ${version} and ${vf} is ${onSite || "missing"}; run node ${DS}/build.mjs`); }
+      if (!/\.crossOrigin\s*=\s*'anonymous'/.test(loader)) { bad++; fail("the loader bookmarklet must set s.crossOrigin='anonymous', or the browser cannot check its integrity hash"); }
+      if (!/\bpinned\b/i.test(bullet) || !/\bintegrity\b|\bSRI\b/.test(bullet)) { bad++; fail("SECURITY.md's loader line must say the loader is pinned to a version and checked by its integrity (SRI) hash"); }
       const sendsNone = /\breferrerPolicy\s*=\s*['"]no-referrer['"]/.test(loader);
       const saysNone = /\bno referrer\b|\bwithout (?:a|any) referrer\b/i.test(bullet);
       if (sendsNone && !saysNone) { bad++; fail("the loader bookmarklet sends no referrer now: say so in SECURITY.md's loader line, which still describes the referrer the page's policy allows"); }
       if (!sendsNone && saysNone) { bad++; fail("SECURITY.md says the loader sends no referrer, but the loader bookmarklet does not set referrerPolicy to 'no-referrer'"); }
-      if (!bad) ok(`design-score: the loader bookmarklet loads only score/mh-score.js from this site, ${sendsNone ? "with no referrer" : "with the page's own referrer policy"}, as SECURITY.md says`);
+      if (!bad) ok(`design-score: the loader bookmarklet loads only score/${version}/mh-score.js from this site, pinned by its SRI hash, ${sendsNone ? "with no referrer" : "with the page's own referrer policy"}, as SECURITY.md says`);
     }
   }
 }

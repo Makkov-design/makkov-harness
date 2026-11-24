@@ -159,16 +159,19 @@ test("the npm package holds the installer, the routing map and the skills, and n
   const files = pkg.files.map((f) => f.path.replace(/\\/g, '/'));
   for (const f of ['bin/makkov-harness.mjs', 'install/node/cli.mjs', 'install/node/lib.mjs', 'install/node/install.mjs', 'install/node/uninstall.mjs',
     'install/node/doctor.mjs', 'install/node/fingerprints.mjs', 'install/node/fingerprints.json', 'ROUTING.md', 'LICENSE', 'package.json']) assert.ok(files.includes(f), f);
-  // Every skill file as tracked, except rich-report (Claude only) and what npm never packs (.gitignore).
+  // Every skill file as tracked, except rich-report (Claude only), what npm never packs (.gitignore), and the tests and
+  // their fixtures.
   const tracked = spawnSync('git', ['ls-files', 'skills'], { cwd: repo, encoding: 'utf8' });
   if (tracked.status === 0) {
-    const want = tracked.stdout.split('\n').filter((f) => f && !f.startsWith('skills/rich-report/') && !/(^|\/)\.gitignore$/.test(f));
+    const want = tracked.stdout.split('\n').filter((f) => f && !f.startsWith('skills/rich-report/') && !/(^|\/)\.gitignore$/.test(f)
+      && !/\.test\.mjs$|_test\.py$|\/fixtures\//.test(f));
     assert.deepEqual(files.filter((f) => f.startsWith('skills/')).sort(), want.sort());
     // Nothing goes into the package that git does not track (a stray or ignored file in a packed folder).
     const all = new Set(spawnSync('git', ['ls-files'], { cwd: repo, encoding: 'utf8' }).stdout.split('\n').filter(Boolean));
     for (const f of files) assert.ok(all.has(f), `packed but not tracked by git: ${f}`);
   }
   for (const f of files) assert.ok(!/^(\.github|docs|hooks|adapters|cloud|install\/test)\/|\.test\.mjs$|^install\/[^/]+\.(sh|ps1)$/.test(f) || f.startsWith('skills/'), `not in the package: ${f}`);
+  for (const f of files) assert.ok(!/\.test\.mjs$|_test\.py$|(^|\/)fixtures\//.test(f), `a test or fixture in the package: ${f}`);
   assert.ok(pkg.unpackedSize < 10 * 1024 * 1024, `unpacked ${pkg.unpackedSize} bytes`);
 });
 

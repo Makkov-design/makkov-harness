@@ -1,5 +1,6 @@
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
 import { existsSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { AGENT_SOURCES, latestRecordFor, recordInPlace } from "../../../scripts/lib/manifest.mjs";
 import { regenerateIndex } from "../../../scripts/lib/index-gen.mjs";
 
@@ -31,15 +32,36 @@ export function agentWritePath(
   return path;
 }
 
+// makkov-harness: a line id from the request is only a name. Keep [A-Za-z0-9._-], no leading dot, at most 64
+// characters; an id with nothing left becomes line-<n>. Two ids that end up the same get numbered names below.
+export function voiceFileStem(id, index) {
+  const stem = String(id ?? "")
+    .replace(/[^A-Za-z0-9._-]/g, "_")
+    .replace(/^[.]+/, "")
+    .slice(0, 64);
+  return /[A-Za-z0-9]/.test(stem) ? stem : `line-${index + 1}`;
+}
+
+// Throw unless rel (relative to root, or absolute) stays inside root.
+export function assertInside(root, rel) {
+  const base = resolve(root);
+  const target = resolve(base, rel);
+  if (!target.startsWith(base + sep)) throw new Error(`refusing to write outside ${base}: ${rel}`);
+  return target;
+}
+
 /** Each spoken line's file, picked before lines synthesize concurrently so two never land on one free name. */
 export function voicePaths(hyperframesDir, lines, anomalies) {
   const taken = new Set();
   const paths = new Map();
-  for (const line of lines.filter((l) => String(l.text ?? "").trim())) {
-    const rel = agentWritePath(hyperframesDir, `assets/voice/${line.id}.wav`, { anomalies, taken });
+  lines.forEach((line, index) => {
+    if (!String(line.text ?? "").trim()) return;
+    const want = `assets/voice/${voiceFileStem(line.id, index)}.wav`;
+    const rel = agentWritePath(hyperframesDir, want, { anomalies, taken });
+    assertInside(join(hyperframesDir, "assets", "voice"), join(hyperframesDir, rel));
     taken.add(rel);
     paths.set(String(line.id), rel);
-  }
+  });
   return paths;
 }
 

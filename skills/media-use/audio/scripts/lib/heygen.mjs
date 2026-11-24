@@ -1,4 +1,5 @@
-import { fetchMedia } from "../../../scripts/lib/media-fetch.mjs";
+// Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0.
+import { fetchMedia, readCappedBody } from "../../../scripts/lib/media-fetch.mjs";
 // heygen.mjs — vendored HeyGen REST helpers (auth + transport) for the audio
 // pipeline. The credential resolver matches the hyperframes CLI auth: first
 // usable source wins — a host gateway ($HEYGEN_API_BASE with its own
@@ -64,9 +65,23 @@ function envFileText(path) {
   }
 }
 
-// A host app sets these in the environment it spawns, never in a project file: a project's .env naming its own base
-// would send the person's shell HEYGEN_API_KEY to that host.
-const HOST_ONLY = new Set(["HEYGEN_API_BASE", "HEYGEN_ALLOW_HTTP"]);
+// makkov-harness: a project's .env may set only these media settings. Anything else (HEYGEN_API_BASE, the
+// credentials folder, the Python to run, telemetry, NODE_OPTIONS, PATH) stays as the shell has it, so a project
+// file cannot send a key elsewhere or change what runs.
+export const ENV_FILE_ALLOWED = new Set([
+  "HEYGEN_API_KEY",
+  "HYPERFRAMES_API_KEY",
+  "ELEVENLABS_API_KEY",
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+  "GCS_CREDS",
+  "GOOGLE_CLOUD_PROJECT",
+  "GCLOUD_PROJECT_ID",
+  "OPENVERSE_CLIENT_ID",
+  "OPENVERSE_CLIENT_SECRET",
+  "HYPERFRAMES_TTS_CONCURRENCY",
+]);
 
 // Walk up ≤5 dirs from startDir; load the first .env (shell env always wins).
 export function loadEnvFromDir(startDir) {
@@ -87,7 +102,7 @@ export function loadEnvFromDir(startDir) {
           const end = val.indexOf(q, 1);
           val = end > 0 ? val.slice(1, end) : val.slice(1);
         }
-        if (!HOST_ONLY.has(key) && !(key in process.env)) process.env[key] = val;
+        if (ENV_FILE_ALLOWED.has(key) && !(key in process.env)) process.env[key] = val;
       }
       return;
     }
@@ -250,10 +265,24 @@ export function heygenMessage(e) {
 }
 
 // Download a (presigned) URL to destPath; returns byte length.
-export async function downloadTo(url, destPath) {
-  const res = await fetchMedia(url);
-  if (!res.ok) throw new Error(`download HTTP ${res.status}: ${String(url).slice(0, 80)}`);
-  const bytes = Buffer.from(await res.arrayBuffer());
+// makkov-harness: at most 50 MB and 60 s, so a slow or huge answer stops with an error.
+export const DOWNLOAD_MAX_BYTES = 50 * 1024 * 1024;
+export const DOWNLOAD_TIMEOUT_MS = 60_000;
+export async function downloadTo(
+  url,
+  destPath,
+  { maxBytes = DOWNLOAD_MAX_BYTES, timeoutMs = DOWNLOAD_TIMEOUT_MS, fetchImpl } = {},
+) {
+  const signal = AbortSignal.timeout(timeoutMs);
+  let bytes;
+  try {
+    const res = await fetchMedia(url, { signal, ...(fetchImpl && { fetchImpl }) });
+    if (!res.ok) throw new Error(`download HTTP ${res.status}: ${String(url).slice(0, 80)}`);
+    bytes = await readCappedBody(res, maxBytes, "download");
+  } catch (e) {
+    if (signal.aborted) throw new Error(`download took longer than ${timeoutMs / 1000} s: ${String(url).slice(0, 80)}`);
+    throw e;
+  }
   mkdirSync(dirname(destPath), { recursive: true });
   writeFileSync(destPath, bytes);
   return bytes.length;

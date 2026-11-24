@@ -1,3 +1,4 @@
+<!-- Changed by makkov-harness (see NOTICE at the repository root); the original is HeyGen's, Apache-2.0. -->
 # Background music (BGM)
 
 One music bed per composition, produced by the shared audio engine (`scripts/audio.mjs` → `scripts/lib/bgm.mjs`). Two routes, chosen by the engine's one switch — whether a HeyGen credential is present:
@@ -41,10 +42,12 @@ Spawned **detached** so voice work isn't blocked; `audio_meta.bgm_pending: true`
 
 | Order | Provider                             | Env / deps                                                                            | Speed                                   | Quality                     |
 | ----- | ------------------------------------ | ------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------- |
-| 1     | Google Lyria RealTime                | `$GEMINI_API_KEY` or `$GOOGLE_API_KEY` + `google-genai` (auto-installed on demand)    | Real-time stream (≈ requested duration) | Production-grade            |
-| 2     | MusicGen (`facebook/musicgen-small`) | Python `transformers + torch + soundfile + numpy` (~300 MB first run; auto-installed) | Slow on CPU; fast on Apple MPS / CUDA   | Decent; prompt-only control |
+| 1     | Google Lyria RealTime                | `$GEMINI_API_KEY` or `$GOOGLE_API_KEY` + `google-genai` (`bgm-setup.mjs lyria`)      | Real-time stream (≈ requested duration) | Production-grade            |
+| 2     | MusicGen (`facebook/musicgen-small`) | Python `transformers + torch + soundfile + numpy` (~300 MB first run; `bgm-setup.mjs`) | Slow on CPU; fast on Apple MPS / CUDA   | Decent; prompt-only control |
 
 Output → `assets/bgm/track.wav`, target = total voice duration. MusicGen generates **one** seed clip (≤28–30s, under the decoder's positional limit) then crossfade-loops it up to the target (or trims down if shorter), avoiding per-segment seams. Backend selection is by what can actually **run**: Lyria only when `import google.genai` succeeds, else MusicGen; if neither can be made to run, BGM is skipped (voice + SFX still render).
+
+Generation never installs packages. To set it up, run `node scripts/bgm-setup.mjs` once (add `lyria` for Lyria): it makes a separate Python environment in your cache folder with exact versions, and generation uses it from then on.
 
 ## Mood inference (the generate prompt)
 
@@ -69,7 +72,7 @@ The engine bakes BPM / scale into the **prompt text** (via the inference above) 
 | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | No music match (retrieve)                     | `bgm: null`, anomaly logged. Render proceeds without BGM.                                |
 | Explicit `retrieve`, no credential            | Skipped (no silent generate fallback). Use `mode: generate` or omit `mode` for auto.     |
-| Neither Lyria nor MusicGen can run (generate) | `bgm` disabled with a `pip install …` hint. Voice + SFX still render.                    |
+| Neither Lyria nor MusicGen can run (generate) | `bgm` disabled with a hint to run `bgm-setup.mjs`. Voice + SFX still render.            |
 | Generate still rendering at assemble time     | `bgm_pending: true`; `wait-bgm.mjs` waits/checks and writes `bgm_status.json` first.     |
 | Generate crashed                              | `wait-bgm.mjs` → `bgm_status.json { status: "failed" }`; the `<audio>` track is omitted. |
 
