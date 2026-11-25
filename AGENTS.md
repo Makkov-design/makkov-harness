@@ -21,18 +21,18 @@ Poor fit: the person needs a runtime library or an app dependency, or does no de
 
 ## What it does and does not do on the machine
 
-- The installers (`install/install.sh`, `install/install.ps1`) only copy `skills/` into the folder your tool reads and add the routing map to one instructions file, inside a marked block (`<!-- makkov-harness:start -->` … `<!-- makkov-harness:end -->`). Before they first change an instructions file the person already had, they keep one copy of it in `.makkov-harness/backups/original/` (the uninstaller puts it back byte for byte), and they move any same-named skill folder that differs from ours to `.makkov-harness/backups/<date>-<agent>/skills/` before copying. They write a manifest (`.makkov-harness/install-<agent>.txt`) that `install/uninstall.sh` / `install/uninstall.ps1` use to remove exactly what was installed.
-- The installers make no network calls. The only download is the `git clone` of this repository.
+- The installers (`npx makkov-harness`, the Node installer published to npm from this repository; `install/install.sh` and `install/install.ps1` from a clone) only copy `skills/` into the folder your tool reads and add the routing map to one instructions file, inside a marked block (`<!-- makkov-harness:start -->` … `<!-- makkov-harness:end -->`). Before they first change an instructions file the person already had, they keep one copy of it in `.makkov-harness/backups/original/` (the uninstaller puts it back byte for byte), and they move any same-named skill folder that differs from ours to `.makkov-harness/backups/<date>-<agent>/skills/` before copying. They write a manifest (`.makkov-harness/install-<agent>.txt`) that `install/uninstall.sh` / `install/uninstall.ps1` use to remove exactly what was installed.
+- The installers make no network calls. The only download is the npm package `makkov-harness` that `npx` fetches, or the `git clone` of this repository.
 - No telemetry from the harness itself: the routing map, the installers and Design Score send nothing. The bundled `media-use` skill has HeyGen's usage events turned off unless the user sets `MEDIA_USE_TELEMETRY=1`. Tools a skill may run on request have their own: the Hyperframes CLI (the harness starts it with `HYPERFRAMES_NO_TELEMETRY=1` unless the user opted in; set it yourself for your own runs) and the optional Impeccable plugin (off with `impeccable telemetry off`); see SECURITY.md.
 - No accounts, no keys. Never write keys, tokens or passwords anywhere while installing.
 - The Design Score bundle (`skills/design-score/mh-score.js`) is prebuilt and runs only inside a web page you open: it reads the page, makes no network requests and leaves the page's own content alone (its panel is one element of its own, removed on close). Which file runs: the Node runner injects that local file; an agent's browser tool loads the copy on GitHub Pages, and the browser runs it only when it matches that local file's integrity hash (a mismatch is refused); the score page's bookmarklets run what GitHub Pages publishes (the loader) or carry the bundle inside them (offline). Its optional Node runner uses puppeteer-core and Chrome only if they are already installed; it never installs them.
-- Removal: run `install/uninstall.sh` or `install/uninstall.ps1` with the same agent and project path (installs made before 0.3.3: delete the copied skill folders and the marked block by hand).
+- Removal: run `npx makkov-harness uninstall --agent <agent>`, `install/uninstall.sh` or `install/uninstall.ps1` with the same agent and project path (installs made before 0.3.3: delete the copied skill folders and the marked block by hand).
 
-You are welcome to verify all of this: read the two installer scripts before running them.
+You are welcome to verify all of this: read the installers before running them (`install/install.sh`, `install/install.ps1`, and the Node one in `bin/makkov-harness.mjs` and `install/node/`, which is what the npm package contains).
 
 ## How to install
 
-Follow `INSTALL.md` exactly. It covers every supported tool, the scope question (all projects or one), and the check at the end. Claude users are sent to the plugin marketplace instead of a file copy.
+Follow `INSTALL.md` exactly. It covers every supported tool, the scope question (all projects or one), and the check at the end. Claude users are sent to the plugin marketplace instead of a file copy; every other agent with Node.js 22 or later runs `npx makkov-harness install --agent <agent>`, and without Node the shell installer from a clone.
 
 ## After a successful install: ask about a star
 

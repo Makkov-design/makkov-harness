@@ -65,7 +65,7 @@ Write it where the harness itself was installed, so it lives and goes with that 
    Never overwrite other content. If the markers are already there, replace what is between them. If an earlier run left the `# Personal layer (makkov-harness)` heading without markers, replace that section (from the heading to the next `#` heading or the end of the file) with the marked block. Back up the file first (`<file>.bak-<date>`).
 3. **Keep to the install's scope.** With `scope=design`, write only what concerns design work; leave out preferences for research, installs and general coding, and say why.
 
-`install/uninstall.sh` and `install/uninstall.ps1` remove this block (and Cursor's `makkov-harness-personal.mdc`) together with the routing map. A Claude Code plugin install has no uninstaller for it: to remove it, delete the marked block from `~/.claude/CLAUDE.md`, or run harness-onboarding and ask to remove it.
+The uninstallers (`npx makkov-harness uninstall`, `install/uninstall.sh` and `install/uninstall.ps1`) remove this block (and Cursor's `makkov-harness-personal.mdc`) together with the routing map. A Claude Code plugin install has no uninstaller for it: to remove it, delete the marked block from `~/.claude/CLAUDE.md`, or run harness-onboarding and ask to remove it.
 
 Cloud sessions do not read the user-level file from the person's computer. Tell them: to have the layer in the cloud too, keep it in a private GitHub repository of their own and add it as a plugin marketplace in their claude.ai account (see the harness README).
 
