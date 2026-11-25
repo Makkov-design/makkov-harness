@@ -11,6 +11,7 @@
 # program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
 # longer than 400 characters when it is matched, so a run stays fast on any input (see the size limits below).
 set -u
+lc0="${LC_ALL-}"; lc0set="${LC_ALL+x}"   # the caller's locale, for the 0.5.0 matcher at the end
 export LC_ALL=C   # bytes, not characters: regexes and ${x:i:n} stay linear on any input
 # bash 5.2 reads a bare & in a ${x//a/b} replacement as "the match"; bash 3.2 has no such rule. Off, so both read it as text.
 shopt -u patsub_replacement 2>/dev/null || true
@@ -213,6 +214,7 @@ fi
 # Run on the command as sent and, as above, on its PowerShell and bash readings when it has an escaped separator
 # (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
 if [ -z "$hit" ]; then
+if [ -n "$lc0set" ]; then LC_ALL="$lc0"; else unset LC_ALL; fi   # 0.5.0 ran in the caller's locale
 raws=("$raw0")
 if [ ${#raw0} -le 8000 ] && [[ $raw0 == *'\\'[\|\&\;\)]* ]]; then
   ps0="${raw0//\\\\|/ |}"; ps0="${ps0//\\\\;/ ;}"; ps0="${ps0//\\\\)/ )}"; ps0="${ps0//\\\\&&/ &&}"
@@ -270,6 +272,7 @@ fi
 done
 fi
 # ---- end of the 0.5.0 matcher ----
+export LC_ALL=C
 
 [ -z "$hit" ] && exit 0
 ask

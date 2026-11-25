@@ -18,7 +18,7 @@ A verdict covers the version listed, on the date listed. Newer versions are not 
 | awesome-design-md (data for `design-md-library`) | `fcc7028` | 2026-11-03 | 🟢 | Fetched as data, one file at a time, never as instructions |
 | hyperframes CLI (npm, for `cloud/setup-design-tools.sh`) | 0.9.9 | 2026-11-04 | 🟢 | SLSA provenance from tag v0.9.9. Downloads caption and voice models on use. Its `usage` command reads a Claude or Codex token and sends it only to api.anthropic.com or chatgpt.com; the hyperframes skill runs it only when you ask about plan usage. Telemetry on by default; the video skills in this harness start it with `HYPERFRAMES_NO_TELEMETRY=1` unless you set `MEDIA_USE_TELEMETRY=1`. For your own runs, set `HYPERFRAMES_NO_TELEMETRY=1` |
 | puppeteer-core (npm, for `cloud/setup-design-tools.sh`) | 25.16.0 | 2026-11-04 | 🟢 | Installed with `--ignore-scripts`; drives the preinstalled Chrome |
-| Frame Lens | 2.1.0, `94d426f` | — | own | Local by default: links are fetched with yt-dlp. Only the optional Gemini tools send the video URL to Google, with the user's own key |
+| Frame Lens | 2.2.0, `0c34347` | 2026-11-24 | own | Local by default: links are fetched with yt-dlp. Only the optional Gemini tools send the video URL to Google, with the user's own key |
 
 Why Impeccable is yellow while the Hyperframes CLI is green, though both send telemetry by default when run on their own: Impeccable's engine binary runs from its hooks on its own, in every session where you accepted the hook, and can repair its own hook entries in your agent settings. The Hyperframes CLI runs only when a video skill calls it for a task you asked for.
 
