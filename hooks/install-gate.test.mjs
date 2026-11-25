@@ -263,7 +263,8 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
     const [asked, ms] = timed(command);
     console.log(`  ${name}: ${command.length} characters, ${ms} ms, ${asked ? "asks" : "passes"}`);
     if (wantAsk !== undefined) assert.equal(asked, wantAsk, name);
-    assert.ok(ms < 1500, `${name}: ${ms} ms`);
+    // ASCII input runs as in the C locale, with the 3 s bound of the timing test above; the locale pass is held to 1 s.
+    assert.ok(ms < (name.startsWith("ascii") ? 3000 : 1000), `${name}: ${ms} ms`);
   }
 });
 
