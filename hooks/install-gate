@@ -44,6 +44,17 @@ re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 
 [ ${#cmd} -gt 20000 ] && ask "$too_long"
 raw0="$cmd"   # the command as sent, for the 0.5.0 matcher at the end
+# A command with a byte outside ASCII also gets the 0.5.0 matcher in the caller's locale (see the end), which bash 3.2
+# runs slowly: over 100 escapes or 8,000 characters it is asked about here, before any work.
+nonascii=""
+if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
+  nonascii=1
+  set -f; IFS='\'
+  # shellcheck disable=SC2206
+  parts0=($raw0)
+  unset IFS; set +f
+  { [ ${#parts0[@]} -gt 100 ] || [ ${#raw0} -gt 8000 ]; } && ask "$too_long_locale"
+fi
 
 # Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
 # backslash-n stays text. A line ends a command unless it ends in a backslash, a pipe or && (then the command goes on);
@@ -216,18 +227,11 @@ fi
 # (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
 # 0.5.0 ran in the caller's locale. For a command of ASCII bytes only the locale cannot change its result (a test checks
 # that), so it runs under C. A command with any other byte runs a second time in the caller's locale, where a Unicode
-# space can separate words and letters such as \u0131 fold to ASCII; with over 100 escapes or 8,000 characters that pass
-# is too slow on bash 3.2 (it could run past the hook's timeout), so such a command is asked about without it.
+# space can separate words and letters such as \u0131 fold to ASCII. Over 100 escapes or 8,000 characters that pass is
+# too slow on bash 3.2 (it could run past the hook's timeout), so such a command was asked about at the start.
 if [ -z "$hit" ]; then
 passes="C"
-if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
-  set -f; IFS='\'
-  # shellcheck disable=SC2206
-  parts0=($raw0)
-  unset IFS; set +f
-  { [ ${#parts0[@]} -gt 100 ] || [ ${#raw0} -gt 8000 ]; } && ask "$too_long_locale"
-  passes="C caller"
-fi
+[ -n "$nonascii" ] && passes="C caller"
 raws=("$raw0")
 if [ ${#raw0} -le 8000 ] && [[ $raw0 == *'\\'[\|\&\;\)]* ]]; then
   ps0="${raw0//\\\\|/ |}"; ps0="${ps0//\\\\;/ ;}"; ps0="${ps0//\\\\)/ )}"; ps0="${ps0//\\\\&&/ &&}"
