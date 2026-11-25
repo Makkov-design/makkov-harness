@@ -44,7 +44,7 @@ AI agents already have hundreds of skills and plugins. The hard part is getting 
 - **The agent picks the right design skill on its own.** A routing map loads at the start of every session. Say "review this screen" and it runs an accessibility, type, colour and layout pass. Say "make it feel like Linear" and it pulls Linear's design system as a reference. Say "animate this card" and the motion follows Emil Kowalski's rules.
 - **Nothing third-party reaches your machine unchecked.** Every third-party companion plugin was fetched without running, scanned, and had its hooks and scripts read by hand. Each one is pinned to the exact commit that passed (Frame Lens, the author's own project, is pinned the same way and marked own, not reviewed), and a weekly check flags new upstream versions for review.
 - **Results you can send as they are.** Audits, research, comparisons and plans come back as designed, interactive pages with real tables, charts and navigation, not as a wall of chat text.
-- **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one message.
+- **Install once, works everywhere.** Add it in the browser once and it follows your account: the desktop app, Claude Code, cloud sessions and every computer you sign in on. Codex, Cursor, Gemini CLI and five more agents get it with one command (`npx makkov-harness`) or one message.
 
 <p align="center"><a href="https://makkov-design.github.io/makkov-harness/#fix"><img src=".github/assets/before-after.gif" alt="Same screen, five skills later: a raw generated CRM screen gets its spacing, alignment, type, colour and motion fixed one skill at a time, the design score climbs from 41 to 96, then a demo cursor tours the finished screen." width="100%"></a></p>
 <p align="center"><sub>Same screen, five skills later: spacing, alignment, type, colour, motion. <a href="https://makkov-design.github.io/makkov-harness/#fix">Scroll through it live</a>.</sub></p>
@@ -97,7 +97,7 @@ Not sure which one you need? [Ask the router](https://makkov-design.github.io/ma
 
 | Skill | What it does for you |
 |---|---|
-| `design-score` | **New.** Scores any live page 0–100 on what code can measure, explains every point, pulls its style out as `DESIGN.md` or tokens, and hands the fixes to your agent |
+| `design-score` | Scores any live page 0–100 on what code can measure, explains every point, pulls its style out as `DESIGN.md` or tokens, and hands the fixes to your agent |
 | `design-md-library` | "Make it in the style of Linear, Stripe or Notion": pulls that product's design-system write-up as a reference |
 | `animate`, `animate-expo`, `animation-performance`, `improve-animations`, `find-animation-opportunities` | Motion done right, by Emil Kowalski |
 | `rich-report` | Turns research, plans and audits into a designed, interactive report page (Claude Artifacts) |
@@ -152,7 +152,25 @@ Nothing extra is required. When a session needs to render a Hyperframes video or
 
 ### Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, OpenCode, Aider
 
+With Node.js 22 or later (`node --version`), one command, no clone:
+
+```
+npx makkov-harness install --agent codex
+```
+
+Use your agent's name: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode` or `aider`. Add `--project <path>` to install into one project only (Cursor, Copilot, Windsurf and Aider always need it), and `--dry-run` to see every change first. Then restart the agent and ask it to **`run harness-onboarding`**.
+
+| To | Run |
+|---|---|
+| Check what is installed where (changes nothing) | `npx makkov-harness doctor` |
+| Update to the newest version | `npx makkov-harness@latest update --agent codex` |
+| Remove it, and put back what it moved aside | `npx makkov-harness uninstall --agent codex` |
+
+Use the same `--agent` and `--project` you installed with.
+
 <p align="center"><img src=".github/assets/install-agents.png" alt="Four steps for coding agents: open your agent, paste the install message, answer two questions, restart the agent." width="100%"></p>
+
+Or let your agent do it, in four steps:
 
 1. Open your coding agent in any project.
 2. Paste this message: `Install https://github.com/Makkov-design/makkov-harness`. It reads [`INSTALL.md`](INSTALL.md) and does the rest.
@@ -162,10 +180,10 @@ Nothing extra is required. When a session needs to render a Hyperframes video or
 Then ask it to **`run harness-onboarding`**.
 
 <details>
-<summary><b>Prefer to run the installer yourself?</b></summary>
+<summary><b>No Node.js?</b> Use the shell installer from a copy</summary>
 <br>
 
-Get a copy, then run the installer with your agent's name: `codex`, `cursor`, `gemini`, `copilot`, `windsurf`, `cline`, `opencode` or `aider`. Cursor, Copilot, Windsurf and Aider also need your project folder at the end.
+Get a copy, then run the installer with your agent's name. Cursor, Copilot, Windsurf and Aider also need your project folder at the end.
 
 macOS or Linux:
 
@@ -181,11 +199,7 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\m
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent codex
 ```
 
-Run the same command again to update; `install/uninstall.sh` / `install/uninstall.ps1` with the same agent and project path (no `--scope`) removes it.
-
-With Node.js 22 or later, one installer works the same on every system: `node ~/makkov-harness/bin/makkov-harness.mjs install --agent codex` (and `update`, `uninstall`, `doctor`, which reports what is installed where).
-
-With Node.js 22 or later you can skip the clone: `npx makkov-harness install --agent <agent>` (add `--project <path>` for one project). It does the same as the shell installers; `npx makkov-harness doctor` reports what is installed where.
+To update, pull the copy (`git -C ~/makkov-harness pull`; in PowerShell `git -C "$HOME\makkov-harness" pull`) and run the same command again; `install/uninstall.sh` / `install/uninstall.ps1` with the same agent and project path (no `--scope`) removes it. All three installers (npx, bash, PowerShell) read and write the same manifest, so an install made with one can be updated or removed with another.
 
 What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 </details>
@@ -222,7 +236,7 @@ Every verdict is also on [the security index](https://makkov-design.github.io/ma
 
 - **Credit, don't repackage.** Other people's work is linked or, where the license allows and linking is impractical, copied with its license; the few changes we make to a copy are listed in [`NOTICE`](NOTICE). See [`CREDITS.md`](CREDITS.md).
 - **Checked before recommended.** Every third-party piece has a dated verdict in [`SECURITY.md`](SECURITY.md).
-- **Nothing runs that you can't read.** Two hooks, both plain shell: one prints `ROUTING.md` at the start of a session, and in Claude Code the install gate turns a third-party install command into a question to you. Installers copy local files and download nothing.
+- **Nothing runs that you can't read.** Two hooks, both plain shell: one prints `ROUTING.md` at the start of a session, and in Claude Code the install gate turns a third-party install command into a question to you. Installers copy files from the clone or the npm package and download nothing themselves.
 - **No keys in files.** Ever.
 
 ## Like it? Star it and pass it on

@@ -20,7 +20,7 @@ Folders and files were checked against each tool's documentation on 2026-11-04. 
 | `design-score`, measured | browser tool or Node runner | browser MCP or Node runner | same | same | same | same | same | same | — | ⚠️ judged only, or paste the bookmarklet's fix prompt |
 | Hyperframes rendering | needs Node, ffmpeg, Chrome | same | same | same | same | same | same | same | same | — |
 
-"installer" in the Install route row: `install/install.sh` or `install/install.ps1`, or the Node installer: from the clone, or `npx makkov-harness` (Node.js 22+).
+"installer" in the Install route row: `npx makkov-harness install --agent <agent>` with Node.js 22 or later (the Node installer, from npm), or without Node `install/install.sh` or `install/install.ps1` from a clone. The Node installer also runs from a clone (`node bin/makkov-harness.mjs`). All three behave the same and read the same manifest.
 
 Notes:
 - Gemini CLI: Google moved unpaid and Google One users to Antigravity CLI on 2026-06-18. Its skills folder is documented as `.agents/skills`; how it reads instructions files is not yet confirmed.

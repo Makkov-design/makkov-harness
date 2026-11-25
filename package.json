@@ -1,6 +1,6 @@
 {
   "name": "makkov-harness",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A designer's harness for AI agents: installs curated design skills and a situation-to-skill routing map for Codex, Cursor, Gemini CLI, GitHub Copilot, Windsurf, Cline, OpenCode and Aider.",
   "keywords": [
     "ai-agents",

@@ -94,7 +94,7 @@
           </div>
           <div>
             <h2 id="seal-title" class="sx-seal-title">Verdicts</h2>
-            <p class="sx-seal-sub">As of <time data-sx="last-long" datetime="2026-11-06">November 6, 2026</time></p>
+            <p class="sx-seal-sub">As of <time data-sx="last-long" datetime="2026-11-23">November 23, 2026</time></p>
           </div>
         </div>
 
@@ -142,7 +142,7 @@
       <div class="sx-list" data-sx-list></div>
       <noscript><p class="sx-noscript">The searchable index needs JavaScript. Every verdict is also in <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p></noscript>
 
-      <p class="sx-source">Transcribed from <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Makkov-design/makkov-harness/blob/main/.claude-plugin/marketplace.json">marketplace.json</a>. Last review <time data-sx="last-long" datetime="2026-11-06">November 6, 2026</time>. A dash means the review notes say nothing about it.</p>
+      <p class="sx-source">Transcribed from <a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Makkov-design/makkov-harness/blob/main/.claude-plugin/marketplace.json">marketplace.json</a>. Last review <time data-sx="last-long" datetime="2026-11-23">November 23, 2026</time>. A dash means the review notes say nothing about it.</p>
     </div>
   </section>
 
@@ -248,7 +248,7 @@
           <span class="sx-step-n" aria-hidden="true">09</span>
           <div class="sx-step-body">
             <h3>Ask before anything installs</h3>
-            <p>In Claude Code, a hook turns any command that installs or runs third-party code (<code>npm install &lt;package&gt;</code>, <code>npx</code>, <code>pip install</code>, <code>curl … | sh</code>) into a question to you, and reminds the agent to run this review first. It never blocks or runs anything. It goes by the form of the command: <code>npm ci</code> and an install that names no package, such as <code>pnpm install --frozen-lockfile</code>, pass without a question, but it does not check that a lockfile exists or is unchanged. It raises the bar; it is not a sandbox.</p>
+            <p>In Claude Code, a hook turns any command that installs or runs third-party code (<code>npm install &lt;package&gt;</code>, <code>npx</code>, <code>pip install</code>, <code>curl … | sh</code>) into a question to you, and reminds the agent to run this review first. It never blocks or runs anything. Since 0.6.1 it also catches the forms agents really type: <code>curl … | sudo -E bash -</code>, <code>bash &lt;(curl …)</code>, a download the same command line then runs, a program with a path or in quotes. Everything the earlier gate asked about still asks, and a command too long to check quickly is asked about too. It goes by the form of the command: <code>npm ci</code> and an install that names no package, such as <code>pnpm install --frozen-lockfile</code>, pass without a question, but it does not check that a lockfile exists or is unchanged. It raises the bar; it is not a sandbox.</p>
             <p class="sx-step-link"><a href="https://github.com/Makkov-design/makkov-harness/blob/main/hooks/install-gate">The hook</a><span aria-hidden="true">·</span><a href="https://github.com/Makkov-design/makkov-harness/blob/main/SECURITY.md#what-the-install-guard-is-and-what-it-is-not">What it is and is not</a></p>
           </div>
         </li>
@@ -330,7 +330,7 @@
   </div>
   <div class="foot-mark" data-glow role="img" aria-label="makkov harness"></div>
 </footer>
-<script src="security-data.js?v=20261107a"></script>
+<script src="security-data.js?v=20261125a"></script>
 <script>
 /* Security index: the summary seal, the searchable list with expandable rows, the harness cards,
    the method timeline and copy buttons. Everything comes from window.MH_SECURITY (security-data.js). */

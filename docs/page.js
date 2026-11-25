@@ -92,6 +92,8 @@
     if (reduce) { show(); return; }
     prev.classList.add('is-out'); swapT = setTimeout(show, 200);
   };
+  // a link elsewhere on the page can open one path (the hero's "New" tag opens the coding agents)
+  document.querySelectorAll('[data-pick-way]').forEach((a) => a.addEventListener('click', () => { const i = +a.dataset.pickWay; if (ways[i]) pickWay(i); }));
   ways.forEach((w, i) => {
     w.addEventListener('click', () => pickWay(i));
     w.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return; e.preventDefault(); pickWay((i + d + ways.length) % ways.length, true); });
