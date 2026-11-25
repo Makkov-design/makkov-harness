@@ -53,7 +53,7 @@ test(
     t.after(() => {
       process.env.PATH = path;
       restore("XDG_CACHE_HOME", cache);
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); // the detached fake python may still be writing its log
     });
     process.env.XDG_CACHE_HOME = join(dir, "cache"); // no set-up environment
     mkdirSync(join(dir, "bin"));
@@ -97,7 +97,7 @@ function bgmSandbox(t) {
   const savedKeys = { GEMINI_API_KEY: process.env.GEMINI_API_KEY, GOOGLE_API_KEY: process.env.GOOGLE_API_KEY };
   t.after(() => {
     for (const [name, value] of Object.entries({ ...saved, ...savedKeys })) restore(name, value);
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); // the detached fake python may still be writing its log
   });
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;
