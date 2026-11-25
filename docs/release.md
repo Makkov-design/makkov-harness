@@ -86,8 +86,10 @@ with `npm login`.
 8. Approve it in npmjs.com, Account settings, Staged Packages, with two-factor authentication. It is live from then
    on. (`npm stage publish` itself needs no second factor; approving and rejecting do.)
 9. Check it: `npm view makkov-harness version` prints the new version, the version's page on npmjs.com shows its
-   provenance (built from this repository's `release.yml` at the tagged commit), and in an empty folder
-   `npx makkov-harness@<version> --help` prints the usage.
+   provenance (built from this repository's `release.yml` at the commit the run started from: the tagged merge
+   commit, or for a run started by hand the head of `main` at that moment, which must be the merge commit you
+   reviewed), and in an empty folder `npx makkov-harness@<version> --help` prints the usage. After a run started
+   by hand, tag that same commit ("The rest of a release", step 1).
 
 No npm token is stored in the repository or in its settings: the publish job proves who it is to npm with GitHub's
 OIDC token, and npm attaches a provenance statement to the version.

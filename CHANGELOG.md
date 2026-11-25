@@ -16,7 +16,7 @@ The gate never blocks anything; it turns a command into a question to you. In Cl
 - **Install words in quoted text ask**, as before: a commit or PR message, an `echo` or a `grep` pattern that names an install. `npm install --prefix app` and `npm i -w packages/a` ask (a word after an option may be the package).
 - **Long commands ask without matching**: 300 or more escapes (line breaks, quotes) as sent, so a plain heredoc of about 300 lines or more, fewer when its lines are long; over 4,000 characters once decoded; and, when the command has any letter outside ASCII, 50 or more backslashes (a heredoc of about 50 lines) or over 2,000 characters. Answer the question, or split the command; for headless runs (`claude -p`, CI) where nobody can answer, turn the gate off for that run with `MAKKOV_HARNESS_INSTALL_GATE=off` once its commands were reviewed.
 
-The installers, the routing map and the skills behave as in 0.6.0; run your installer again (or `npx makkov-harness@latest update --agent <agent>`) to take the new version.
+Who gets what: the gate is a hook of the Claude Code plugin, so only Claude Code users get it, and only through the plugin: Sync the marketplace on claude.ai and restart (README.md, "Getting updates"; with a terminal install, `/plugin marketplace update makkov-harness`, then restart Claude Code). The npm package and the shell installers copy no hooks: for Codex, Cursor and the other agents nothing in the gate changes, and `npx makkov-harness@latest update --agent <agent>` (or the installer from an updated clone) brings only the new skills and routing map, which behave as in 0.6.0.
 
 ### Changed
 

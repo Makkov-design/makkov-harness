@@ -199,7 +199,7 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\m
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent codex
 ```
 
-To update, `git -C ~/makkov-harness pull` and run the same command again; `install/uninstall.sh` / `install/uninstall.ps1` with the same agent and project path (no `--scope`) removes it. All three installers (npx, bash, PowerShell) read and write the same manifest, so an install made with one can be updated or removed with another.
+To update, pull the copy (`git -C ~/makkov-harness pull`; in PowerShell `git -C "$HOME\makkov-harness" pull`) and run the same command again; `install/uninstall.sh` / `install/uninstall.ps1` with the same agent and project path (no `--scope`) removes it. All three installers (npx, bash, PowerShell) read and write the same manifest, so an install made with one can be updated or removed with another.
 
 What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 </details>
