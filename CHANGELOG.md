@@ -4,6 +4,8 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+- Website: the social card image (`docs/img/social.png`) is captured again from `social-card.html`, so its Design Score tag reads "Free" as the page does since 0.6.1, not "New"; the pages ask for it as `social.png?v=6`.
+
 ## [0.6.1] - 2026-11-25
 
 A stronger install gate, the docs and the website brought in line with the npm package, and the first version the release workflow publishes (staged on npm, live only after the owner approves it).
