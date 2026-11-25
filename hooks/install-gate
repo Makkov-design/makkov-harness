@@ -2,13 +2,39 @@
 # PreToolUse hook (Claude Code): before a shell command that installs or runs third-party code, Claude Code
 # asks you first, and the agent is reminded to review it with the third-party-install-guard skill.
 # It never blocks a command and never runs one: it only turns an automatic run into a question.
-# Not asked about: installs from an existing lockfile (npm ci, plain npm/pnpm/yarn install), and npx for a
-# tool already installed in the project (node_modules/.bin). Turn the check off with MAKKOV_HARNESS_INSTALL_GATE=off.
-# Pure bash: reads the hook input from stdin, starts no other program, makes no network calls, writes nothing.
+# What it matches and what it does not is listed in SECURITY.md (hooks/install-gate); hooks/install-corpus.json holds
+# the test cases. Install words anywhere in the command ask, quoted text and commit messages included.
+# When a command can be read two ways (bash and PowerShell escape differently), it asks if either reading is an install.
+# It asks about everything the 0.5.0 gate asks about, and more: no rule here lets through a command 0.5.0 asked about.
+# On in every scope, MAKKOV_HARNESS_SCOPE=design included. Off with MAKKOV_HARNESS_INSTALL_GATE=off (for example in a
+# headless `claude -p` run, where nobody can answer). Pure bash 3.2: reads the hook input from stdin, starts no other
+# program, makes no network calls, writes nothing. Every pattern is anchored at the start of a word and no word is
+# longer than 400 characters when it is matched, so a run stays fast on any input (see the size limits below).
 set -u
-[ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = "off" ] && exit 0
+lc0="${LC_ALL-}"; lc0set="${LC_ALL+x}"   # the caller's locale, for the 0.5.0 matcher at the end
+export LC_ALL=C   # bytes, not characters: regexes and ${x:i:n} stay linear on any input
+# bash 5.2 reads a bare & in a ${x//a/b} replacement as "the match"; bash 3.2 has no such rule. Off, so both read it as text.
+shopt -u patsub_replacement 2>/dev/null || true
+[ "${MAKKOV_HARNESS_INSTALL_GATE:-on}" = off ] && exit 0
 
 IFS= read -r -d '' input || true
+reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+ask() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "${1:-$reason}"
+  exit 0
+}
+too_long="makkov-harness install gate: this command is too long to check quickly (over 20,000 characters or 600 escapes as sent, or 4,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+too_long_locale="makkov-harness install gate: this command has text outside ASCII and is long or has many escapes, too slow to check in your locale, so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+# Checked before decoding: bash 3.2 (macOS) rewrites a string slowly when it has many escapes to decode.
+[ ${#input} -gt 40000 ] && ask "$too_long"
+# bash 3.2 (macOS) and Git Bash spend long on each escape a regex or ${x//a/b} walks over, so input with 600 or more
+# backslashes is asked about before any of that. They are counted by splitting on them, which bash does in one pass.
+set -f; IFS='\'
+# shellcheck disable=SC2206
+parts=($input)
+unset IFS; set +f
+[ ${#parts[@]} -gt 600 ] && ask "$too_long"
+unset parts
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cmd ]] || exit 0
 cmd="${BASH_REMATCH[1]}"
@@ -16,11 +42,211 @@ cwd=""
 re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]}"
 
+[ ${#cmd} -gt 20000 ] && ask "$too_long"
+raw0="$cmd"   # the command as sent, for the 0.5.0 matcher at the end
+# A command with a byte outside ASCII also gets the 0.5.0 matcher in the caller's locale (see the end), which bash 3.2
+# runs slowly: over 100 escapes or 8,000 characters it is asked about here, before any work.
+nonascii=""
+if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
+  nonascii=1
+  set -f; IFS='\'
+  # shellcheck disable=SC2206
+  parts0=($raw0)
+  unset IFS; set +f
+  { [ ${#parts0[@]} -gt 100 ] || [ ${#raw0} -gt 8000 ]; } && ask "$too_long_locale"
+fi
+
+# Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
+# backslash-n stays text. A line ends a command unless it ends in a backslash, a pipe or && (then the command goes on);
+# other line breaks and tabs become separators; escaped quotes become themselves; a no-break space (PowerShell) is a space.
+P=$'\037'   # a unit separator; not \001, which bash uses internally
+cmd="${cmd//\\\\/$P}"
+cmd="${cmd//\\r\\n/\\n}"
+cmd="${cmd//${P}\\n/ }"
+cmd="${cmd//|\\n/| }"; cmd="${cmd//| \\n/| }"; cmd="${cmd//&&\\n/&& }"; cmd="${cmd//&& \\n/&& }"
+cmd="${cmd//\\n/ ; }"; cmd="${cmd//\\r/ }"; cmd="${cmd//\\t/ }"; cmd="${cmd//\\\"/\"}"
+cmd="${cmd//$P/\\}"
+nbsp=$'\xc2\xa0'; cmd="${cmd//$nbsp/ }"
+cwd="${cwd//\\\\/\\}"
+
+# Size limits keep a run well under the hook's 5-second timeout on any input (a timeout would let the command run):
+# over 20,000 characters as sent it asks at once. A word longer than 400 characters (a data blob, a long URL) keeps its first
+# and last 200: no program name or option is that long. Over 4,000 characters after that it asks without matching.
+
+re_long='[^[:space:]]{200}[^[:space:]]{201}'   # 401 in two parts: macOS allows at most 255 in {n}
+if [[ $cmd =~ $re_long ]]; then
+  set -f
+  # shellcheck disable=SC2206
+  words=($cmd)
+  set +f
+  i=0
+  while [ $i -lt ${#words[@]} ]; do
+    word="${words[$i]}"
+    if [ ${#word} -gt 400 ]; then
+      # The middle is not matched, so it must not be able to hold a command: a separator, a pipe or $( ) there asks.
+      mid="${word:200:$((${#word} - 400))}"
+      case "$mid" in *[\;\|\&\`]*|*'$('*) ask ;; esac
+      words[$i]="${word:0:200} ${word:$((${#word} - 200))}"
+    fi
+    i=$((i + 1))
+  done
+  cmd="${words[*]}"
+fi
+[ ${#cmd} -gt 4000 ] && ask "$too_long"
+c=" $cmd "
+# A command that can be read two ways asks if either reading is an install. A backslash before | & ; or ) escapes it in
+# bash (a plain word) and escapes nothing in PowerShell (a real separator). Both readings are matched next to the
+# command as written: the PowerShell one with the separator kept, the bash one with the escaped character as a word.
+# In the PowerShell reading a lone & stays as written: there it is not a separator between two commands (only && is).
+if [[ $c == *\\[\|\&\;\)]* ]]; then
+  ps="${c//\\|/ |}"; ps="${ps//\\;/ ;}"; ps="${ps//\\)/ )}"; ps="${ps//\\&&/ &&}"
+  sh="${c//\\[|&;)]/_}"
+  c="$c ; $ps ; $sh "
+fi
+
+w='[^[:space:];&|"'"'"')]'            # one character of a word
+dq='"([^"\\]|\\.)*"'; sq="'[^']*'"
+path="(${w}*[/\\])?"                  # an optional path before a program: /usr/bin/, venv/bin/, .\tools\
+
+shopt -s nocasematch
+
+b="(^|[[:space:];&|(\`\"'{!])"       # a word starts after a space, a separator, a bracket, a quote or ! (git aliases)
+flag="[[:space:]]+-${w}*([[:space:]]+[^-[:space:];&|\"')]${w}*)?"   # an option, with an optional value
+flags="([[:space:]]+-${w}*)*"         # options without values
+pkg="[[:space:]]+[^-[:space:];&|\"')]" # a word that is not an option: a package
+pm="${b}${path}(npm|pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*"
+npm_add='(install|i|in|ins|inst|insta|instal|isnt|isnta|isntal|isntall|add|it|install-test|create|init)'
+shell="${path}(ba|z|da|k|fi|a|c|tc)?sh(\.exe)?"
+end='([[:space:]]|$|["'"'"')`;&|])'                       # the end of a word
+interp="${path}((ba|z|da|k|fi|a|c|tc)?sh|pwsh|powershell)(\.exe)?${end}"  # a shell runs its stdin, whatever the options
+# python, node, perl and ruby run their stdin only with no script: alone or with "-" (python3 -m json.tool reads data)
+interp2="${path}(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?([[:space:]]+-([[:space:]]|$)|[[:space:]]*($|[\"')\`;&|]))"
+fetch="${path}(curl|wget)(\.exe)?"
+ps_fetch='(iwr|irm|invoke-webrequest|invoke-restmethod|new-object|\[?(system\.)?net\.webclient)'
+subst='(\$\(|`)'
+# What may stand between a pipe and the program: sudo or doas with options, env, NAME=value, busybox.
+sudo="((sudo|doas)(${flag})*[[:space:]]+|${path}env(\.exe)?${flags}([[:space:]]+${w}+=${w}*)*[[:space:]]+|[a-z_][a-z0-9_]*=${w}*[[:space:]]+|(busybox|exec|command|nohup|nice|time)[[:space:]]+)*"
+span="(\\\\.|[^;&|\"'\\\\]|${dq}|${sq}|\|[^|&\"'])*"   # up to the last pipe, quoted & and ; included
+topipe="${span}\|&?[[:space:]]*${sudo}(${interp}|${interp2})"
+# Saved to a file, then run in the same command line: curl -o, wget, iwr -OutFile, git clone, then sh file, ./file,
+# python file, make, npm install …
+saved="${b}(${fetch}${span}[[:space:]](-[a-z]*o|--output|--remote-name(-all)?)([[:space:]=]|$)|${path}wget(\.exe)?[[:space:]]|(iwr|irm|invoke-webrequest|invoke-restmethod)[^;&|]*-outfile|${fetch}${span}>[[:space:]]*[^&|;[:space:]>]|${fetch}${span}\|[[:space:]]*(tar|bsdtar|unzip|gunzip|zcat|cpio)([[:space:]]|$)|${path}git(\.exe)?[[:space:]]+clone[[:space:]]|${path}gh(\.exe)?[[:space:]]+repo[[:space:]]+clone[[:space:]])"
+runs="(^|[;&|(])[[:space:]]*${sudo}(${shell}${flags}[[:space:]]+[^-[:space:];&|<]|&?[[:space:]]*\.{1,2}[/\\]${w}|(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+[^-[:space:];&|]|make([[:space:]]|$)|(npm|pnpm|yarn|bun)(\.cmd)?[[:space:]]+(install|i|ci|run|start)([[:space:]]|$)|(pip[0-9.]*|python[0-9.]*[[:space:]]+-m[[:space:]]*pip)[[:space:]]+install[[:space:]])"
+
+# Each pattern starts with the words it needs (any one of them, as text); a pattern runs only when one is there.
+# On macOS and in Git Bash every regex pass over a long command is slow, so most commands skip most of them.
+patterns=(
+  "npm pnpm yarn bun@@${pm}[[:space:]]+${npm_add}${flags}${pkg}"
+  "npm pnpm yarn bun@@${pm}[[:space:]]+(global|workspace[[:space:]]+${w}+)[[:space:]]+${npm_add}${flags}${pkg}"
+  "dlx@@${b}${path}(pnpm|yarn|bun)(\.cmd|\.exe)?(${flag})*[[:space:]]+dlx[[:space:]]"
+  "npm@@${b}${path}npm(\.cmd)?(${flag})*[[:space:]]+(exec|x)[[:space:]]"
+  "npx pnpx bunx uvx@@${b}${path}(npx|pnpx|bunx|uvx)(\.cmd)?${flags}[[:space:]]+(-p|--package|-c|--call|--from|--with)([[:space:]=]|$)"
+  "pip@@${b}${path}(pip[0-9.]*|(python[0-9.]*|py)(\.exe)?${flags}[[:space:]]+-m[[:space:]]*pip)(\.exe)?(${flag})*[[:space:]]+install[[:space:]]"
+  "uv@@${b}${path}uv(\.exe)?(${flag})*[[:space:]]+(add|tool[[:space:]]+(install|run)|pip[[:space:]]+install|run(${flag})*[[:space:]]+--with([[:space:]=]))"
+  "pipx@@${b}${path}pipx(\.exe)?(${flag})*[[:space:]]+(install|run|inject)[[:space:]]"
+  "add@@${b}${path}(poetry|pdm|rye|bundle|cargo)(\.exe)?(${flag}|[[:space:]]+\+${w}+)*[[:space:]]+add[[:space:]]"
+  "install@@${b}${path}(cargo|gem|conda|mamba|micromamba)(\.exe)?(${flag}|[[:space:]]+\+${w}+)*[[:space:]]+(install|binstall)[[:space:]]"
+  "go@@${b}${path}go(\.exe)?(${flag})*[[:space:]]+(install|get)[[:space:]]"
+  "go@@${b}${path}go(\.exe)?[[:space:]]+run${flags}[[:space:]]+${w}+@"
+  "composer@@${b}${path}composer(\.phar)?(${flag})*[[:space:]]+(global[[:space:]]+)?require[[:space:]]"
+  "deno@@${b}${path}deno(\.exe)?(${flag})*[[:space:]]+(add[[:space:]]|install${flags}${pkg})"
+  "dotnet@@${b}${path}dotnet(\.exe)?[[:space:]]+(add([[:space:]]+${w}+)?[[:space:]]+package|tool[[:space:]]+(install|run|exec)|new[[:space:]]+install)[[:space:]]"
+  "nix@@${b}${path}(nix(\.exe)?[[:space:]]+(profile[[:space:]]+(install|add)|run|shell)|nix-env[[:space:]]+(-[a-z]*i[a-z]*|--install))[[:space:]]"
+  "install add -s@@${b}${path}(brew|winget|choco|scoop|apt|apt-get|aptitude|dnf|yum|zypper|pacman|yay|paru|snap|flatpak|port)(\.exe)?(${flag})*[[:space:]]+(install[[:space:]]|add[[:space:]]|-S[yu]*${flags}${pkg})"
+  "apk@@${b}${path}apk(${flag})*[[:space:]]+add[[:space:]]"
+  "install-@@${b}(install-module|install-package|install-script|install-psresource)[[:space:]]"
+  "claude@@${b}${path}claude(\.exe)?[[:space:]]+(plugin[[:space:]]+(install|marketplace[[:space:]]+add)|mcp[[:space:]]+add(-json)?)[[:space:]]"
+  "install-extension@@${b}${path}(code|code-insiders|codium|cursor|windsurf)(\.cmd|\.exe)?(${flag})*[[:space:]]+--install-extension[[:space:]]"
+  "ext@@${b}${path}gh(\.exe)?[[:space:]]+(extension|extensions|ext)[[:space:]]+install[[:space:]]"
+  "run@@${b}${path}(docker|podman|nerdctl)(\.exe)?(${flag})*[[:space:]]+(container[[:space:]]+)?run[[:space:]]"
+  # curl … | sh, also | sudo -E bash -, | VAR=1 sh, | python3 - --version 1, a quoted URL with & in it, more pipes between
+  "curl wget@@${b}${fetch}${topipe}"
+  "base64@@${b}${path}base64(\.exe)?[[:space:]]+(-[a-z]*d|--decode)${topipe}"
+  # sh -c "\$(curl …)", eval "\$(curl …)", ruby -e / python3 -c "\$(curl …)", bash <(curl …), source <(curl …)
+  "curl wget@@${b}${sudo}(${shell}${flags}[[:space:]]+-[a-z]*c|eval)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  "curl wget@@${b}${sudo}${path}(python[0-9.]*|py|node|perl|ruby|php|pwsh|powershell)(\.exe)?${flags}[[:space:]]+-([a-z]*[ecr]|command)[[:space:]]+[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  "curl wget@@${b}${sudo}(${shell}${flags}|${path}(python[0-9.]*|py|node|perl|ruby|php)(\.exe)?${flags}|source|\.)[[:space:]]+(<[[:space:]]*)?<\([[:space:]]*${fetch}[[:space:]]"
+  "curl wget@@<<<[[:space:]]*[\"']?${subst}[[:space:]]*${fetch}[[:space:]]"
+  ">(@@>[[:space:]]*>\([[:space:]]*${sudo}${path}((ba|z|da|k|fi|a|c|tc)?sh|pwsh|powershell|python[0-9.]*|py|node|perl|ruby|php)(\.exe)?([[:space:]]|\))"
+  # downloaded to a file, then run: curl -o x.sh … && sh x.sh, git clone … && cd … && ./install.sh or npm install
+  "curl wget iwr irm invoke-web invoke-rest clone@@${saved}.*${runs}"
+  # PowerShell: iwr … | iex, iex (irm …), iex "& { \$(irm …) }", iex ((New-Object Net.WebClient).DownloadString(…))
+  "iex invoke-expression@@${b}(iwr|irm|invoke-webrequest|invoke-restmethod|curl|wget)${span}\|[[:space:]]*(iex|invoke-expression)"
+  # 0.5.0's two pipe patterns, not anchored at a word start ($CURL, my-curl, x.Invoke-WebRequest): here they also see
+  # the two readings and the quote-free copies, which the 0.5.0 matcher at the end does not
+  "curl wget@@(curl|wget)[^|;]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([[:space:]]|$|[\"'])"
+  "iwr irm invoke-web invoke-rest@@(iwr|irm|invoke-webrequest|invoke-restmethod)[^|;]*\|[[:space:]]*(iex|invoke-expression)"
+  "iex invoke-expression@@${b}(iex|invoke-expression)[[:space:](\$]*${ps_fetch}"
+  "iex invoke-expression@@${b}(iex|invoke-expression)[[:space:]]+[\"'][^\"']*\\\$\\([[:space:]]*${ps_fetch}"
+  "scriptblock@@\[scriptblock\]::create[[:space:](\$]*${ps_fetch}"
+)
+# Matched as written, with every quote taken out (so "npm" install x and python3 -m "pip" install x count), and with a
+# separator next to a quote read as part of the word, as bash reads it (pacman -S "|"--noconfirm jq installs jq).
+hit=""
+c2="${c//[\"\']/}"
+c3="$c"
+if [[ $c == *[\"\'][\|\&\;\)]* || $c == *[\|\&\;\)][\"\']* ]]; then
+  for q in '"' "'"; do c3="${c3//$q[|&;)]/${q}_}"; c3="${c3//[|&;)]$q/_${q}}"; done
+  c3="${c3//[\"\']/}"
+fi
+for p in "${patterns[@]}"; do
+  want=""
+  for k in ${p%%@@*}; do [[ $c2 == *"$k"* ]] && { want=1; break; }; done
+  [ -z "$want" ] && continue
+  re="${p#*@@}"
+  if [[ $c =~ $re ]] || { [ "$c2" != "$c" ] && [[ $c2 =~ $re ]]; } || { [ "$c3" != "$c2" ] && [[ $c3 =~ $re ]]; }; then
+    hit=1; break
+  fi
+done
+
+# npx, bunx, uvx, pnpx, bun x: ask unless the tool is already installed in this project, without a version.
+if [ -z "$hit" ]; then
+  rest="$c"
+  re_npx="${b}${path}(npx|bunx|uvx|pnpx|bun[[:space:]]+x)(\.cmd)?${flags}[[:space:]]+(([\"'][^[:space:]]?|[^-[:space:];&|\"')])${w}*)"
+  while [[ $rest =~ $re_npx ]]; do
+    tool="${BASH_REMATCH[$((${#BASH_REMATCH[@]} - 2))]}"; tool="${tool#[\"\']}"
+    rest="${rest#*"${BASH_REMATCH[0]}"}"
+    case "$tool" in ''|*[!A-Za-z0-9@/._~+-]*) hit=1; break ;; esac   # not a plain name ("|", x$(npx …)): asks
+    local_bin=""
+    if [ -n "$cwd" ] && [[ $tool != *@* || $tool == @*/* && ${tool#@} != *@* ]]; then
+      name="${tool##*/}"
+      for f in "$cwd/node_modules/.bin/$name" "$cwd/node_modules/.bin/$name.cmd"; do
+        [ -e "$f" ] && local_bin=1
+      done
+    fi
+    [ -z "$local_bin" ] && { hit=1; break; }
+  done
+fi
+
+# ---- 0.5.0 matcher, verbatim: do not edit ----
+# The decode, the twelve patterns and the npx loop of the gate as released in 0.5.0, copied line for line from
+# hooks/fixtures/install-gate-0.5.0 (only its cwd decode and its hit="" are left out; cwd is decoded above the same way).
+# It runs when nothing above asked, on the command as sent (and its readings). This is what makes "asks about everything the 0.5.0
+# gate asks about" true by construction; hooks/install-gate.test.mjs checks that these lines match the fixture.
+# Run on the command as sent and, as above, on its PowerShell and bash readings when it has an escaped separator
+# (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
+# 0.5.0 ran in the caller's locale. For a command of ASCII bytes only the locale cannot change its result (a test checks
+# that), so it runs under C. A command with any other byte runs a second time in the caller's locale, where a Unicode
+# space can separate words and letters such as \u0131 fold to ASCII. Over 100 escapes or 8,000 characters that pass is
+# too slow on bash 3.2 (it could run past the hook's timeout), so such a command was asked about at the start.
+if [ -z "$hit" ]; then
+passes="C"
+[ -n "$nonascii" ] && passes="C caller"
+raws=("$raw0")
+if [ ${#raw0} -le 8000 ] && [[ $raw0 == *'\\'[\|\&\;\)]* ]]; then
+  ps0="${raw0//\\\\|/ |}"; ps0="${ps0//\\\\;/ ;}"; ps0="${ps0//\\\\)/ )}"; ps0="${ps0//\\\\&&/ &&}"
+  raws+=("$ps0" "${raw0//\\\\[|&;)]/_}")
+fi
+for pass in $passes; do
+[ -n "$hit" ] && break
+if [ "$pass" = caller ]; then if [ -n "$lc0set" ]; then LC_ALL="$lc0"; else unset LC_ALL; fi; fi
+for raw in "${raws[@]}"; do
+[ -n "$hit" ] && break
+cmd="$raw"
 # Decode the JSON escapes that change where words start: line breaks and tabs become separators,
 # escaped quotes and backslashes become themselves.
 cmd="${cmd//\\n/ ; }"; cmd="${cmd//\\r/ }"; cmd="${cmd//\\t/ }"
 cmd="${cmd//\\\"/\"}"; cmd="${cmd//\\\\/\\}"
-cwd="${cwd//\\\\/\\}"
 c=" $cmd "
 shopt -s nocasematch
 
@@ -42,7 +268,6 @@ patterns=(
   "(curl|wget)[^|;]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh([[:space:]]|$|[\"'])"
   "(iwr|irm|invoke-webrequest|invoke-restmethod)[^|;]*\|[[:space:]]*(iex|invoke-expression)"
 )
-hit=""
 for p in "${patterns[@]}"; do
   if [[ $c =~ $p ]]; then hit=1; break; fi
 done
@@ -64,8 +289,11 @@ if [ -z "$hit" ]; then
     [ -z "$local_bin" ] && { hit=1; break; }
   done
 fi
-[ -z "$hit" ] && exit 0
+done
+done
+fi
+# ---- end of the 0.5.0 matcher ----
+export LC_ALL=C
 
-reason="makkov-harness install gate: this command installs or runs third-party code. Review it with the third-party-install-guard skill first (fetch without running, scan, read the hooks and scripts, give a Green, Yellow or Red verdict), then approve only what passed. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$reason"
-exit 0
+[ -z "$hit" ] && exit 0
+ask
