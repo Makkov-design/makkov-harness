@@ -26,6 +26,8 @@ Who gets what: the gate is a hook of the Claude Code plugin, so only Claude Code
 
 ### Fixed
 
+- Website: body text fell back to the system font on every page. Fontshare's combined request for both families (`f[]=clash-grotesk@…&f[]=switzer@…`) returned no Switzer, so each page now loads one stylesheet per family. Checked in Chromium on the home, security, situations and Design Score pages at 1440 and 390 px: Switzer and Clash Grotesk load, and nothing overflows.
+- Website: the social card image (`docs/img/social.png`) is captured again from `social-card.html` with both fonts loaded, so its Design Score tag reads "Free", as the page does, not "New"; the pages ask for it as `social.png?v=6`.
 - Install gate: for a command with text outside ASCII, the 0.5.0 matcher also runs in your own locale, as 0.5.0 did, so a Unicode space between words or a letter that folds to ASCII asks there too; such a command with 50 or more backslashes or more than 2,000 characters is always asked about.
 - Install gate: a command with 300 or more escapes (line breaks, quotes) as sent is asked about without matching, down from 600, so a run stays at least three times under the hook's 5-second timeout on a slow Mac; a plain heredoc of about 300 lines or more (fewer when its lines are long) is now asked about.
 - media-use: a test of the music generator could fail on cleanup (`ENOTEMPTY`) while its detached fake Python was still writing its log; the cleanup now retries.
