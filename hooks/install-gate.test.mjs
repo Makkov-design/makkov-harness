@@ -244,7 +244,7 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
   assert.deepEqual(weaker, [], `asked by 0.5.0 and passed by the gate under LC_ALL=${loc}`);
   for (const c of rows.slice(0, 2)) assert.equal(run(HOOK, c, loc), true, c);
   // The matcher's slowest inputs stay fast in this locale too: ASCII ones run under C; one with other bytes runs the
-  // locale pass only up to 50 escapes and 4,000 characters, and asks at once above that.
+  // locale pass only up to 50 escapes and 2,000 characters, and asks at once above that.
   const rep = (x, n) => x.repeat(Math.ceil(n / x.length)).slice(0, n);
   const timed = (command) => {
     const t0 = Date.now();
@@ -256,8 +256,9 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
     ["ascii, 290 escapes", rep('"' + "x".repeat(66), 290 * 67), undefined],
     ["non-ASCII, 290 escapes", "\u00e9 " + rep('"' + "x".repeat(66), 290 * 67), true],
     ["non-ASCII, long words", "\u00e9 " + Array(9).fill(rep("curliwr", 2150)).join(" "), true],
-    ["non-ASCII, 49 escapes, 3,900 characters", "\u00e9 " + Array(2).fill(rep("curliwr", 1900)).join(" ") + rep('"x', 98), undefined],
-    ["non-ASCII, 49 escapes, short words", "\u00e9 " + rep("curl iwr ", 3800) + rep('"x', 98), undefined],
+    ["non-ASCII, 49 escapes, 1,900 characters", "\u00e9 " + Array(2).fill(rep("curliwr", 850)).join(" ") + rep('"x', 98), undefined],
+    ["non-ASCII, 49 escapes, short words", "\u00e9 " + rep("curl iwr ", 1800) + rep('"x', 98), undefined],
+    ["non-ASCII, 2,100 characters", "\u00e9 " + rep("curl iwr ", 2100), true],
   ];
   for (const [name, command, wantAsk] of cases) {
     const [asked, ms] = timed(command);
