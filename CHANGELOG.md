@@ -4,6 +4,8 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+- Docs: `makkov-harness` 0.6.0 is on npm. README.md, INSTALL.md and COMPATIBILITY.md name `npx makkov-harness` as a way to run the Node installer without a clone.
+
 ## [0.6.0] - 2026-11-24
 
 A Node installer and npm package, fixes from an independent security review, and installers that update and uninstall cleanly. The npm package is prepared but not yet published: until it is, install from a clone of this repository.

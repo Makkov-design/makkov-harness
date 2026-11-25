@@ -101,14 +101,5 @@ The npm steps above are one part. For every version, once the last pull request 
 
 ## After the first version is live
 
-Until the package is on npm, the documentation describes only the clone (`install/install.sh`,
-`install/install.ps1`, and `node bin/makkov-harness.mjs` from the clone). Once `npm view makkov-harness version`
-answers, add these sentences, in one pull request:
-
-- README.md, the install section, after the clone commands: "With Node.js 22 or later you can skip the clone:
-  `npx makkov-harness install --agent <agent>` (add `--project <path>` for one project). It does the same as the
-  shell installers; `npx makkov-harness doctor` reports what is installed where."
-- INSTALL.md, the section on the Node installer: "The same installer is on npm: `npx makkov-harness install
-  --agent <agent> [--project <path>]`, then `npx makkov-harness doctor` to check. Use the same `--agent` and
-  `--project` for update and uninstall."
-- COMPATIBILITY.md, the "Install route" row: "Node installer: from the clone, or `npx makkov-harness` (Node.js 22+)."
+`makkov-harness` 0.6.0 was published to npm by hand on 2026-11-25. README.md, INSTALL.md and COMPATIBILITY.md now name
+`npx makkov-harness` next to the clone. Later versions go through the release workflow above.
