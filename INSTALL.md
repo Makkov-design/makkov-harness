@@ -56,6 +56,8 @@ node ~/makkov-harness/bin/makkov-harness.mjs install --agent <agent> [--project 
 
 (Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" install …`.)
 
+The same installer is on npm: `npx makkov-harness install --agent <agent> [--project <path>]`, then `npx makkov-harness doctor` to check. Use the same `--agent` and `--project` for update and uninstall.
+
 Without Node, the shell installers do the same.
 
 Windows (PowerShell):

@@ -185,6 +185,8 @@ Run the same command again to update; `install/uninstall.sh` / `install/uninstal
 
 With Node.js 22 or later, one installer works the same on every system: `node ~/makkov-harness/bin/makkov-harness.mjs install --agent codex` (and `update`, `uninstall`, `doctor`, which reports what is installed where).
 
+With Node.js 22 or later you can skip the clone: `npx makkov-harness install --agent <agent>` (add `--project <path>` for one project). It does the same as the shell installers; `npx makkov-harness doctor` reports what is installed where.
+
 What goes where, per tool: [`INSTALL.md`](INSTALL.md) and [`COMPATIBILITY.md`](COMPATIBILITY.md).
 </details>
 
