@@ -23,17 +23,17 @@ ask() {
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "${1:-$reason}"
   exit 0
 }
-too_long="makkov-harness install gate: this command is too long to check quickly (over 20,000 characters or 600 escapes as sent, or 4,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+too_long="makkov-harness install gate: this command is too long to check quickly (over 20,000 characters or 300 escapes as sent, or 4,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
 too_long_locale="makkov-harness install gate: this command has text outside ASCII and is long or has many escapes, too slow to check in your locale, so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
 # Checked before decoding: bash 3.2 (macOS) rewrites a string slowly when it has many escapes to decode.
 [ ${#input} -gt 40000 ] && ask "$too_long"
-# bash 3.2 (macOS) and Git Bash spend long on each escape a regex or ${x//a/b} walks over, so input with 600 or more
+# bash 3.2 (macOS) and Git Bash spend long on each escape a regex or ${x//a/b} walks over, so input with 300 or more
 # backslashes is asked about before any of that. They are counted by splitting on them, which bash does in one pass.
 set -f; IFS='\'
 # shellcheck disable=SC2206
 parts=($input)
 unset IFS; set +f
-[ ${#parts[@]} -gt 600 ] && ask "$too_long"
+[ ${#parts[@]} -gt 300 ] && ask "$too_long"
 unset parts
 re_cmd='"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [[ $input =~ $re_cmd ]] || exit 0
@@ -45,7 +45,7 @@ re_cwd='"cwd"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
 [ ${#cmd} -gt 20000 ] && ask "$too_long"
 raw0="$cmd"   # the command as sent, for the 0.5.0 matcher at the end
 # A command with a byte outside ASCII also gets the 0.5.0 matcher in the caller's locale (see the end), which bash 3.2
-# runs slowly: over 100 escapes or 8,000 characters it is asked about here, before any work.
+# runs slowly: over 50 escapes or 2,000 characters it is asked about here, before any work.
 nonascii=""
 if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
   nonascii=1
@@ -53,7 +53,7 @@ if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
   # shellcheck disable=SC2206
   parts0=($raw0)
   unset IFS; set +f
-  { [ ${#parts0[@]} -gt 100 ] || [ ${#raw0} -gt 8000 ]; } && ask "$too_long_locale"
+  { [ ${#parts0[@]} -gt 50 ] || [ ${#raw0} -gt 2000 ]; } && ask "$too_long_locale"
 fi
 
 # Decode the JSON escapes that change where words start. Escaped backslashes are set aside first, so a literal
@@ -227,7 +227,7 @@ fi
 # (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
 # 0.5.0 ran in the caller's locale. For a command of ASCII bytes only the locale cannot change its result (a test checks
 # that), so it runs under C. A command with any other byte runs a second time in the caller's locale, where a Unicode
-# space can separate words and letters such as \u0131 fold to ASCII. Over 100 escapes or 8,000 characters that pass is
+# space can separate words and letters such as \u0131 fold to ASCII. Over 50 escapes or 2,000 characters that pass is
 # too slow on bash 3.2 (it could run past the hook's timeout), so such a command was asked about at the start.
 if [ -z "$hit" ]; then
 passes="C"

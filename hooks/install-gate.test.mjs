@@ -244,7 +244,7 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
   assert.deepEqual(weaker, [], `asked by 0.5.0 and passed by the gate under LC_ALL=${loc}`);
   for (const c of rows.slice(0, 2)) assert.equal(run(HOOK, c, loc), true, c);
   // The matcher's slowest inputs stay fast in this locale too: ASCII ones run under C; one with other bytes runs the
-  // locale pass only up to 100 escapes and 8,000 characters, and asks at once above that.
+  // locale pass only up to 50 escapes and 2,000 characters, and asks at once above that.
   const rep = (x, n) => x.repeat(Math.ceil(n / x.length)).slice(0, n);
   const timed = (command) => {
     const t0 = Date.now();
@@ -253,11 +253,12 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
   };
   const cases = [
     ["ascii, long words", Array(9).fill(rep("curliwr", 2200)).join(" "), undefined],
-    ["ascii, 590 escapes", rep('"' + "x".repeat(30), 590 * 31), undefined],
-    ["non-ASCII, 590 escapes", "\u00e9 " + rep('"' + "x".repeat(30), 590 * 31), true],
+    ["ascii, 290 escapes", rep('"' + "x".repeat(66), 290 * 67), undefined],
+    ["non-ASCII, 290 escapes", "\u00e9 " + rep('"' + "x".repeat(66), 290 * 67), true],
     ["non-ASCII, long words", "\u00e9 " + Array(9).fill(rep("curliwr", 2150)).join(" "), true],
-    ["non-ASCII, 99 escapes, 7,900 characters", "\u00e9 " + Array(3).fill(rep("curliwr", 2560)).join(" ") + rep('"x', 198), undefined],
-    ["non-ASCII, 99 escapes, short words", "\u00e9 " + rep("curl iwr ", 3600) + rep('"x', 198), undefined],
+    ["non-ASCII, 49 escapes, 1,900 characters", "\u00e9 " + Array(2).fill(rep("curliwr", 850)).join(" ") + rep('"x', 98), undefined],
+    ["non-ASCII, 49 escapes, short words", "\u00e9 " + rep("curl iwr ", 1800) + rep('"x', 98), undefined],
+    ["non-ASCII, 2,100 characters", "\u00e9 " + rep("curl iwr ", 2100), true],
   ];
   for (const [name, command, wantAsk] of cases) {
     const [asked, ms] = timed(command);
@@ -322,7 +323,7 @@ test("stays fast on large and adversarial input (asks, never times out)", () => 
     "cat > a.txt <<'EOF'\ndata:image/png;base64," + "A".repeat(100000) + "\nEOF",
     "cat > a.txt <<'EOF'\ndata:image/png;base64," + "A".repeat(19000) + "\nEOF",
     rep('"', 9900), // 9,900 escapes: asked about before decoding
-    rep('"' + "x".repeat(30), 590 * 31), // 590 escapes in 18 KB: just under that limit, decoded
+    rep('"' + "x".repeat(66), 290 * 67), // 290 escapes in 19 KB: just under that limit, decoded
     rep("\n", 6600),
     rep("a\n", 6600),
     rep("curl x ", 100000),
@@ -352,8 +353,8 @@ test("a command over 20,000 characters, or 4,000 once long words are cut, is ask
   assert.equal(gate("echo " + "ab ".repeat(1500)), "ask");
   assert.equal(gate("cat > a.txt <<'EOF'\n" + "A".repeat(15000) + "\nEOF"), "allow"); // one long word, cut
   assert.equal(gate("cat > a.txt <<'EOF'\n" + "A".repeat(25000) + "\nEOF"), "ask"); // over 20,000 as sent
-  assert.equal(gate("cat > a.txt <<'EOF'\n" + "line\n".repeat(700) + "EOF"), "ask"); // 700 escapes as sent
-  assert.equal(gate("cat > a.txt <<'EOF'\n" + "line\n".repeat(500) + "EOF"), "allow");
+  assert.equal(gate("cat > a.txt <<'EOF'\n" + "line\n".repeat(350) + "EOF"), "ask"); // 350 escapes as sent
+  assert.equal(gate("cat > a.txt <<'EOF'\n" + "line\n".repeat(250) + "EOF"), "allow");
 });
 
 test("starts no other program: it works with an empty PATH", { skip: process.platform === "win32" }, () => {
