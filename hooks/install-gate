@@ -24,6 +24,7 @@ ask() {
   exit 0
 }
 too_long="makkov-harness install gate: this command is too long to check quickly (over 20,000 characters or 600 escapes as sent, or 4,000 characters once long words are cut), so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
+too_long_locale="makkov-harness install gate: this command has text outside ASCII and is long or has many escapes, too slow to check in your locale, so it is asked about. If it installs or runs third-party code, review it with the third-party-install-guard skill first. Turn this check off with MAKKOV_HARNESS_INSTALL_GATE=off."
 # Checked before decoding: bash 3.2 (macOS) rewrites a string slowly when it has many escapes to decode.
 [ ${#input} -gt 40000 ] && ask "$too_long"
 # bash 3.2 (macOS) and Git Bash spend long on each escape a regex or ${x//a/b} walks over, so input with 600 or more
@@ -213,13 +214,28 @@ fi
 # gate asks about" true by construction; hooks/install-gate.test.mjs checks that these lines match the fixture.
 # Run on the command as sent and, as above, on its PowerShell and bash readings when it has an escaped separator
 # (still in its JSON form, so a shell backslash is \\ here); the readings only up to 8,000 characters, for speed.
+# 0.5.0 ran in the caller's locale. For a command of ASCII bytes only the locale cannot change its result (a test checks
+# that), so it runs under C. A command with any other byte runs a second time in the caller's locale, where a Unicode
+# space can separate words and letters such as \u0131 fold to ASCII; with over 100 escapes or 8,000 characters that pass
+# is too slow on bash 3.2 (it could run past the hook's timeout), so such a command is asked about without it.
 if [ -z "$hit" ]; then
-if [ -n "$lc0set" ]; then LC_ALL="$lc0"; else unset LC_ALL; fi   # 0.5.0 ran in the caller's locale
+passes="C"
+if [[ $raw0 == *[$'\x80'-$'\xff']* ]]; then
+  set -f; IFS='\'
+  # shellcheck disable=SC2206
+  parts0=($raw0)
+  unset IFS; set +f
+  { [ ${#parts0[@]} -gt 100 ] || [ ${#raw0} -gt 8000 ]; } && ask "$too_long_locale"
+  passes="C caller"
+fi
 raws=("$raw0")
 if [ ${#raw0} -le 8000 ] && [[ $raw0 == *'\\'[\|\&\;\)]* ]]; then
   ps0="${raw0//\\\\|/ |}"; ps0="${ps0//\\\\;/ ;}"; ps0="${ps0//\\\\)/ )}"; ps0="${ps0//\\\\&&/ &&}"
   raws+=("$ps0" "${raw0//\\\\[|&;)]/_}")
 fi
+for pass in $passes; do
+[ -n "$hit" ] && break
+if [ "$pass" = caller ]; then if [ -n "$lc0set" ]; then LC_ALL="$lc0"; else unset LC_ALL; fi; fi
 for raw in "${raws[@]}"; do
 [ -n "$hit" ] && break
 cmd="$raw"
@@ -269,6 +285,7 @@ if [ -z "$hit" ]; then
     [ -z "$local_bin" ] && { hit=1; break; }
   done
 fi
+done
 done
 fi
 # ---- end of the 0.5.0 matcher ----

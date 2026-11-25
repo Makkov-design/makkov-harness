@@ -56,12 +56,12 @@ test("the 0.5.0 matcher inside the gate is the fixture's, line for line", () => 
   assert.equal(gateLines[b + 1], "export LC_ALL=C", "the rest of the gate runs under LC_ALL=C again");
   const block = gateLines.slice(a + 1, b);
   const start = block.indexOf('cmd="$raw"');
-  assert.ok(start > 0 && block[start - 1] === '[ -n "$hit" ] && break' && block[block.length - 2] === "done" && block[block.length - 1] === "fi");
+  assert.ok(start > 0 && block[start - 1] === '[ -n "$hit" ] && break' && block.slice(-3).join("|") === "done|done|fi");
   const fixture = readFileSync(OLD, "utf8").split("\n");
   const from = fixture.indexOf("# Decode the JSON escapes that change where words start: line breaks and tabs become separators,");
   const to = fixture.indexOf("[ -z \"$hit\" ] && exit 0");
   const want = fixture.slice(from, to).filter((l) => !l.startsWith('cwd="${cwd//') && l !== 'hit=""');
-  assert.deepEqual(block.slice(start + 1, -2), want);
+  assert.deepEqual(block.slice(start + 1, -3), want);
 });
 test("asks about everything the 0.5.0 gate asked about", () => {
   const old = (command) => {
@@ -205,15 +205,30 @@ test("a character before a program name never lets a command through that 0.5.0 
 // The 0.5.0 gate ran in the caller's locale, and so does its matcher here (the rest of the gate runs under LC_ALL=C).
 // In a UTF-8 locale [[:space:]] also matches Unicode spaces and nocasematch folds letters such as \u0131 and \u017f to
 // ASCII, so 0.5.0 asks about these; the gate must too. Skipped where the machine has no UTF-8 locale.
+const runIn = (file, command, LC_ALL) => {
+  const env = { ...process.env, ...CLEAN, LC_ALL };
+  const r = spawnSync("bash", [file], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }), encoding: "utf8", env, timeout: 10000 });
+  assert.equal(r.signal, null, `killed after 10 s: ${JSON.stringify(command.slice(0, 80))}`);
+  return r.stdout.trim() !== "";
+};
+let utf8;
+const utf8Locale = () => (utf8 ??= ["C.UTF-8", "C.utf8", "en_US.UTF-8", "en_US.utf8"].find((l) => runIn(OLD, "pip\u3000install evil-pkg", l)) ?? "");
+
+// The gate runs the 0.5.0 matcher under C for a command of ASCII bytes only, on the claim that the locale cannot change
+// 0.5.0's result for such a command. Checked here on the corpus, as written and in capitals.
+test("for an ASCII-only command the 0.5.0 gate answers the same under C and under UTF-8", (t) => {
+  const loc = utf8Locale();
+  if (!loc) return t.skip("no UTF-8 locale on this machine");
+  const differ = [];
+  for (const cmd of CORPUS.flatMap((c) => [c.cmd, c.cmd.toUpperCase()]).filter((c) => /^[\x00-\x7f]*$/.test(c))) {
+    if (runIn(OLD, cmd, "C") !== runIn(OLD, cmd, loc)) differ.push(cmd);
+  }
+  assert.deepEqual(differ, []);
+});
+
 test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) => {
-  const run = (file, command, LC_ALL) => {
-    const env = { ...process.env, ...CLEAN, LC_ALL };
-    const r = spawnSync("bash", [file], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }), encoding: "utf8", env, timeout: 10000 });
-    assert.equal(r.signal, null, `killed after 10 s: ${JSON.stringify(command.slice(0, 80))}`);
-    return r.stdout.trim() !== "";
-  };
-  const probe = "pip\u3000install evil-pkg";
-  const loc = ["C.UTF-8", "C.utf8", "en_US.UTF-8", "en_US.utf8"].find((l) => run(OLD, probe, l));
+  const run = runIn;
+  const loc = utf8Locale();
   if (!loc) return t.skip("no UTF-8 locale on this machine");
   const spaces = ["\u2003", "\u2002", "\u2009", "\u2007", "\u3000", "\u1680"]; // em, en, thin, figure, ideographic, ogham
   const rows = [
@@ -228,11 +243,28 @@ test("in a UTF-8 locale, asks about everything the 0.5.0 gate asks about", (t) =
   const weaker = rows.filter((c) => run(OLD, c, loc) && !run(HOOK, c, loc));
   assert.deepEqual(weaker, [], `asked by 0.5.0 and passed by the gate under LC_ALL=${loc}`);
   for (const c of rows.slice(0, 2)) assert.equal(run(HOOK, c, loc), true, c);
-  // The matcher's slowest input stays fast in this locale too.
-  const word = "curliwr".repeat(315).slice(0, 2200);
-  const t0 = Date.now();
-  run(HOOK, Array(9).fill(word).join(" "), loc);
-  assert.ok(Date.now() - t0 < 3000, `${Date.now() - t0} ms`);
+  // The matcher's slowest inputs stay fast in this locale too: ASCII ones run under C; one with other bytes runs the
+  // locale pass only up to 100 escapes and 8,000 characters, and asks at once above that.
+  const rep = (x, n) => x.repeat(Math.ceil(n / x.length)).slice(0, n);
+  const timed = (command) => {
+    const t0 = Date.now();
+    const asked = run(HOOK, command, loc);
+    return [asked, Date.now() - t0];
+  };
+  const cases = [
+    ["ascii, long words", Array(9).fill(rep("curliwr", 2200)).join(" "), undefined],
+    ["ascii, 590 escapes", rep('"' + "x".repeat(30), 590 * 31), undefined],
+    ["non-ASCII, 590 escapes", "\u00e9 " + rep('"' + "x".repeat(30), 590 * 31), true],
+    ["non-ASCII, long words", "\u00e9 " + Array(9).fill(rep("curliwr", 2150)).join(" "), true],
+    ["non-ASCII, 99 escapes, 7,900 characters", "\u00e9 " + Array(3).fill(rep("curliwr", 2560)).join(" ") + rep('"x', 198), undefined],
+    ["non-ASCII, 99 escapes, short words", "\u00e9 " + rep("curl iwr ", 3600) + rep('"x', 198), undefined],
+  ];
+  for (const [name, command, wantAsk] of cases) {
+    const [asked, ms] = timed(command);
+    console.log(`  ${name}: ${command.length} characters, ${ms} ms, ${asked ? "asks" : "passes"}`);
+    if (wantAsk !== undefined) assert.equal(asked, wantAsk, name);
+    assert.ok(ms < 1500, `${name}: ${ms} ms`);
+  }
 });
 
 test("a word cut for length asks when its unread middle could hold a command", () => {
