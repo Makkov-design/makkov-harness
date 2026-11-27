@@ -28,7 +28,7 @@ Poor fit: the person needs a runtime library or an app dependency, or does no de
 - The Design Score bundle (`skills/design-score/mh-score.js`) is prebuilt and runs only inside a web page you open: it reads the page, makes no network requests and leaves the page's own content alone (its panel is one element of its own, removed on close). Which file runs: the Node runner injects that local file; an agent's browser tool loads the copy on GitHub Pages, and the browser runs it only when it matches that local file's integrity hash (a mismatch is refused); the score page's bookmarklets run what GitHub Pages publishes (the loader) or carry the bundle inside them (offline). Its optional Node runner uses puppeteer-core and Chrome only if they are already installed; it never installs them.
 - Removal: run `npx makkov-harness uninstall --agent <agent>`, `install/uninstall.sh` or `install/uninstall.ps1` with the same agent and project path (installs made before 0.3.3: delete the copied skill folders and the marked block by hand).
 
-You are welcome to verify all of this: read the installers before running them (`install/install.sh`, `install/install.ps1`, and the Node one in `bin/makkov-harness.mjs` and `install/node/`, which is what the npm package contains).
+You are welcome to verify all of this: read the installers before running them (`install/install.sh`, `install/install.ps1`, and the Node one in `cli/makkov-harness.mjs` and `install/node/`, which is what the npm package contains).
 
 ## How to install
 

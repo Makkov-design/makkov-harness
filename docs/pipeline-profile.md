@@ -49,7 +49,7 @@ Runs are stopped half way through a test hook that is inert in normal use: only 
 `MAKKOV_HARNESS_TEST=1` and `MAKKOV_HARNESS_TEST_STOP=<point>` set does a run stop at that point (install:
 `skill`, `skills`, `rules`; uninstall: `u-skills`, `u-rules`).
 
-The Node installer (`bin/makkov-harness.mjs`, `install/node/`) is the third implementation of the same behaviour
+The Node installer (`cli/makkov-harness.mjs`, `install/node/`) is the third implementation of the same behaviour
 and reads and writes the same manifests; a change to the installers lands in all three. It uses the Node standard
 library only (no dependencies, no install scripts) and is published as the npm package `makkov-harness`
 ([release.md](release.md); `.github/workflows/release.yml` runs only on the owner's dispatch or a version tag).

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import * as L from './lib.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const bin = path.join(repo, 'bin', 'makkov-harness.mjs');
+const bin = path.join(repo, 'cli', 'makkov-harness.mjs');
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mh-node-'));
 const has = (cmd) => spawnSync(cmd, ['--version'], { stdio: 'ignore' }).status === 0;
 function run(args, home, opts = {}) {
@@ -157,7 +157,7 @@ test("the npm package holds the installer, the routing map and the skills, and n
   assert.equal(r.status, 0, r.stderr);
   const pkg = JSON.parse(r.stdout)[0];
   const files = pkg.files.map((f) => f.path.replace(/\\/g, '/'));
-  for (const f of ['bin/makkov-harness.mjs', 'install/node/cli.mjs', 'install/node/lib.mjs', 'install/node/install.mjs', 'install/node/uninstall.mjs',
+  for (const f of ['cli/makkov-harness.mjs', 'install/node/cli.mjs', 'install/node/lib.mjs', 'install/node/install.mjs', 'install/node/uninstall.mjs',
     'install/node/doctor.mjs', 'install/node/fingerprints.mjs', 'install/node/fingerprints.json', 'ROUTING.md', 'LICENSE', 'package.json']) assert.ok(files.includes(f), f);
   // Every skill file as tracked, except rich-report (Claude only), what npm never packs (.gitignore), and the tests and
   // their fixtures.
@@ -172,6 +172,11 @@ test("the npm package holds the installer, the routing map and the skills, and n
   }
   for (const f of files) assert.ok(!/^(\.github|docs|hooks|adapters|cloud|install\/test)\/|\.test\.mjs$|^install\/[^/]+\.(sh|ps1)$/.test(f) || f.startsWith('skills/'), `not in the package: ${f}`);
   for (const f of files) assert.ok(!/\.test\.mjs$|_test\.py$|(^|\/)fixtures\//.test(f), `a test or fixture in the package: ${f}`);
+  // claude.ai skips a plugin with a top-level bin/, and the plugin root is this repository's root (0.6.0 and 0.6.1
+  // were skipped), so the installer lives in cli/ and the package's bin entry points there.
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8')).bin, { 'makkov-harness': 'cli/makkov-harness.mjs' });
+  for (const f of files) assert.ok(!f.startsWith('bin/'), `a top-level bin/ in the package: ${f}`);
+  assert.equal(fs.existsSync(path.join(repo, 'bin')), false, 'a top-level bin/ in the repository (the plugin root)');
   assert.ok(pkg.unpackedSize < 10 * 1024 * 1024, `unpacked ${pkg.unpackedSize} bytes`);
 });
 

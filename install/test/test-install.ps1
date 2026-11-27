@@ -29,7 +29,7 @@ function Snap([string]$Dir) {
     ForEach-Object { $_.FullName.Substring($root.Length) + ' ' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "`n"
 }
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md'), (Join-Path $repo 'bin'), (Join-Path $repo 'package.json') $d -Recurse; $d }
+function New-HarnessCopy { $d = New-Temp; Copy-Item (Join-Path $repo 'install'), (Join-Path $repo 'skills'), (Join-Path $repo 'ROUTING.md'), (Join-Path $repo 'cli'), (Join-Path $repo 'package.json') $d -Recurse; $d }
 $realHome = $env:USERPROFILE
 # This same PowerShell (5.1 or 7), as a child process: to see an exit code and what went to stderr.
 $exe = (Get-Process -Id $PID).Path

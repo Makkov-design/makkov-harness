@@ -4,6 +4,24 @@ Every notable change to makkov-harness, newest first. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-27
+
+Claude plugin users get 0.6.x at last: claude.ai's Sync had skipped the plugin since 0.6.0.
+
+### Fixed
+
+- claude.ai skipped the plugin from 0.6.0 on. Sync on the makkov-harness marketplace marked it "Skipped" and kept 0.5.0: "Plugin contains a top-level bin/ directory ('bin/makkov-harness.mjs')". claude.ai does not install a plugin with a top-level `bin/` (its files would be on the CLI's PATH without showing on the admin approval surface), and the plugin root is this repository's root, where 0.6.0 put the Node installer. So Claude plugin users stayed on 0.5.0 and never got the 0.6.x install gate. The installer moved to `cli/makkov-harness.mjs`; there is no `bin/` at the root any more. After this release, Sync the marketplace on claude.ai and restart (README.md, "Getting updates").
+
+### Changed
+
+- Where the Node installer lives: `cli/makkov-harness.mjs` (was `bin/makkov-harness.mjs`). Nothing changes for `npx makkov-harness`: the npm package's `bin` entry points at the new file and the command name is the same. From a clone, run `node cli/makkov-harness.mjs install …` (and `doctor`, `update`, `uninstall`). INSTALL.md, AGENTS.md, SECURITY.md, COMPATIBILITY.md, CONTRIBUTING.md, `docs/release.md`, `docs/pipeline-profile.md`, the CI workflows and the tests say so.
+- Frame Lens 2.2.0 → 2.3.0 (`04227d4`, tag v2.3.0). Reviewed as the author's own project: the npm package `framelens@2.3.0` has provenance from that tag and commit, and its 6 files are identical to the tag. What matters for trust: every request of the `web` tool's browser now goes through a proxy inside Frame Lens (on 127.0.0.1, per-run credentials) that refuses this computer, the local network and cloud metadata addresses and connects to the address it checked, and WebRTC is turned off. Its documented limits: QUIC is turned off rather than checked, request kinds its tests do not cover are not claimed, an administrator's browser policy could override the proxy, and behind the network's own proxy the address pin is up to that proxy. SECURITY.md and the security page record it.
+- `docs/release.md`: a release is not done until the marketplace is synced on claude.ai and the plugin shows the new version, not Skipped, at the tagged commit.
+
+### Added
+
+- `check.mjs` fails when claude.ai's Sync would skip a plugin of this marketplace for a reason Claude's documentation names: a top-level `bin/` in a plugin root this repository holds, a source that is not `github`, `url`, `git-subdir` or a `./` path, a `..` in a path, or a `url`/`git-subdir` source on a host other than github.com, gitlab.com or bitbucket.org (`.github/scripts/claude-ai.mjs`, with tests).
+
 ## [0.6.1] - 2026-11-25
 
 A stronger install gate, the docs and the website brought in line with the npm package, and the first version the release workflow publishes (staged on npm, live only after the owner approves it).
@@ -313,7 +331,8 @@ The first public release.
 - A weekly upstream watch that flags new versions of the pinned companions in one issue.
 - The website on GitHub Pages, the brand mark and wordmark, an MIT license, issue and pull request templates and a code of conduct.
 
-[Unreleased]: https://github.com/Makkov-design/makkov-harness/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/Makkov-design/makkov-harness/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/Makkov-design/makkov-harness/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/Makkov-design/makkov-harness/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Makkov-design/makkov-harness/compare/v0.4.0...v0.5.0
