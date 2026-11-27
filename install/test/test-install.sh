@@ -23,7 +23,7 @@ tree() { (cd "$1" && find . -mindepth 1 -exec sh -c 'for f; do if [ -L "$f" ]; t
 runs() { set +e; out="$("$@" 2>&1)"; code=$?; set -e; }
 root=0; [ "$(id -u)" = 0 ] && root=1
 # A copy of the harness to edit (a newer version of a skill, a skill renamed upstream) without touching this one.
-harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$repo/bin" "$repo/package.json" "$d/"; echo "$d"; }
+harness_copy() { local d; d="$(tmp)"; cp -R "$repo/install" "$repo/skills" "$repo/ROUTING.md" "$repo/cli" "$repo/package.json" "$d/"; echo "$d"; }
 
 run_agent() {
   local agent="$1" scope="$2" home proj base skills rules

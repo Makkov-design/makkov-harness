@@ -4,7 +4,7 @@
 #>
 param([string]$Agent, [string]$Project, [switch]$DryRun, [string]$Scope, [switch]$FollowLinks)
 $ErrorActionPreference = 'Continue'
-$a = @((Join-Path $PSScriptRoot '..\..\..\bin\makkov-harness.mjs'), 'install', '--agent', $Agent)
+$a = @((Join-Path $PSScriptRoot '..\..\..\cli\makkov-harness.mjs'), 'install', '--agent', $Agent)
 if ($Project) { $a += @('--project', $Project) }
 if ($DryRun) { $a += '--dry-run' }
 if ($FollowLinks) { $a += '--follow-links' }

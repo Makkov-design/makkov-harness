@@ -6,8 +6,8 @@
 # Usage: bash install/test/test-sequences.sh [sequences] [seed]
 #   MAKKOV_TEST_KILL=1   also kill runs with kill -9 at a random moment (timing-dependent; for local runs)
 #   MAKKOV_IMPL=sh       install.sh / uninstall.sh (the default)
-#   MAKKOV_IMPL=node     the Node installer (bin/makkov-harness.mjs)
-#   MAKKOV_NODE_BIN=…    the Node installer to run (default: this repository's bin/makkov-harness.mjs)
+#   MAKKOV_IMPL=node     the Node installer (cli/makkov-harness.mjs)
+#   MAKKOV_NODE_BIN=…    the Node installer to run (default: this repository's cli/makkov-harness.mjs)
 #   MAKKOV_IMPL=mixed    each step by one of them picked at random, and by install.ps1 / uninstall.ps1 too when
 #                        PowerShell 7 (pwsh) is installed: the same folder, worked on by every implementation
 set -euo pipefail
@@ -26,9 +26,9 @@ ps_exes=()
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -w "$1"; }
     for x in pwsh powershell; do command -v "$x" >/dev/null 2>&1 && ps_exes+=("$(command -v "$x")"); done ;;
   *) winpath() { printf '%s' "$1"; }; command -v pwsh >/dev/null 2>&1 && ps_exes+=("$(command -v pwsh)") ;; esac
-# MAKKOV_NODE_BIN: the Node installer to run, e.g. bin/makkov-harness.mjs of the npm package unpacked from
+# MAKKOV_NODE_BIN: the Node installer to run, e.g. cli/makkov-harness.mjs of the npm package unpacked from
 # `npm pack` (its skills miss the files npm never packs, such as a .gitignore); this repository's by default.
-node_bin="${MAKKOV_NODE_BIN:-$repo/bin/makkov-harness.mjs}"
+node_bin="${MAKKOV_NODE_BIN:-$repo/cli/makkov-harness.mjs}"
 # PowerShell keeps caches in its own $HOME (.cache, .local): a folder of its own, outside the folders compared, so
 # they are not taken for something an installer left. install.ps1 reads USERPROFILE, the test's home.
 # What this system's awk does with a CRLF line, with and without BINMODE (Git Bash's gawk drops the \r without it).

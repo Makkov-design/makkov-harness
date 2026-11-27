@@ -1,6 +1,6 @@
 name: release
 
-# Publishes the npm package `makkov-harness` (the Node installer, bin/makkov-harness.mjs, with the skills and the
+# Publishes the npm package `makkov-harness` (the Node installer, cli/makkov-harness.mjs, with the skills and the
 # routing map). Runs only when the owner starts it by hand (Actions → release → Run workflow) or pushes a version
 # tag (v0.6.0); never on pull requests or other pushes.
 #

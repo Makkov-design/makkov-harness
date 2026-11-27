@@ -2,7 +2,9 @@
 // Read-only apart from git reads of the base commit (CHECK_BASE_SHA; see baseCommit).
 // 1. plugin and marketplace manifests are valid JSON, every pinned companion has a full commit sha, and the
 //    plugin's version is the same in plugin.json, its marketplace entry and the newest CHANGELOG.md entry
-//    (and, where this clone has tags, a warning for a CHANGELOG.md link to a tag that does not exist yet)
+//    (and, where this clone has tags, a warning for a CHANGELOG.md link to a tag that does not exist yet), and
+//    claude.ai's Sync would take every plugin: no top-level bin/ in a plugin root here, only the source types and
+//    hosts it accepts (claude-ai.mjs)
 // 2. the SessionStart hook prints valid JSON under 10,000 characters of context
 // 3. every skill folder has a SKILL.md whose name matches the folder and whose description (one line or several) fits
 //    the spec
@@ -29,6 +31,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { sameCommit, namedCommitErrors, sitePinErrors, siteVendoredErrors } from "./pins.mjs";
+import { claudeAiErrors, binOnDisk } from "./claude-ai.mjs";
 
 let failed = 0;
 const fail = (m) => { failed++; console.log(`::error::${m}`); };
@@ -78,6 +81,14 @@ try {
   else if (top !== plugin.version) { bad++; fail(`CHANGELOG.md starts at ${top}, plugin.json says ${plugin.version}`); }
   if (!bad) ok(`version ${plugin.version} in plugin.json, marketplace.json and CHANGELOG.md`);
 } catch {}
+// claude.ai's Sync skips a plugin it cannot take and keeps the version it had (0.6.0 and 0.6.1 were skipped for
+// bin/ at the repository root, so plugin users stayed on 0.5.0). Catch that here, before a release.
+try {
+  const market = JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json", "utf8"));
+  const errs = claudeAiErrors(market, binOnDisk(process.cwd()));
+  for (const e of errs) fail(`claude.ai sync: ${e}`);
+  if (!errs.length) ok(`claude.ai sync: ${plural(market.plugins.length, "plugin")} with sources it accepts, no top-level bin/ in a plugin root here`);
+} catch (e) { fail(`claude.ai sync check: ${e.message}`); }
 // The version links at the foot of CHANGELOG.md point at tags, which exist only once the release is tagged. CI clones
 // carry no tags, so this speaks only where tags were fetched (a local clone) and never fails the run.
 try {

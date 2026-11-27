@@ -1,6 +1,6 @@
 # Releasing the npm package
 
-The npm package `makkov-harness` is the Node installer (`bin/makkov-harness.mjs`, `install/node/`) with the
+The npm package `makkov-harness` is the Node installer (`cli/makkov-harness.mjs`, `install/node/`) with the
 skills and the routing map. Its version is the plugin's: `package.json`, `.claude-plugin/plugin.json` and the
 plugin's entry in `.claude-plugin/marketplace.json` change together at release, with the CHANGELOG heading. Only
 the owner publishes it.
@@ -100,9 +100,14 @@ The npm steps above are one part. For every version, once the last pull request 
 
 1. The tag `v<version>` on that merge commit on `main` (step 3 above; the CHANGELOG links compare tags). Then create
    a GitHub Release from that tag, with the version's CHANGELOG section as its text.
-2. Claude users get the new plugin version only after a Sync: claude.ai, Customize, Plugins, Manage marketplaces,
-   `makkov-harness`, ⋯, Sync, then quit and reopen the desktop app (README.md, "Getting updates"). Do it once on
-   your own account and check that the plugin shows the new version.
+2. Sync the marketplace on claude.ai and confirm the plugin is synced, not Skipped, at the tagged commit.
+   Claude users get the new plugin version only after a Sync: claude.ai, Customize, Plugins, Manage marketplaces,
+   `makkov-harness`, ⋯, Sync, then quit and reopen the desktop app (README.md, "Getting updates"). Do it on your
+   own account. Sync reads the default branch, so run it when `main` is at the tagged commit. Check that the
+   `makkov-harness` plugin shows the new version and is not marked Skipped; a Skipped plugin keeps the version it
+   had and says why (0.6.0 and 0.6.1 were skipped for a top-level `bin/`, so plugin users stayed on 0.5.0).
+   `check.mjs` catches the causes the documentation names (claude-ai.mjs), not every one.
+   **A release is not done until this passes.** If it is Skipped, fix the cause in a new patch release.
 3. A new companion version, Frame Lens included, gets its own pull request after its tag exists upstream: the
    `third-party-install-guard` review (Frame Lens is the author's own project and is recorded as "own"), then `sha`
    and `ref` in `.claude-plugin/marketplace.json` and its rows in `SECURITY.md` and `docs/security-data.js`

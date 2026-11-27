@@ -38,7 +38,7 @@ There are three installers with the same behaviour. Use the first one that works
 npx makkov-harness install --agent <agent> [--project <path>] [--dry-run] [--scope design]
 ```
 
-If `npx` asks to install the package, that is the download just named; answer yes only after the user agreed. In a folder that is itself a clone of this repository, `npx makkov-harness` does not find the command: run `node bin/makkov-harness.mjs install …` there instead.
+If `npx` asks to install the package, that is the download just named; answer yes only after the user agreed. In a folder that is itself a clone of this repository, `npx makkov-harness` does not find the command: run `node cli/makkov-harness.mjs install …` there instead.
 
 **B. Without Node**, get a local copy first. If this repository is not on disk yet, clone it to a stable place (not a temp folder), for example `makkov-harness` in the home folder.
 
@@ -56,7 +56,7 @@ git clone --depth 1 https://github.com/Makkov-design/makkov-harness.git "$HOME\m
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\install.ps1" -Agent <agent> [-Project <path>] [-DryRun] [-Scope design]
 ```
 
-**C. With Node and a copy** (for example when the user already has the clone): `node ~/makkov-harness/bin/makkov-harness.mjs install --agent <agent> [--project <path>] [--dry-run] [--scope design]` (Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" install …`). It is the same installer as A.
+**C. With Node and a copy** (for example when the user already has the clone): `node ~/makkov-harness/cli/makkov-harness.mjs install --agent <agent> [--project <path>] [--dry-run] [--scope design]` (Windows: `node "$HOME\makkov-harness\cli\makkov-harness.mjs" install …`). It is the same installer as A.
 
 The three (Node, bash, PowerShell) read and write the same manifest, so an install made with one can be updated or removed with another.
 
@@ -88,7 +88,7 @@ What it does, per tool (from each tool's documentation, checked 2026-11-04):
 
 ## Step 4. Check and report
 
-1. List the skill folders now present in the target folder. With Node, `npx makkov-harness doctor [--project <path>]` (or `node ~/makkov-harness/bin/makkov-harness.mjs doctor …` from a copy; Windows: `node "$HOME\makkov-harness\bin\makkov-harness.mjs" doctor …`) reports what is installed where (add `--json` for a machine-readable form); it changes nothing, and exits with 1 when something needs attention and 3 when it could not read a folder or finish.
+1. List the skill folders now present in the target folder. With Node, `npx makkov-harness doctor [--project <path>]` (or `node ~/makkov-harness/cli/makkov-harness.mjs doctor …` from a copy; Windows: `node "$HOME\makkov-harness\cli\makkov-harness.mjs" doctor …`) reports what is installed where (add `--json` for a machine-readable form); it changes nothing, and exits with 1 when something needs attention and 3 when it could not read a folder or finish.
 2. Show the marked block in the instructions file (between `<!-- makkov-harness:start -->` and `<!-- makkov-harness:end -->`).
 3. Tell the user in 3-4 lines: what was installed and where, that the tool may need a restart, and that `harness-onboarding` will personalize it ("run the harness-onboarding skill"). If they design for the web, mention they can now say "score localhost:3000" (or any URL) for a Design Score.
 4. Mention companion plugins from README.md that exist for their tool, without installing them.
@@ -111,8 +111,8 @@ Remove: run the uninstaller with the same agent and project path you installed w
 
 ```
 npx makkov-harness uninstall --agent <agent> [--project <path>] [--dry-run]
-node ~/makkov-harness/bin/makkov-harness.mjs uninstall --agent <agent> [--project <path>] [--dry-run]
-node "$HOME\makkov-harness\bin\makkov-harness.mjs" uninstall --agent <agent> [--project <path>] [--dry-run]
+node ~/makkov-harness/cli/makkov-harness.mjs uninstall --agent <agent> [--project <path>] [--dry-run]
+node "$HOME\makkov-harness\cli\makkov-harness.mjs" uninstall --agent <agent> [--project <path>] [--dry-run]
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\makkov-harness\install\uninstall.ps1" -Agent <agent> [-Project <path>] [-DryRun]
 bash ~/makkov-harness/install/uninstall.sh <agent> [project-path] [--dry-run]
 ```

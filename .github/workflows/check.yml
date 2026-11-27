@@ -91,7 +91,7 @@ jobs:
         shell: pwsh
         run: ./install/test/test-install.ps1
 
-  # The Node installer (bin/makkov-harness.mjs, install/node/), on every Node version package.json's engines allow,
+  # The Node installer (cli/makkov-harness.mjs, install/node/), on every Node version package.json's engines allow,
   # on Linux, macOS and Windows. The same scenario suites drive it through install/test/node/ (the shell installers'
   # command line), and the sequence tests mix it with install.sh and install.ps1 on the same folders: after the last
   # uninstall each folder must be byte for byte as it was.
@@ -136,7 +136,7 @@ jobs:
           pk="$RUNNER_TEMP/pack" && mkdir -p "$pk"
           npm pack --ignore-scripts --pack-destination "$pk"
           tar -xzf "$pk"/makkov-harness-*.tgz -C "$pk"
-          MAKKOV_NODE_BIN="$pk/package/bin/makkov-harness.mjs" bash install/test/test-sequences.sh 8 "$(( $(date +%j | sed 's/^0*//') * 100 + ${{ strategy.job-index }} ))"
+          MAKKOV_NODE_BIN="$pk/package/cli/makkov-harness.mjs" bash install/test/test-sequences.sh 8 "$(( $(date +%j | sed 's/^0*//') * 100 + ${{ strategy.job-index }} ))"
         env:
           MAKKOV_IMPL: mixed
       - name: the PowerShell scenarios and sequences, run by the Node installer (Windows PowerShell 5.1)
